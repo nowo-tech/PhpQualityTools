@@ -1,6 +1,6 @@
 # PHP Quality Tools
 
-[![CI](https://github.com/nowo-tech/php-quality-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/nowo-tech/php-quality-tools/actions/workflows/ci.yml)
+[![CI](https://github.com/nowo-tech/PhpQualityTools/actions/workflows/ci.yml/badge.svg)](https://github.com/nowo-tech/PhpQualityTools/actions/workflows/ci.yml)
 [![Latest Stable Version](https://poser.pugx.org/nowo-tech/php-quality-tools/v)](https://packagist.org/packages/nowo-tech/php-quality-tools)
 [![License](https://poser.pugx.org/nowo-tech/php-quality-tools/license)](https://packagist.org/packages/nowo-tech/php-quality-tools)
 [![PHP Version Require](https://poser.pugx.org/nowo-tech/php-quality-tools/require/php)](https://packagist.org/packages/nowo-tech/php-quality-tools)

@@ -15,10 +15,10 @@
         "php",
         "psr-12"
     ],
-    "homepage": "https://github.com/nowo-tech/php-quality-tools",
+    "homepage": "https://github.com/nowo-tech/PhpQualityTools",
     "support": {
-        "issues": "https://github.com/nowo-tech/php-quality-tools/issues",
-        "source": "https://github.com/nowo-tech/php-quality-tools"
+        "issues": "https://github.com/nowo-tech/PhpQualityTools/issues",
+        "source": "https://github.com/nowo-tech/PhpQualityTools"
     },
     "authors": [
         {
