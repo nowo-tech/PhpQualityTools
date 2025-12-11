@@ -8,8 +8,7 @@ use Composer\Composer;
 use Composer\EventDispatcher\EventSubscriberInterface;
 use Composer\IO\IOInterface;
 use Composer\Plugin\PluginInterface;
-use Composer\Script\Event;
-use Composer\Script\ScriptEvents;
+use Composer\Script\{Event, ScriptEvents};
 
 /**
  * Composer plugin that installs PHP quality tool configurations.
@@ -18,6 +17,7 @@ use Composer\Script\ScriptEvents;
  * Optionally installs suggested dependencies (Rector, PHP-CS-Fixer, etc.)
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.com>
+ *
  * @see    https://github.com/HecFranco
  */
 class Plugin implements PluginInterface, EventSubscriberInterface
@@ -34,13 +34,13 @@ class Plugin implements PluginInterface, EventSubscriberInterface
      */
     private const FRAMEWORK_PACKAGES = [
         'symfony/framework-bundle' => 'symfony',
-        'symfony/symfony' => 'symfony',
-        'laravel/framework' => 'laravel',
-        'yiisoft/yii2' => 'yii',
-        'cakephp/cakephp' => 'cakephp',
-        'laminas/laminas-mvc' => 'laminas',
-        'codeigniter4/framework' => 'codeigniter',
-        'slim/slim' => 'slim',
+        'symfony/symfony'          => 'symfony',
+        'laravel/framework'        => 'laravel',
+        'yiisoft/yii2'             => 'yii',
+        'cakephp/cakephp'          => 'cakephp',
+        'laminas/laminas-mvc'      => 'laminas',
+        'codeigniter4/framework'   => 'codeigniter',
+        'slim/slim'                => 'slim',
     ];
 
     /**
@@ -48,42 +48,42 @@ class Plugin implements PluginInterface, EventSubscriberInterface
      */
     private const SUGGESTED_PACKAGES = [
         'generic' => [
-            'rector/rector' => 'Rector for automated code refactoring',
-            'friendsofphp/php-cs-fixer' => 'PHP-CS-Fixer for code style fixing',
+            'rector/rector'                => 'Rector for automated code refactoring',
+            'friendsofphp/php-cs-fixer'    => 'PHP-CS-Fixer for code style fixing',
             'vincentlanglet/twig-cs-fixer' => 'Twig-CS-Fixer for Twig template style fixing',
         ],
         'symfony' => [
-            'rector/rector' => 'Rector for automated code refactoring',
-            'rector/rector-symfony' => 'Rector rules for Symfony',
-            'rector/rector-doctrine' => 'Rector rules for Doctrine',
-            'rector/rector-phpunit' => 'Rector rules for PHPUnit',
-            'friendsofphp/php-cs-fixer' => 'PHP-CS-Fixer for code style fixing',
+            'rector/rector'                => 'Rector for automated code refactoring',
+            'rector/rector-symfony'        => 'Rector rules for Symfony',
+            'rector/rector-doctrine'       => 'Rector rules for Doctrine',
+            'rector/rector-phpunit'        => 'Rector rules for PHPUnit',
+            'friendsofphp/php-cs-fixer'    => 'PHP-CS-Fixer for code style fixing',
             'vincentlanglet/twig-cs-fixer' => 'Twig-CS-Fixer for Twig template style fixing',
         ],
         'laravel' => [
-            'rector/rector' => 'Rector for automated code refactoring',
+            'rector/rector'             => 'Rector for automated code refactoring',
             'driftingly/rector-laravel' => 'Rector rules for Laravel',
             'friendsofphp/php-cs-fixer' => 'PHP-CS-Fixer for code style fixing',
-            'shufo/blade-formatter' => 'Blade Formatter for Blade template formatting (npm package)',
+            'shufo/blade-formatter'     => 'Blade Formatter for Blade template formatting (npm package)',
         ],
         'yii' => [
-            'rector/rector' => 'Rector for automated code refactoring',
+            'rector/rector'             => 'Rector for automated code refactoring',
             'friendsofphp/php-cs-fixer' => 'PHP-CS-Fixer for code style fixing',
         ],
         'cakephp' => [
-            'rector/rector' => 'Rector for automated code refactoring',
+            'rector/rector'             => 'Rector for automated code refactoring',
             'friendsofphp/php-cs-fixer' => 'PHP-CS-Fixer for code style fixing',
         ],
         'laminas' => [
-            'rector/rector' => 'Rector for automated code refactoring',
+            'rector/rector'             => 'Rector for automated code refactoring',
             'friendsofphp/php-cs-fixer' => 'PHP-CS-Fixer for code style fixing',
         ],
         'codeigniter' => [
-            'rector/rector' => 'Rector for automated code refactoring',
+            'rector/rector'             => 'Rector for automated code refactoring',
             'friendsofphp/php-cs-fixer' => 'PHP-CS-Fixer for code style fixing',
         ],
         'slim' => [
-            'rector/rector' => 'Rector for automated code refactoring',
+            'rector/rector'             => 'Rector for automated code refactoring',
             'friendsofphp/php-cs-fixer' => 'PHP-CS-Fixer for code style fixing',
         ],
     ];
@@ -97,7 +97,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     public function activate(Composer $composer, IOInterface $io): void
     {
         $this->composer = $composer;
-        $this->io = $io;
+        $this->io       = $io;
     }
 
     /**
@@ -130,7 +130,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     {
         return [
             ScriptEvents::POST_INSTALL_CMD => 'onPostInstall',
-            ScriptEvents::POST_UPDATE_CMD => 'onPostUpdate',
+            ScriptEvents::POST_UPDATE_CMD  => 'onPostUpdate',
         ];
     }
 
@@ -153,8 +153,10 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     public function onPostUpdate(Event $event): void
     {
         $this->installFiles($event->getIO(), isUpdate: true);
+
         // Only check dependencies on update if explicitly requested
-        if ($this->io->isInteractive()) {
+        if ($this->io->isInteractive())
+        {
             $this->checkAndInstallDependencies($event->getIO(), isUpdate: true);
         }
     }
@@ -166,22 +168,25 @@ class Plugin implements PluginInterface, EventSubscriberInterface
      */
     private function detectFramework(): string
     {
-        $vendorDir = $this->composer->getConfig()->get('vendor-dir');
-        $projectDir = dirname($vendorDir);
+        $vendorDir        = $this->composer->getConfig()->get('vendor-dir');
+        $projectDir       = dirname($vendorDir);
         $composerJsonPath = $projectDir . '/composer.json';
 
-        if (!file_exists($composerJsonPath)) {
+        if (!file_exists($composerJsonPath))
+        {
             return 'generic';
         }
 
         $composerJson = json_decode(file_get_contents($composerJsonPath), true);
-        $require = array_merge(
-            $composerJson['require'] ?? [],
-            $composerJson['require-dev'] ?? []
+        $require      = array_merge(
+          $composerJson['require']     ?? [],
+          $composerJson['require-dev'] ?? []
         );
 
-        foreach (self::FRAMEWORK_PACKAGES as $package => $framework) {
-            if (isset($require[$package])) {
+        foreach (self::FRAMEWORK_PACKAGES as $package => $framework)
+        {
+            if (isset($require[$package]))
+            {
                 return $framework;
             }
         }
@@ -199,9 +204,53 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     private function isPackageInstalled(string $packageName): bool
     {
         $repositoryManager = $this->composer->getRepositoryManager();
-        $localRepository = $this->composer->getRepositoryManager()->getLocalRepository();
+        $localRepository   = $this->composer->getRepositoryManager()->getLocalRepository();
 
         return $localRepository->findPackage($packageName, '*') !== null;
+    }
+
+    /**
+     * Check if Rector 2.x is installed (which has integrated rules and conflicts with separate packages).
+     *
+     * @return bool True if Rector 2.x is installed
+     */
+    private function isRector2Installed(): bool
+    {
+        $rectorPackage = $this->composer->getRepositoryManager()->getLocalRepository()->findPackage('rector/rector', '*');
+
+        if ($rectorPackage === null)
+        {
+            return false;
+        }
+
+        $rectorVersion = $rectorPackage->getPrettyVersion();
+
+        // Check if version is 2.x
+        return preg_match('/^2\./', $rectorVersion) === 1;
+    }
+
+    /**
+     * Check if a package should be skipped based on Rector version.
+     *
+     * @param string $packageName The package name
+     *
+     * @return bool True if package should be skipped
+     */
+    private function shouldSkipPackage(string $packageName): bool
+    {
+        // Rector 2.x has integrated rules and conflicts with these packages
+        $rectorRelatedPackages = [
+            'rector/rector-symfony',
+            'rector/rector-doctrine',
+            'rector/rector-phpunit',
+        ];
+
+        if (in_array($packageName, $rectorRelatedPackages, true))
+        {
+            return $this->isRector2Installed();
+        }
+
+        return false;
     }
 
     /**
@@ -212,39 +261,101 @@ class Plugin implements PluginInterface, EventSubscriberInterface
      */
     private function checkAndInstallDependencies(IOInterface $io, bool $isUpdate = false): void
     {
-        $framework = $this->detectFramework();
+        $framework         = $this->detectFramework();
         $suggestedPackages = self::SUGGESTED_PACKAGES[$framework] ?? self::SUGGESTED_PACKAGES['generic'];
 
         $missingPackages = [];
-        foreach ($suggestedPackages as $package => $description) {
-            if (!$this->isPackageInstalled($package)) {
+
+        foreach ($suggestedPackages as $package => $description)
+        {
+            // Skip packages that are not compatible with installed Rector version
+            if ($this->shouldSkipPackage($package))
+            {
+                continue;
+            }
+
+            if (!$this->isPackageInstalled($package))
+            {
                 $missingPackages[$package] = $description;
             }
         }
 
-        if (empty($missingPackages)) {
+        if (empty($missingPackages))
+        {
             return;
         }
 
         $io->write('');
         $io->write('<comment>php-quality-tools: Missing suggested dependencies detected:</comment>');
-        foreach ($missingPackages as $package => $description) {
+
+        foreach ($missingPackages as $package => $description)
+        {
             $io->write(sprintf('  - <info>%s</info>: %s', $package, $description));
         }
 
-        if (!$io->isInteractive()) {
+        if (!$io->isInteractive())
+        {
             $io->write('<comment>php-quality-tools: Run in interactive mode to install dependencies automatically</comment>');
             $io->write('<comment>php-quality-tools: Or install manually: composer require --dev ' . implode(' ', array_keys($missingPackages)) . '</comment>');
+
             return;
         }
 
         $io->write('');
-        if ($io->askConfirmation('<question>Would you like to install these dependencies now? (yes/no) [yes]: </question>', true)) {
+
+        if ($io->askConfirmation('<question>Would you like to install these dependencies now? (yes/no) [yes]: </question>', true))
+        {
             $this->installDependencies($io, array_keys($missingPackages));
-        } else {
+        }
+        else
+        {
             $io->write('<comment>php-quality-tools: Skipped. Install manually with:</comment>');
             $io->write('<comment>  composer require --dev ' . implode(' ', array_keys($missingPackages)) . '</comment>');
         }
+    }
+
+    /**
+     * Get compatible version constraint for Rector packages based on installed Rector version.
+     *
+     * @param string $packageName The package name
+     *
+     * @return string The version constraint
+     */
+    private function getCompatibleVersion(string $packageName): string
+    {
+        // Rector 2.x has integrated rules and conflicts with separate packages
+        if ($this->isRector2Installed())
+        {
+            // These packages should not be installed with Rector 2.x
+            // Return wildcard but they should be filtered out before reaching here
+            return '*';
+        }
+
+        // Check if rector/rector is installed and get its version
+        $rectorPackage = $this->composer->getRepositoryManager()->getLocalRepository()->findPackage('rector/rector', '*');
+
+        if ($rectorPackage === null)
+        {
+            // If Rector is not installed, return wildcard (let Composer decide)
+            return '*';
+        }
+
+        $rectorVersion = $rectorPackage->getPrettyVersion();
+
+        // Extract major version from Rector version (e.g., "1.2.14" -> "1")
+        if (preg_match('/^(\d+)\./', $rectorVersion, $matches))
+        {
+            $majorVersion = (int) $matches[1];
+
+            // For Rector 1.x, use ^1.0 constraint
+            if ($majorVersion === 1)
+            {
+                return '^1.0';
+            }
+        }
+
+        // Fallback: return wildcard
+        return '*';
     }
 
     /**
@@ -255,33 +366,53 @@ class Plugin implements PluginInterface, EventSubscriberInterface
      */
     private function installDependencies(IOInterface $io, array $packages): void
     {
-        $vendorDir = $this->composer->getConfig()->get('vendor-dir');
-        $projectDir = dirname($vendorDir);
+        $vendorDir   = $this->composer->getConfig()->get('vendor-dir');
+        $projectDir  = dirname($vendorDir);
         $composerBin = $this->composer->getConfig()->get('bin-dir') . '/composer';
 
         // Fallback to system composer if not found in vendor
-        if (!file_exists($composerBin)) {
+        if (!file_exists($composerBin))
+        {
             $composerBin = 'composer';
         }
 
         $io->write('<info>php-quality-tools: Installing dependencies...</info>');
 
+        // Add version constraints for Rector packages to ensure compatibility
+        $packagesWithVersions = [];
+
+        foreach ($packages as $package)
+        {
+            if (str_starts_with($package, 'rector/') && $package !== 'rector/rector')
+            {
+                $version                = $this->getCompatibleVersion($package);
+                $packagesWithVersions[] = $package . ':' . $version;
+            }
+            else
+            {
+                $packagesWithVersions[] = $package;
+            }
+        }
+
         $command = sprintf(
-            '%s require --dev --no-interaction %s',
-            escapeshellarg($composerBin),
-            implode(' ', array_map('escapeshellarg', $packages))
+          '%s require --dev --no-interaction --with-all-dependencies %s',
+          escapeshellarg($composerBin),
+          implode(' ', array_map('escapeshellarg', $packagesWithVersions))
         );
 
-        $output = [];
+        $output     = [];
         $returnCode = 0;
         exec($command . ' 2>&1', $output, $returnCode);
 
-        if ($returnCode === 0) {
+        if ($returnCode === 0)
+        {
             $io->write('<info>php-quality-tools: Dependencies installed successfully!</info>');
-        } else {
+        }
+        else
+        {
             $io->writeError('<error>php-quality-tools: Failed to install dependencies</error>');
             $io->writeError('<error>php-quality-tools: Output: ' . implode("\n", $output) . '</error>');
-            $io->writeError('<error>php-quality-tools: Please install manually: composer require --dev ' . implode(' ', $packages) . '</error>');
+            $io->writeError('<error>php-quality-tools: Please install manually: composer require --dev --with-all-dependencies ' . implode(' ', $packagesWithVersions) . '</error>');
         }
     }
 
@@ -293,7 +424,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
      */
     private function installFiles(IOInterface $io, bool $isUpdate = false): void
     {
-        $vendorDir = $this->composer->getConfig()->get('vendor-dir');
+        $vendorDir  = $this->composer->getConfig()->get('vendor-dir');
         $projectDir = dirname($vendorDir);
         $packageDir = __DIR__ . '/..';
 
@@ -306,31 +437,36 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         $files = $this->getFilesToInstall($framework);
 
         $installedCount = 0;
-        $skippedCount = 0;
+        $skippedCount   = 0;
 
-        foreach ($files as $source => $dest) {
+        foreach ($files as $source => $dest)
+        {
             $sourcePath = $packageDir . '/' . $source;
-            $destPath = $projectDir . '/' . $dest;
+            $destPath   = $projectDir . '/' . $dest;
 
-            if (!file_exists($sourcePath)) {
+            if (!file_exists($sourcePath))
+            {
                 continue;
             }
 
-            if (file_exists($destPath)) {
-                $skippedCount++;
+            if (file_exists($destPath))
+            {
+                ++$skippedCount;
                 continue;
             }
 
             $io->write(sprintf('<info>php-quality-tools: Installing %s</info>', $dest));
             copy($sourcePath, $destPath);
-            $installedCount++;
+            ++$installedCount;
         }
 
-        if ($installedCount > 0) {
+        if ($installedCount > 0)
+        {
             $io->write(sprintf('<info>php-quality-tools: Installed %d file(s) for %s</info>', $installedCount, $framework));
         }
 
-        if ($isUpdate && $skippedCount > 0) {
+        if ($isUpdate && $skippedCount > 0)
+        {
             $io->write(sprintf('<comment>php-quality-tools: %d file(s) already exist (not overwritten)</comment>', $skippedCount));
         }
     }
@@ -347,58 +483,69 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         $files = [];
 
         // Rector
-        $rectorSource = "config/{$framework}/rector.php";
+        $rectorSource       = "config/{$framework}/rector.php";
         $rectorCustomSource = "config/{$framework}/rector.custom.php";
 
         // Fallback to generic if framework-specific doesn't exist
         $packageDir = __DIR__ . '/..';
-        if (!file_exists($packageDir . '/' . $rectorSource)) {
-            $rectorSource = 'config/generic/rector.php';
+
+        if (!file_exists($packageDir . '/' . $rectorSource))
+        {
+            $rectorSource       = 'config/generic/rector.php';
             $rectorCustomSource = 'config/generic/rector.custom.php';
         }
 
-        $files[$rectorSource] = 'rector.php';
+        $files[$rectorSource]       = 'rector.php';
         $files[$rectorCustomSource] = 'rector.custom.php';
 
         // PHP-CS-Fixer
-        $csfixerSource = "config/{$framework}/.php-cs-fixer.dist.php";
+        $csfixerSource       = "config/{$framework}/.php-cs-fixer.dist.php";
         $csfixerCustomSource = "config/{$framework}/.php-cs-fixer.custom.php";
 
-        if (!file_exists($packageDir . '/' . $csfixerSource)) {
-            $csfixerSource = 'config/generic/.php-cs-fixer.dist.php';
+        if (!file_exists($packageDir . '/' . $csfixerSource))
+        {
+            $csfixerSource       = 'config/generic/.php-cs-fixer.dist.php';
             $csfixerCustomSource = 'config/generic/.php-cs-fixer.custom.php';
         }
 
-        $files[$csfixerSource] = '.php-cs-fixer.dist.php';
+        $files[$csfixerSource]       = '.php-cs-fixer.dist.php';
         $files[$csfixerCustomSource] = '.php-cs-fixer.custom.php';
 
         // Twig-CS-Fixer (only for frameworks that use Twig)
-        if (in_array($framework, ['symfony', 'generic'])) {
-            $twigSource = "config/{$framework}/.twig-cs-fixer.php";
+        if (in_array($framework, ['symfony', 'generic'], true))
+        {
+            $twigSource       = "config/{$framework}/.twig-cs-fixer.php";
             $twigCustomSource = "config/{$framework}/.twig-cs-fixer.custom.php";
 
-            if (!file_exists($packageDir . '/' . $twigSource)) {
-                $twigSource = 'config/generic/.twig-cs-fixer.php';
+            if (!file_exists($packageDir . '/' . $twigSource))
+            {
+                $twigSource       = 'config/generic/.twig-cs-fixer.php';
                 $twigCustomSource = 'config/generic/.twig-cs-fixer.custom.php';
             }
 
-            $files[$twigSource] = '.twig-cs-fixer.php';
+            $files[$twigSource]       = '.twig-cs-fixer.php';
             $files[$twigCustomSource] = '.twig-cs-fixer.custom.php';
         }
 
         // Blade Formatter (only for Laravel)
-        if ($framework === 'laravel') {
-            $bladeSource = "config/{$framework}/.blade-formatter.json";
+        if ($framework === 'laravel')
+        {
+            $bladeSource       = "config/{$framework}/.blade-formatter.json";
             $bladeCustomSource = "config/{$framework}/.blade-formatter.custom.json";
             $bladeIgnoreSource = "config/{$framework}/.blade-formatter.ignore";
 
-            if (file_exists($packageDir . '/' . $bladeSource)) {
+            if (file_exists($packageDir . '/' . $bladeSource))
+            {
                 $files[$bladeSource] = '.blade-formatter.json';
             }
-            if (file_exists($packageDir . '/' . $bladeCustomSource)) {
+
+            if (file_exists($packageDir . '/' . $bladeCustomSource))
+            {
                 $files[$bladeCustomSource] = '.blade-formatter.custom.json';
             }
-            if (file_exists($packageDir . '/' . $bladeIgnoreSource)) {
+
+            if (file_exists($packageDir . '/' . $bladeIgnoreSource))
+            {
                 $files[$bladeIgnoreSource] = '.blade-formatter.ignore';
             }
         }
