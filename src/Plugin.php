@@ -395,9 +395,9 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         }
 
         $command = sprintf(
-          '%s require --dev --no-interaction --with-all-dependencies %s',
-          escapeshellarg($composerBin),
-          implode(' ', array_map('escapeshellarg', $packagesWithVersions))
+            '%s require --dev --no-interaction --with-all-dependencies %s',
+            escapeshellarg($composerBin),
+            implode(' ', array_map('escapeshellarg', $packagesWithVersions))
         );
 
         $output     = [];
