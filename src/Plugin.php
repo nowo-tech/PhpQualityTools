@@ -248,6 +248,44 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     }
 
     /**
+     * Get compatible version constraint for Rector packages based on installed Rector version.
+     *
+     * @param string $packageName The package name
+     *
+     * @return string The version constraint
+     */
+    private function getCompatibleVersion(string $packageName): string
+    {
+        // Check if rector/rector is installed and get its version
+        $rectorPackage = $this->composer->getRepositoryManager()->getLocalRepository()->findPackage('rector/rector', '*');
+        
+        if ($rectorPackage === null) {
+            // If Rector is not installed, return wildcard (let Composer decide)
+            return '*';
+        }
+
+        $rectorVersion = $rectorPackage->getPrettyVersion();
+        
+        // Extract major version from Rector version (e.g., "2.2.14" -> "2")
+        if (preg_match('/^(\d+)\./', $rectorVersion, $matches)) {
+            $majorVersion = (int) $matches[1];
+            
+            // For Rector 2.x, use ^2.1 constraint for related packages
+            if ($majorVersion >= 2) {
+                return '^2.1';
+            }
+            
+            // For Rector 1.x, use ^1.0 constraint
+            if ($majorVersion === 1) {
+                return '^1.0';
+            }
+        }
+        
+        // Fallback: return wildcard
+        return '*';
+    }
+
+    /**
      * Install dependencies using Composer.
      *
      * @param IOInterface $io       The IO interface
@@ -266,10 +304,21 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
         $io->write('<info>php-quality-tools: Installing dependencies...</info>');
 
+        // Add version constraints for Rector packages to ensure compatibility
+        $packagesWithVersions = [];
+        foreach ($packages as $package) {
+            if (strpos($package, 'rector/') === 0 && $package !== 'rector/rector') {
+                $version = $this->getCompatibleVersion($package);
+                $packagesWithVersions[] = $package . ':' . $version;
+            } else {
+                $packagesWithVersions[] = $package;
+            }
+        }
+
         $command = sprintf(
-            '%s require --dev --no-interaction %s',
+            '%s require --dev --no-interaction --with-all-dependencies %s',
             escapeshellarg($composerBin),
-            implode(' ', array_map('escapeshellarg', $packages))
+            implode(' ', array_map('escapeshellarg', $packagesWithVersions))
         );
 
         $output = [];
@@ -281,7 +330,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         } else {
             $io->writeError('<error>php-quality-tools: Failed to install dependencies</error>');
             $io->writeError('<error>php-quality-tools: Output: ' . implode("\n", $output) . '</error>');
-            $io->writeError('<error>php-quality-tools: Please install manually: composer require --dev ' . implode(' ', $packages) . '</error>');
+            $io->writeError('<error>php-quality-tools: Please install manually: composer require --dev --with-all-dependencies ' . implode(' ', $packagesWithVersions) . '</error>');
         }
     }
 

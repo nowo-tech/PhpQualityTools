@@ -35,11 +35,15 @@ $phpVersion = $custom['php_version'] ?? 'php84';
 $symfonyVersion = $custom['symfony_version'] ?? 74;
 $features = $custom['features'] ?? [];
 $indentSize = $custom['indent_size'] ?? 4;
+$attributesSets = $custom['attributes_sets'] ?? [];
+$fileExtensions = $custom['file_extensions'] ?? ['php'];
+$parallel = $custom['parallel'] ?? [];
+$deadCodeLevel = $custom['dead_code_level'] ?? null;
 
 // Build Symfony set name
 $symfonySetName = 'SYMFONY_' . $symfonyVersion;
 
-return RectorConfig::configure()
+$rectorConfig = RectorConfig::configure()
     // Paths
     ->withPaths($paths)
 
@@ -51,13 +55,13 @@ return RectorConfig::configure()
 
     // Parallel processing
     ->withParallel(
-        timeoutSeconds: 300,
-        maxNumberOfProcess: 8,
-        jobSize: 20
+        timeoutSeconds: $parallel['timeout_seconds'] ?? 300,
+        maxNumberOfProcess: $parallel['max_number_of_process'] ?? 8,
+        jobSize: $parallel['job_size'] ?? 20
     )
 
     // File extensions
-    ->withFileExtensions(['php'])
+    ->withFileExtensions($fileExtensions)
 
     // Import configuration
     ->withImportNames(
@@ -83,13 +87,13 @@ return RectorConfig::configure()
     ->withAttributesSets(
         symfony: true,
         doctrine: true,
-        mongoDb: false,
+        mongoDb: $attributesSets['mongoDb'] ?? false,
         gedmo: true,
         phpunit: true,
-        fosRest: false,
-        jms: false,
+        fosRest: $attributesSets['fosRest'] ?? false,
+        jms: $attributesSets['jms'] ?? false,
         sensiolabs: true,
-        behat: false
+        behat: $attributesSets['behat'] ?? false
     )
 
     // Prepared sets
@@ -102,6 +106,7 @@ return RectorConfig::configure()
         instanceOf: true,
         codeQuality: $features['code_quality'] ?? true,
         codingStyle: true,
+        strictBooleans: $features['strict_booleans'] ?? false,
         doctrineCodeQuality: $features['doctrine'] ?? true,
         phpunitCodeQuality: $features['phpunit'] ?? true,
         symfonyCodeQuality: true,
@@ -150,4 +155,11 @@ return RectorConfig::configure()
         // Doctrine sets
         DoctrineSetList::DOCTRINE_CODE_QUALITY,
     ]);
+
+// Dead code level (if specified)
+if ($deadCodeLevel !== null) {
+    $rectorConfig->withDeadCodeLevel(level: $deadCodeLevel);
+}
+
+return $rectorConfig;
 
