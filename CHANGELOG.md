@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2024-12-11
+
+### Compatibility
+
+- **PHP**: >= 8.1 (tested with 8.1, 8.2, 8.3)
+- **Symfony**: 6.0 - 7.4
+- **Laravel**: 9.0 - 11.0
+- **Composer**: >= 2.0
+
+### Added
+
+- **Blade Formatter support for Laravel**: Automatic configuration for Blade template formatting
+  - `.blade-formatter.json` - Base configuration
+  - `.blade-formatter.custom.json` - Customizable settings (never overwritten)
+  - `.blade-formatter.ignore` - Files and directories to ignore
+  - Integration with `shufo/blade-formatter` npm package
+  - Composer scripts for Blade formatting (`blade:format`, `blade:check`)
+  - Makefile commands for Blade formatting
+- Updated framework detection table with Blade Formatter column
+- Enhanced documentation with Blade Formatter usage examples
+
+### Changed
+
+- Laravel projects now include Blade Formatter configuration automatically
+- Updated suggested dependencies for Laravel to include `shufo/blade-formatter`
+- Improved template engine support documentation
+
 ## [1.0.0] - 2024-12-11
 
 ### Compatibility

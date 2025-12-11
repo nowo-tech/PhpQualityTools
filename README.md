@@ -9,27 +9,29 @@ Pre-configured quality tools for PHP projects. Includes ready-to-use configurati
 
 - **Rector** - Automated code refactoring
 - **PHP-CS-Fixer** - Code style fixing (PSR-12 + Symfony)
-- **Twig-CS-Fixer** - Twig template style fixing
+- **Twig-CS-Fixer** - Twig template style fixing (Symfony)
+- **Blade Formatter** - Blade template formatting (Laravel)
 
 ## Automatic Framework Detection
 
 The package **automatically detects** your framework and installs the appropriate configuration:
 
-| Framework | Detection | Rector | PHP-CS-Fixer | Twig-CS-Fixer |
-|-----------|-----------|--------|--------------|---------------|
-| **Symfony** | `symfony/framework-bundle` | ✅ Symfony-specific | ✅ | ✅ |
-| **Laravel** | `laravel/framework` | ✅ Laravel-specific | ✅ | ❌ |
-| **Yii** | `yiisoft/yii2` | ✅ Generic | ✅ | ❌ |
-| **CakePHP** | `cakephp/cakephp` | ✅ Generic | ✅ | ❌ |
-| **Laminas** | `laminas/laminas-mvc` | ✅ Generic | ✅ | ❌ |
-| **CodeIgniter** | `codeigniter4/framework` | ✅ Generic | ✅ | ❌ |
-| **Slim** | `slim/slim` | ✅ Generic | ✅ | ❌ |
-| **Other** | - | ✅ Generic | ✅ | ✅ |
+| Framework | Detection | Rector | PHP-CS-Fixer | Twig-CS-Fixer | Blade Formatter |
+|-----------|-----------|--------|--------------|---------------|-----------------|
+| **Symfony** | `symfony/framework-bundle` | ✅ Symfony-specific | ✅ | ✅ | ❌ |
+| **Laravel** | `laravel/framework` | ✅ Laravel-specific | ✅ | ❌ | ✅ |
+| **Yii** | `yiisoft/yii2` | ✅ Generic | ✅ | ❌ | ❌ |
+| **CakePHP** | `cakephp/cakephp` | ✅ Generic | ✅ | ❌ | ❌ |
+| **Laminas** | `laminas/laminas-mvc` | ✅ Generic | ✅ | ❌ | ❌ |
+| **CodeIgniter** | `codeigniter4/framework` | ✅ Generic | ✅ | ❌ | ❌ |
+| **Slim** | `slim/slim` | ✅ Generic | ✅ | ❌ | ❌ |
+| **Other** | - | ✅ Generic | ✅ | ✅ | ❌ |
 
 ## Compatibility
 
 | Version | PHP | Symfony | Laravel | Composer |
 |---------|-----|---------|---------|----------|
+| **1.1.0** | >= 8.1 | 6.0 - 7.4 | 9.0 - 11.0 | >= 2.0 |
 | **1.0.0** | >= 8.1 | 6.0 - 7.4 | 9.0 - 11.0 | >= 2.0 |
 
 ### PHP Versions
@@ -55,9 +57,10 @@ The package **automatically detects** your framework and installs the appropriat
 - ✅ **Automatic framework detection** during installation
 - ✅ **Automatic dependency installation** (Rector, PHP-CS-Fixer, etc.)
 - ✅ Framework-specific configurations (Symfony, Laravel)
+- ✅ **Template engine support** (Twig for Symfony, Blade for Laravel)
 - ✅ Customizable without losing base settings
 - ✅ Files are **NEVER overwritten** after first install
-- ✅ Separate `*.custom.php` files for project-specific settings
+- ✅ Separate `*.custom.php` and `*.custom.json` files for project-specific settings
 - ✅ PHP 8.1+ support
 - ✅ PSR-12 and Symfony coding standards
 
@@ -121,14 +124,17 @@ composer require --dev rector/rector friendsofphp/php-cs-fixer vincentlanglet/tw
 
 After installation, the following files are created in your project root:
 
-| File | Purpose | Overwritten on update? |
-|------|---------|------------------------|
-| `rector.php` | Rector main config | ❌ Never |
-| `rector.custom.php` | Your customizations | ❌ Never |
-| `.php-cs-fixer.dist.php` | PHP-CS-Fixer main config | ❌ Never |
-| `.php-cs-fixer.custom.php` | Your customizations | ❌ Never |
-| `.twig-cs-fixer.php` | Twig-CS-Fixer main config | ❌ Never |
-| `.twig-cs-fixer.custom.php` | Your customizations | ❌ Never |
+| File | Purpose | Overwritten on update? | Framework |
+|------|---------|------------------------|-----------|
+| `rector.php` | Rector main config | ❌ Never | All |
+| `rector.custom.php` | Your customizations | ❌ Never | All |
+| `.php-cs-fixer.dist.php` | PHP-CS-Fixer main config | ❌ Never | All |
+| `.php-cs-fixer.custom.php` | Your customizations | ❌ Never | All |
+| `.twig-cs-fixer.php` | Twig-CS-Fixer main config | ❌ Never | Symfony |
+| `.twig-cs-fixer.custom.php` | Your customizations | ❌ Never | Symfony |
+| `.blade-formatter.json` | Blade Formatter config | ❌ Never | Laravel |
+| `.blade-formatter.custom.json` | Your customizations | ❌ Never | Laravel |
+| `.blade-formatter.ignore` | Files to ignore | ❌ Never | Laravel |
 
 ## Quick Start
 
@@ -152,7 +158,7 @@ After installation, the following files are created in your project root:
 ./vendor/bin/php-cs-fixer fix
 ```
 
-### Twig-CS-Fixer
+### Twig-CS-Fixer (Symfony)
 
 ```bash
 # Check for issues
@@ -160,6 +166,19 @@ After installation, the following files are created in your project root:
 
 # Fix issues
 ./vendor/bin/twig-cs-fixer lint --fix templates/
+```
+
+### Blade Formatter (Laravel)
+
+```bash
+# Install Blade Formatter (npm package)
+npm install --save-dev blade-formatter
+
+# Format all Blade files
+npx blade-formatter --write "resources/views/**/*.blade.php"
+
+# Check formatting (dry-run)
+npx blade-formatter "resources/views/**/*.blade.php"
 ```
 
 ## Composer Scripts
@@ -175,7 +194,9 @@ Add these scripts to your `composer.json` for easier access:
     "rector:process": "rector process -c rector.php",
     "twig:fix": "twig-cs-fixer fix --config=.twig-cs-fixer.dist.php",
     "twig:lint": "twig-cs-fixer lint --config=.twig-cs-fixer.dist.php",
-    "twig:fix:check": "twig-cs-fixer lint --config=.twig-cs-fixer.dist.php --fix"
+    "twig:fix:check": "twig-cs-fixer lint --config=.twig-cs-fixer.dist.php --fix",
+    "blade:format": "npx blade-formatter --write \"resources/views/**/*.blade.php\"",
+    "blade:check": "npx blade-formatter \"resources/views/**/*.blade.php\""
   }
 }
 ```
@@ -191,10 +212,14 @@ composer fix:check    # Check code style (dry-run)
 composer rector           # Preview changes (dry-run)
 composer rector:process   # Apply changes
 
-# Twig-CS-Fixer
+# Twig-CS-Fixer (Symfony)
 composer twig:lint        # Check Twig templates
 composer twig:fix         # Fix Twig templates
 composer twig:fix:check   # Check and fix Twig templates
+
+# Blade Formatter (Laravel)
+composer blade:format     # Format Blade templates
+composer blade:check      # Check Blade formatting (dry-run)
 ```
 
 **Note**: The `PHP_CS_FIXER_IGNORE_ENV=1` environment variable ensures PHP-CS-Fixer uses the config file even if environment variables are set.
@@ -260,7 +285,7 @@ return [
 ];
 ```
 
-### Twig-CS-Fixer Customization
+### Twig-CS-Fixer Customization (Symfony)
 
 Edit `.twig-cs-fixer.custom.php`:
 
@@ -280,6 +305,30 @@ return [
         // Disable specific rules
     ],
 ];
+```
+
+### Blade Formatter Customization (Laravel)
+
+Edit `.blade-formatter.custom.json`:
+
+```json
+{
+  "indentSize": 4,
+  "wrapAttributes": "auto",
+  "wrapAttributesIndentSize": 4,
+  "endWithNewline": true,
+  "useTabs": false,
+  "sortTailwindcssClasses": true
+}
+```
+
+Or create/update `.blade-formatter.ignore` to exclude files:
+
+```
+node_modules/
+vendor/
+public/build/
+storage/framework/views/
 ```
 
 ## Required Dependencies
@@ -309,10 +358,14 @@ composer require --dev \
 #### Laravel Projects
 
 ```bash
+# PHP tools
 composer require --dev \
     rector/rector \
     driftingly/rector-laravel \
     friendsofphp/php-cs-fixer
+
+# Blade Formatter (npm package)
+npm install --save-dev blade-formatter
 ```
 
 #### Generic PHP Projects
@@ -347,13 +400,17 @@ rector:
 rector-fix:
 	./vendor/bin/rector process
 
-# Check Twig templates
+# Check Twig templates (Symfony)
 twig-lint:
 	./vendor/bin/twig-cs-fixer lint templates/
 
-# Fix Twig templates
+# Fix Twig templates (Symfony)
 twig-fix:
 	./vendor/bin/twig-cs-fixer lint --fix templates/
+
+# Format Blade templates (Laravel)
+blade-format:
+	npx blade-formatter --write "resources/views/**/*.blade.php"
 
 # Run all checks
 lint: cs rector twig-lint

@@ -64,6 +64,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             'rector/rector' => 'Rector for automated code refactoring',
             'driftingly/rector-laravel' => 'Rector rules for Laravel',
             'friendsofphp/php-cs-fixer' => 'PHP-CS-Fixer for code style fixing',
+            'shufo/blade-formatter' => 'Blade Formatter for Blade template formatting (npm package)',
         ],
         'yii' => [
             'rector/rector' => 'Rector for automated code refactoring',
@@ -383,6 +384,23 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
             $files[$twigSource] = '.twig-cs-fixer.php';
             $files[$twigCustomSource] = '.twig-cs-fixer.custom.php';
+        }
+
+        // Blade Formatter (only for Laravel)
+        if ($framework === 'laravel') {
+            $bladeSource = "config/{$framework}/.blade-formatter.json";
+            $bladeCustomSource = "config/{$framework}/.blade-formatter.custom.json";
+            $bladeIgnoreSource = "config/{$framework}/.blade-formatter.ignore";
+
+            if (file_exists($packageDir . '/' . $bladeSource)) {
+                $files[$bladeSource] = '.blade-formatter.json';
+            }
+            if (file_exists($packageDir . '/' . $bladeCustomSource)) {
+                $files[$bladeCustomSource] = '.blade-formatter.custom.json';
+            }
+            if (file_exists($packageDir . '/' . $bladeIgnoreSource)) {
+                $files[$bladeIgnoreSource] = '.blade-formatter.ignore';
+            }
         }
 
         return $files;

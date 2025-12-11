@@ -1,0 +1,20 @@
+# Blade Formatter ignore file
+# Files and directories to ignore when formatting Blade templates
+# This file is never overwritten by package updates
+
+# Dependencies
+node_modules/
+vendor/
+
+# Build directories
+public/build/
+storage/framework/views/
+
+# Cache
+bootstrap/cache/
+storage/framework/cache/
+
+# Compiled assets
+public/hot
+public/storage
+

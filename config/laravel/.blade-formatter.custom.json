@@ -1,0 +1,14 @@
+{
+  "_comment": "Custom Blade Formatter configuration",
+  "_comment2": "Override any settings from .blade-formatter.json here",
+  "_comment3": "This file is never overwritten by package updates",
+  "_comment4": "See: https://github.com/shufo/blade-formatter",
+  
+  "indentSize": 4,
+  "wrapAttributes": "auto",
+  "wrapAttributesIndentSize": 4,
+  "endWithNewline": true,
+  "useTabs": false,
+  "sortTailwindcssClasses": true
+}
+

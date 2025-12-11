@@ -1,0 +1,14 @@
+{
+  "indentSize": 4,
+  "wrapAttributes": "auto",
+  "wrapAttributesIndentSize": 4,
+  "endWithNewline": true,
+  "useTabs": false,
+  "sortTailwindcssClasses": true,
+  "tailwindcssConfigPath": null,
+  "tailwindcssPluginPath": null,
+  "experimental": {
+    "removeWhitespace": false
+  }
+}
+
