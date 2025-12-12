@@ -16,27 +16,26 @@
  * - composer require --dev driftingly/rector-laravel
  *
  * @see https://getrector.com/documentation
- * @package nowo-tech/php-quality-tools
  */
 
 declare(strict_types=1);
 
 use Rector\Config\RectorConfig;
-use Rector\Set\ValueObject\LevelSetList;
-use Rector\Set\ValueObject\SetList;
+use Rector\Set\ValueObject\{LevelSetList, SetList};
+use RectorLaravel\Set\LaravelSetList;
 
 // Load custom configuration
 $customConfigPath = __DIR__ . '/rector.custom.php';
-$custom = file_exists($customConfigPath) ? require $customConfigPath : [];
+$custom           = file_exists($customConfigPath) ? require $customConfigPath : [];
 
 // Default values
-$paths = $custom['paths'] ?? [__DIR__ . '/app'];
-$skip = $custom['skip'] ?? [];
-$rules = $custom['rules'] ?? [];
-$phpVersion = $custom['php_version'] ?? 'php83';
+$paths          = $custom['paths']           ?? [__DIR__ . '/app'];
+$skip           = $custom['skip']            ?? [];
+$rules          = $custom['rules']           ?? [];
+$phpVersion     = $custom['php_version']     ?? 'php83';
 $laravelVersion = $custom['laravel_version'] ?? 110;
-$features = $custom['features'] ?? [];
-$indentSize = $custom['indent_size'] ?? 4;
+$features       = $custom['features']        ?? [];
+$indentSize     = $custom['indent_size']     ?? 4;
 
 // Check if Laravel Rector is available
 $hasLaravelRector = class_exists('RectorLaravel\Set\LaravelSetList');
@@ -58,9 +57,9 @@ return RectorConfig::configure()
 
     // Parallel processing
     ->withParallel(
-        timeoutSeconds: 300,
-        maxNumberOfProcess: 8,
-        jobSize: 20
+      timeoutSeconds: 300,
+      maxNumberOfProcess: 8,
+      jobSize: 20
     )
 
     // File extensions
@@ -68,10 +67,10 @@ return RectorConfig::configure()
 
     // Import configuration
     ->withImportNames(
-        importNames: true,
-        importDocBlockNames: false,
-        importShortClasses: true,
-        removeUnusedImports: true
+      importNames: true,
+      importDocBlockNames: false,
+      importShortClasses: true,
+      removeUnusedImports: true
     )
 
     // Root files
@@ -79,28 +78,28 @@ return RectorConfig::configure()
 
     // Composer-based detection
     ->withComposerBased(
-        twig: false,
-        doctrine: false,
-        phpunit: $features['phpunit'] ?? true,
-        symfony: false,
-        netteUtils: false
+      twig: false,
+      doctrine: false,
+      phpunit: $features['phpunit'] ?? true,
+      symfony: false,
+      netteUtils: false
     )
 
     // Prepared sets
     ->withPreparedSets(
-        typeDeclarations: $features['type_declarations'] ?? true,
-        privatization: $features['privatization'] ?? true,
-        earlyReturn: $features['early_return'] ?? true,
-        deadCode: $features['dead_code'] ?? true,
-        naming: $features['naming'] ?? true,
-        instanceOf: true,
-        codeQuality: $features['code_quality'] ?? true,
-        codingStyle: true,
-        doctrineCodeQuality: false,
-        phpunitCodeQuality: $features['phpunit'] ?? true,
-        symfonyCodeQuality: false,
-        rectorPreset: true,
-        symfonyConfigs: false
+      deadCode: $features['dead_code']       ?? true,
+      codeQuality: $features['code_quality'] ?? true,
+      codingStyle: true,
+      typeDeclarations: $features['type_declarations'] ?? true,
+      privatization: $features['privatization']        ?? true,
+      naming: $features['naming']                      ?? true,
+      instanceOf: true,
+      earlyReturn: $features['early_return'] ?? true,
+      rectorPreset: true,
+      phpunitCodeQuality: $features['phpunit'] ?? true,
+      doctrineCodeQuality: false,
+      symfonyCodeQuality: false,
+      symfonyConfigs: false
     )
 
     // Custom rules
@@ -108,17 +107,18 @@ return RectorConfig::configure()
 
     // PHP version
     ->withPhpSets(
-        php84: $phpVersion === 'php84',
-        php83: $phpVersion === 'php83',
-        php82: $phpVersion === 'php82',
-        php81: $phpVersion === 'php81',
-        php80: $phpVersion === 'php80'
+      php83: $phpVersion === 'php83',
+      php82: $phpVersion === 'php82',
+      php81: $phpVersion === 'php81',
+      php80: $phpVersion === 'php80',
+      php84: $phpVersion === 'php84'
     )
 
     // Set lists
     ->withSets(array_filter([
         // PHP Level
-        match ($phpVersion) {
+        match ($phpVersion)
+        {
             'php84' => LevelSetList::UP_TO_PHP_84,
             'php83' => LevelSetList::UP_TO_PHP_83,
             'php82' => LevelSetList::UP_TO_PHP_82,
@@ -135,7 +135,6 @@ return RectorConfig::configure()
         SetList::CODING_STYLE,
 
         // Laravel sets (if available)
-        $hasLaravelRector ? \RectorLaravel\Set\LaravelSetList::LARAVEL_110 : null,
-        $hasLaravelRector ? \RectorLaravel\Set\LaravelSetList::LARAVEL_CODE_QUALITY : null,
+        $hasLaravelRector ? LaravelSetList::LARAVEL_110 : null,
+        $hasLaravelRector ? LaravelSetList::LARAVEL_CODE_QUALITY : null,
     ]));
-

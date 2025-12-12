@@ -14,7 +14,7 @@ We take the security of PHP Quality Tools seriously. If you believe you have fou
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
-Instead, please send an email to: **hectorfranco@nowo.com**
+Instead, please send an email to: **hectorfranco@nowo.tech**
 
 Include the following information in your report:
 

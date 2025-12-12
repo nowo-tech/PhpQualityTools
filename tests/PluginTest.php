@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace NowoTech\PhpQualityTools\Tests;
 
-use Composer\Composer;
-use Composer\Config;
+use Composer\{Composer, Config};
 use Composer\IO\IOInterface;
 use Composer\Script\ScriptEvents;
 use NowoTech\PhpQualityTools\Plugin;
 use PHPUnit\Framework\TestCase;
 
 /**
- * @author Héctor Franco Aceituno <hectorfranco@nowo.com>
+ * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
+ *
  * @see    https://github.com/HecFranco
  */
-class PluginTest extends TestCase
+final class PluginTest extends TestCase
 {
     public function testGetSubscribedEvents(): void
     {
@@ -30,9 +30,9 @@ class PluginTest extends TestCase
 
     public function testActivateStoresComposerAndIo(): void
     {
-        $plugin = new Plugin();
+        $plugin   = new Plugin();
         $composer = $this->createMock(Composer::class);
-        $io = $this->createMock(IOInterface::class);
+        $io       = $this->createMock(IOInterface::class);
 
         $plugin->activate($composer, $io);
 
@@ -41,9 +41,9 @@ class PluginTest extends TestCase
 
     public function testDeactivateDoesNothing(): void
     {
-        $plugin = new Plugin();
+        $plugin   = new Plugin();
         $composer = $this->createMock(Composer::class);
-        $io = $this->createMock(IOInterface::class);
+        $io       = $this->createMock(IOInterface::class);
 
         $plugin->deactivate($composer, $io);
 
@@ -52,9 +52,9 @@ class PluginTest extends TestCase
 
     public function testUninstallPreservesFiles(): void
     {
-        $plugin = new Plugin();
+        $plugin   = new Plugin();
         $composer = $this->createMock(Composer::class);
-        $io = $this->createMock(IOInterface::class);
+        $io       = $this->createMock(IOInterface::class);
 
         // Should not throw any exception
         $plugin->uninstall($composer, $io);
@@ -62,4 +62,3 @@ class PluginTest extends TestCase
         $this->assertTrue(true);
     }
 }
-

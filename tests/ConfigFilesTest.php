@@ -7,10 +7,11 @@ namespace NowoTech\PhpQualityTools\Tests;
 use PHPUnit\Framework\TestCase;
 
 /**
- * @author Héctor Franco Aceituno <hectorfranco@nowo.com>
+ * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
+ *
  * @see    https://github.com/HecFranco
  */
-class ConfigFilesTest extends TestCase
+final class ConfigFilesTest extends TestCase
 {
     private string $configDir;
 
@@ -55,11 +56,12 @@ class ConfigFilesTest extends TestCase
             $this->configDir . '/laravel/rector.php',
         ];
 
-        foreach ($rectorFiles as $file) {
+        foreach ($rectorFiles as $file)
+        {
             $this->assertFileExists($file);
             $content = file_get_contents($file);
-            $this->assertStringContainsString('RectorConfig', $content);
-            $this->assertStringContainsString('declare(strict_types=1)', $content);
+            $this->assertStringContainsString('RectorConfig', (string) $content);
+            $this->assertStringContainsString('declare(strict_types=1)', (string) $content);
         }
     }
 
@@ -71,10 +73,11 @@ class ConfigFilesTest extends TestCase
             $this->configDir . '/laravel/rector.custom.php',
         ];
 
-        foreach ($customFiles as $file) {
+        foreach ($customFiles as $file)
+        {
             $this->assertFileExists($file);
             $result = require $file;
-            $this->assertIsArray($result, "File {$file} should return an array");
+            $this->assertIsArray($result, sprintf('File %s should return an array', $file));
         }
     }
 
@@ -86,12 +89,12 @@ class ConfigFilesTest extends TestCase
             $this->configDir . '/laravel/.php-cs-fixer.dist.php',
         ];
 
-        foreach ($csfixerFiles as $file) {
+        foreach ($csfixerFiles as $file)
+        {
             $this->assertFileExists($file);
             $content = file_get_contents($file);
-            $this->assertStringContainsString('PhpCsFixer', $content);
-            $this->assertStringContainsString('declare(strict_types=1)', $content);
+            $this->assertStringContainsString('PhpCsFixer', (string) $content);
+            $this->assertStringContainsString('declare(strict_types=1)', (string) $content);
         }
     }
 }
-

@@ -4,31 +4,29 @@ declare(strict_types=1);
 
 namespace NowoTech\PhpQualityTools\Tests;
 
-use Composer\Composer;
-use Composer\Config;
-use Composer\IO\IOInterface;
-use Composer\Repository\RepositoryManager;
-use Composer\Repository\InstalledRepositoryInterface;
+use Composer\{Composer, Config};
+use Composer\Repository\{InstalledRepositoryInterface, RepositoryManager};
 use NowoTech\PhpQualityTools\Plugin;
-use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 
 /**
- * @author Héctor Franco Aceituno <hectorfranco@nowo.com>
+ * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
+ *
  * @see    https://github.com/HecFranco
  */
-class DependencyInstallationTest extends TestCase
+final class DependencyInstallationTest extends TestCase
 {
     public function testSuggestedPackagesConstantExists(): void
     {
-        $reflection = new \ReflectionClass(Plugin::class);
+        $reflection = new ReflectionClass(Plugin::class);
         $this->assertTrue($reflection->hasConstant('SUGGESTED_PACKAGES'));
     }
 
     public function testSuggestedPackagesContainsAllFrameworks(): void
     {
-        $reflection = new \ReflectionClass(Plugin::class);
-        $constant = $reflection->getConstant('SUGGESTED_PACKAGES');
+        $reflection = new ReflectionClass(Plugin::class);
+        $constant   = $reflection->getConstant('SUGGESTED_PACKAGES');
 
         $expectedFrameworks = [
             'generic',
@@ -41,15 +39,16 @@ class DependencyInstallationTest extends TestCase
             'slim',
         ];
 
-        foreach ($expectedFrameworks as $framework) {
-            $this->assertArrayHasKey($framework, $constant, "Framework {$framework} should have suggested packages");
+        foreach ($expectedFrameworks as $framework)
+        {
+            $this->assertArrayHasKey($framework, $constant, sprintf('Framework %s should have suggested packages', $framework));
         }
     }
 
     public function testSymfonySuggestedPackages(): void
     {
-        $reflection = new \ReflectionClass(Plugin::class);
-        $constant = $reflection->getConstant('SUGGESTED_PACKAGES');
+        $reflection = new ReflectionClass(Plugin::class);
+        $constant   = $reflection->getConstant('SUGGESTED_PACKAGES');
 
         $symfonyPackages = $constant['symfony'] ?? [];
 
@@ -63,8 +62,8 @@ class DependencyInstallationTest extends TestCase
 
     public function testLaravelSuggestedPackages(): void
     {
-        $reflection = new \ReflectionClass(Plugin::class);
-        $constant = $reflection->getConstant('SUGGESTED_PACKAGES');
+        $reflection = new ReflectionClass(Plugin::class);
+        $constant   = $reflection->getConstant('SUGGESTED_PACKAGES');
 
         $laravelPackages = $constant['laravel'] ?? [];
 
@@ -75,8 +74,8 @@ class DependencyInstallationTest extends TestCase
 
     public function testGenericSuggestedPackages(): void
     {
-        $reflection = new \ReflectionClass(Plugin::class);
-        $constant = $reflection->getConstant('SUGGESTED_PACKAGES');
+        $reflection = new ReflectionClass(Plugin::class);
+        $constant   = $reflection->getConstant('SUGGESTED_PACKAGES');
 
         $genericPackages = $constant['generic'] ?? [];
 
@@ -85,4 +84,3 @@ class DependencyInstallationTest extends TestCase
         $this->assertArrayHasKey('vincentlanglet/twig-cs-fixer', $genericPackages);
     }
 }
-

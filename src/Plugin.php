@@ -16,7 +16,7 @@ use Composer\Script\{Event, ScriptEvents};
  * Files are only copied on first install and NEVER overwritten.
  * Optionally installs suggested dependencies (Rector, PHP-CS-Fixer, etc.)
  *
- * @author Héctor Franco Aceituno <hectorfranco@nowo.com>
+ * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  *
  * @see    https://github.com/HecFranco
  */
@@ -157,7 +157,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         // Only check dependencies on update if explicitly requested
         if ($this->io->isInteractive())
         {
-            $this->checkAndInstallDependencies($event->getIO(), isUpdate: true);
+            $this->checkAndInstallDependencies($event->getIO());
         }
     }
 
@@ -169,7 +169,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     private function detectFramework(): string
     {
         $vendorDir        = $this->composer->getConfig()->get('vendor-dir');
-        $projectDir       = dirname($vendorDir);
+        $projectDir       = dirname((string) $vendorDir);
         $composerJsonPath = $projectDir . '/composer.json';
 
         if (!file_exists($composerJsonPath))
@@ -203,8 +203,8 @@ class Plugin implements PluginInterface, EventSubscriberInterface
      */
     private function isPackageInstalled(string $packageName): bool
     {
-        $repositoryManager = $this->composer->getRepositoryManager();
-        $localRepository   = $this->composer->getRepositoryManager()->getLocalRepository();
+        $this->composer->getRepositoryManager();
+        $localRepository = $this->composer->getRepositoryManager()->getLocalRepository();
 
         return $localRepository->findPackage($packageName, '*') !== null;
     }
@@ -256,10 +256,9 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     /**
      * Check and optionally install suggested dependencies.
      *
-     * @param IOInterface $io       The IO interface
-     * @param bool        $isUpdate Whether this is an update operation
+     * @param IOInterface $io The IO interface
      */
-    private function checkAndInstallDependencies(IOInterface $io, bool $isUpdate = false): void
+    private function checkAndInstallDependencies(IOInterface $io): void
     {
         $framework         = $this->detectFramework();
         $suggestedPackages = self::SUGGESTED_PACKAGES[$framework] ?? self::SUGGESTED_PACKAGES['generic'];
@@ -280,7 +279,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             }
         }
 
-        if (empty($missingPackages))
+        if ($missingPackages === [])
         {
             return;
         }
@@ -317,45 +316,43 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     /**
      * Get compatible version constraint for Rector packages based on installed Rector version.
      *
-     * @param string $packageName The package name
-     *
      * @return string The version constraint
      */
-    private function getCompatibleVersion(string $packageName): string
+    private function getCompatibleVersion(): string
     {
-        // Rector 2.x has integrated rules and conflicts with separate packages
-        if ($this->isRector2Installed())
-        {
-            // These packages should not be installed with Rector 2.x
-            // Return wildcard but they should be filtered out before reaching here
-            return '*';
-        }
+      // Rector 2.x has integrated rules and conflicts with separate packages
+      if ($this->isRector2Installed())
+      {
+          // These packages should not be installed with Rector 2.x
+          // Return wildcard but they should be filtered out before reaching here
+          return '*';
+      }
 
-        // Check if rector/rector is installed and get its version
-        $rectorPackage = $this->composer->getRepositoryManager()->getLocalRepository()->findPackage('rector/rector', '*');
+      // Check if rector/rector is installed and get its version
+      $rectorPackage = $this->composer->getRepositoryManager()->getLocalRepository()->findPackage('rector/rector', '*');
 
-        if ($rectorPackage === null)
-        {
-            // If Rector is not installed, return wildcard (let Composer decide)
-            return '*';
-        }
+      if ($rectorPackage === null)
+      {
+          // If Rector is not installed, return wildcard (let Composer decide)
+          return '*';
+      }
 
-        $rectorVersion = $rectorPackage->getPrettyVersion();
+      $rectorVersion = $rectorPackage->getPrettyVersion();
 
-        // Extract major version from Rector version (e.g., "1.2.14" -> "1")
-        if (preg_match('/^(\d+)\./', $rectorVersion, $matches))
-        {
-            $majorVersion = (int) $matches[1];
+      // Extract major version from Rector version (e.g., "1.2.14" -> "1")
+      if (preg_match('/^(\d+)\./', $rectorVersion, $matches))
+      {
+          $majorVersion = (int) $matches[1];
 
-            // For Rector 1.x, use ^1.0 constraint
-            if ($majorVersion === 1)
-            {
-                return '^1.0';
-            }
-        }
+          // For Rector 1.x, use ^1.0 constraint
+          if ($majorVersion === 1)
+          {
+              return '^1.0';
+          }
+      }
 
-        // Fallback: return wildcard
-        return '*';
+      // Fallback: return wildcard
+      return '*';
     }
 
     /**
@@ -366,8 +363,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
      */
     private function installDependencies(IOInterface $io, array $packages): void
     {
-        $vendorDir   = $this->composer->getConfig()->get('vendor-dir');
-        $projectDir  = dirname($vendorDir);
+        $this->composer->getConfig()->get('vendor-dir');
         $composerBin = $this->composer->getConfig()->get('bin-dir') . '/composer';
 
         // Fallback to system composer if not found in vendor
@@ -383,9 +379,9 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
         foreach ($packages as $package)
         {
-            if (str_starts_with($package, 'rector/') && $package !== 'rector/rector')
+            if (str_starts_with((string) $package, 'rector/') && $package !== 'rector/rector')
             {
-                $version                = $this->getCompatibleVersion($package);
+                $version                = $this->getCompatibleVersion();
                 $packagesWithVersions[] = $package . ':' . $version;
             }
             else
@@ -395,9 +391,9 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         }
 
         $command = sprintf(
-            '%s require --dev --no-interaction --with-all-dependencies %s',
-            escapeshellarg($composerBin),
-            implode(' ', array_map('escapeshellarg', $packagesWithVersions))
+          '%s require --dev --no-interaction --with-all-dependencies %s',
+          escapeshellarg($composerBin),
+          implode(' ', array_map(escapeshellarg(...), $packagesWithVersions))
         );
 
         $output     = [];
@@ -425,7 +421,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     private function installFiles(IOInterface $io, bool $isUpdate = false): void
     {
         $vendorDir  = $this->composer->getConfig()->get('vendor-dir');
-        $projectDir = dirname($vendorDir);
+        $projectDir = dirname((string) $vendorDir);
         $packageDir = __DIR__ . '/..';
 
         // Detect framework
@@ -483,8 +479,8 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         $files = [];
 
         // Rector
-        $rectorSource       = "config/{$framework}/rector.php";
-        $rectorCustomSource = "config/{$framework}/rector.custom.php";
+        $rectorSource       = sprintf('config/%s/rector.php', $framework);
+        $rectorCustomSource = sprintf('config/%s/rector.custom.php', $framework);
 
         // Fallback to generic if framework-specific doesn't exist
         $packageDir = __DIR__ . '/..';
@@ -499,8 +495,8 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         $files[$rectorCustomSource] = 'rector.custom.php';
 
         // PHP-CS-Fixer
-        $csfixerSource       = "config/{$framework}/.php-cs-fixer.dist.php";
-        $csfixerCustomSource = "config/{$framework}/.php-cs-fixer.custom.php";
+        $csfixerSource       = sprintf('config/%s/.php-cs-fixer.dist.php', $framework);
+        $csfixerCustomSource = sprintf('config/%s/.php-cs-fixer.custom.php', $framework);
 
         if (!file_exists($packageDir . '/' . $csfixerSource))
         {
@@ -514,8 +510,8 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         // Twig-CS-Fixer (only for frameworks that use Twig)
         if (in_array($framework, ['symfony', 'generic'], true))
         {
-            $twigSource       = "config/{$framework}/.twig-cs-fixer.php";
-            $twigCustomSource = "config/{$framework}/.twig-cs-fixer.custom.php";
+            $twigSource       = sprintf('config/%s/.twig-cs-fixer.php', $framework);
+            $twigCustomSource = sprintf('config/%s/.twig-cs-fixer.custom.php', $framework);
 
             if (!file_exists($packageDir . '/' . $twigSource))
             {
@@ -530,9 +526,9 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         // Blade Formatter (only for Laravel)
         if ($framework === 'laravel')
         {
-            $bladeSource       = "config/{$framework}/.blade-formatter.json";
-            $bladeCustomSource = "config/{$framework}/.blade-formatter.custom.json";
-            $bladeIgnoreSource = "config/{$framework}/.blade-formatter.ignore";
+            $bladeSource       = sprintf('config/%s/.blade-formatter.json', $framework);
+            $bladeCustomSource = sprintf('config/%s/.blade-formatter.custom.json', $framework);
+            $bladeIgnoreSource = sprintf('config/%s/.blade-formatter.ignore', $framework);
 
             if (file_exists($packageDir . '/' . $bladeSource))
             {

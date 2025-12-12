@@ -4,24 +4,24 @@ declare(strict_types=1);
 
 namespace NowoTech\PhpQualityTools\Tests;
 
-use Composer\Composer;
-use Composer\Config;
-use Composer\IO\IOInterface;
+use Composer\{Composer, Config};
 use NowoTech\PhpQualityTools\Plugin;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 
 /**
- * @author Héctor Franco Aceituno <hectorfranco@nowo.com>
+ * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
+ *
  * @see    https://github.com/HecFranco
  */
-class FrameworkDetectionTest extends TestCase
+final class FrameworkDetectionTest extends TestCase
 {
     /**
      * Test that framework detection constants are defined
      */
     public function testFrameworkPackagesConstantExists(): void
     {
-        $reflection = new \ReflectionClass(Plugin::class);
+        $reflection = new ReflectionClass(Plugin::class);
         $this->assertTrue($reflection->hasConstant('FRAMEWORK_PACKAGES'));
     }
 
@@ -30,8 +30,8 @@ class FrameworkDetectionTest extends TestCase
      */
     public function testFrameworkPackagesContainsExpectedFrameworks(): void
     {
-        $reflection = new \ReflectionClass(Plugin::class);
-        $constant = $reflection->getConstant('FRAMEWORK_PACKAGES');
+        $reflection = new ReflectionClass(Plugin::class);
+        $constant   = $reflection->getConstant('FRAMEWORK_PACKAGES');
 
         $expectedFrameworks = [
             'symfony/framework-bundle',
@@ -44,8 +44,9 @@ class FrameworkDetectionTest extends TestCase
             'slim/slim',
         ];
 
-        foreach ($expectedFrameworks as $package) {
-            $this->assertArrayHasKey($package, $constant, "Package {$package} should be in FRAMEWORK_PACKAGES");
+        foreach ($expectedFrameworks as $package)
+        {
+            $this->assertArrayHasKey($package, $constant, sprintf('Package %s should be in FRAMEWORK_PACKAGES', $package));
         }
     }
 
@@ -54,16 +55,16 @@ class FrameworkDetectionTest extends TestCase
      */
     public function testFrameworkDetectionReturnsValidFramework(): void
     {
-        $reflection = new \ReflectionClass(Plugin::class);
-        $constant = $reflection->getConstant('FRAMEWORK_PACKAGES');
+        $reflection = new ReflectionClass(Plugin::class);
+        $constant   = $reflection->getConstant('FRAMEWORK_PACKAGES');
 
-        $validFrameworks = array_values($constant);
+        $validFrameworks   = array_values($constant);
         $validFrameworks[] = 'generic'; // Generic is also valid
 
-        foreach ($validFrameworks as $framework) {
+        foreach ($validFrameworks as $framework)
+        {
             $this->assertIsString($framework);
             $this->assertNotEmpty($framework);
         }
     }
 }
-

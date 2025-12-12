@@ -15,167 +15,168 @@
  * - ./vendor/bin/rector process            (apply changes)
  *
  * @see https://getrector.com/documentation
- * @package nowo-tech/php-quality-tools
  */
 
 declare(strict_types=1);
 
 use Rector\Config\RectorConfig;
-use Rector\Set\ValueObject\SetList;
-use Rector\Set\ValueObject\LevelSetList;
+use Rector\Doctrine\Set\DoctrineSetList;
+use Rector\Set\ValueObject\{LevelSetList, SetList};
+use Rector\Symfony\Set\SymfonySetList;
 
 // Load custom configuration
 $customConfigPath = __DIR__ . '/rector.custom.php';
-$custom = file_exists($customConfigPath) ? require $customConfigPath : [];
+$custom           = file_exists($customConfigPath) ? require $customConfigPath : [];
 
 // Default values
-$paths = $custom['paths'] ?? [__DIR__ . '/src'];
-$skip = $custom['skip'] ?? [];
-$rules = $custom['rules'] ?? [];
-$phpVersion = $custom['php_version'] ?? 'php84';
-$framework = $custom['framework'] ?? 'auto';
+$paths          = $custom['paths']           ?? [__DIR__ . '/src'];
+$skip           = $custom['skip']            ?? [];
+$rules          = $custom['rules']           ?? [];
+$phpVersion     = $custom['php_version']     ?? 'php84';
+$framework      = $custom['framework']       ?? 'auto';
 $symfonyVersion = $custom['symfony_version'] ?? 74;
-$features = $custom['features'] ?? [];
+$features       = $custom['features']        ?? [];
 
 return RectorConfig::configure()
-    /**
+    /*
      * ========================================
      * PATHS TO PROCESS
      * ========================================
      */
     ->withPaths($paths)
 
-    /**
+    /*
      * ========================================
      * FILES/RULES TO SKIP
      * ========================================
      */
     ->withSkip($skip)
 
-    /**
+    /*
      * ========================================
      * INDENTATION
      * ========================================
      */
     ->withIndent(indentChar: ' ', indentSize: 4)
 
-    /**
+    /*
      * ========================================
      * PARALLEL PROCESSING
      * ========================================
      */
     ->withParallel(
-        timeoutSeconds: 300,
-        maxNumberOfProcess: 8,
-        jobSize: 20
+      timeoutSeconds: 300,
+      maxNumberOfProcess: 8,
+      jobSize: 20
     )
 
-    /**
+    /*
      * ========================================
      * FILE EXTENSIONS
      * ========================================
      */
     ->withFileExtensions(['php'])
 
-    /**
+    /*
      * ========================================
      * IMPORT CONFIGURATION
      * ========================================
      */
     ->withImportNames(
-        importNames: true,
-        importDocBlockNames: false,
-        importShortClasses: true,
-        removeUnusedImports: true
+      importNames: true,
+      importDocBlockNames: false,
+      importShortClasses: true,
+      removeUnusedImports: true
     )
 
-    /**
+    /*
      * ========================================
      * ROOT FILES
      * ========================================
      */
     ->withRootFiles()
 
-    /**
+    /*
      * ========================================
      * COMPOSER-BASED DETECTION
      * ========================================
      */
     ->withComposerBased(
-        twig: true,
-        doctrine: true,
-        phpunit: true,
-        symfony: $framework === 'symfony' || $framework === 'auto',
-        netteUtils: false
+      twig: true,
+      doctrine: true,
+      phpunit: true,
+      symfony: $framework === 'symfony' || $framework === 'auto',
+      netteUtils: false
     )
 
-    /**
+    /*
      * ========================================
      * ATTRIBUTES CONVERSION
      * ========================================
      */
     ->withAttributesSets(
-        symfony: true,
-        doctrine: true,
-        mongoDb: false,
-        gedmo: true,
-        phpunit: true,
-        fosRest: false,
-        jms: false,
-        sensiolabs: true,
-        behat: false
+      symfony: true,
+      doctrine: true,
+      mongoDb: false,
+      gedmo: true,
+      phpunit: true,
+      fosRest: false,
+      jms: false,
+      sensiolabs: true,
+      behat: false
     )
 
-    /**
+    /*
      * ========================================
      * PREPARED SETS (Feature Flags)
      * ========================================
      */
     ->withPreparedSets(
-        typeDeclarations: $features['type_declarations'] ?? true,
-        privatization: $features['privatization'] ?? true,
-        earlyReturn: $features['early_return'] ?? true,
-        deadCode: $features['dead_code'] ?? true,
-        naming: $features['naming'] ?? true,
-        instanceOf: true,
-        codeQuality: $features['code_quality'] ?? true,
-        codingStyle: true,
-        doctrineCodeQuality: true,
-        phpunitCodeQuality: true,
-        symfonyCodeQuality: $framework === 'symfony' || $framework === 'auto',
-        rectorPreset: true,
-        symfonyConfigs: $framework === 'symfony' || $framework === 'auto'
+      deadCode: $features['dead_code']       ?? true,
+      codeQuality: $features['code_quality'] ?? true,
+      codingStyle: true,
+      typeDeclarations: $features['type_declarations'] ?? true,
+      privatization: $features['privatization']        ?? true,
+      naming: $features['naming']                      ?? true,
+      instanceOf: true,
+      earlyReturn: $features['early_return'] ?? true,
+      rectorPreset: true,
+      phpunitCodeQuality: true,
+      doctrineCodeQuality: true,
+      symfonyCodeQuality: $framework === 'symfony' || $framework === 'auto',
+      symfonyConfigs: $framework     === 'symfony' || $framework === 'auto'
     )
 
-    /**
+    /*
      * ========================================
      * CUSTOM RULES
      * ========================================
      */
     ->withRules($rules)
 
-    /**
+    /*
      * ========================================
      * PHP VERSION
      * ========================================
      */
     ->withPhpSets(
-        php84: $phpVersion === 'php84',
-        php83: $phpVersion === 'php83',
-        php82: $phpVersion === 'php82',
-        php81: $phpVersion === 'php81',
-        php80: $phpVersion === 'php80',
-        php74: $phpVersion === 'php74'
+      php83: $phpVersion === 'php83',
+      php82: $phpVersion === 'php82',
+      php81: $phpVersion === 'php81',
+      php80: $phpVersion === 'php80',
+      php74: $phpVersion === 'php74',
+      php84: $phpVersion === 'php84'
     )
 
-    /**
+    /*
      * ========================================
      * SET LISTS
      * ========================================
      */
     ->withSets(array_filter([
         // PHP Level
-        match ($phpVersion) {
+        match ($phpVersion)
+        {
             'php84' => LevelSetList::UP_TO_PHP_84,
             'php83' => LevelSetList::UP_TO_PHP_83,
             'php82' => LevelSetList::UP_TO_PHP_82,
@@ -192,11 +193,10 @@ return RectorConfig::configure()
         SetList::CODING_STYLE,
 
         // Symfony sets (conditional)
-        ($framework === 'symfony' || $framework === 'auto') ? \Rector\Symfony\Set\SymfonySetList::SYMFONY_CODE_QUALITY : null,
-        ($framework === 'symfony' || $framework === 'auto') ? \Rector\Symfony\Set\SymfonySetList::SYMFONY_CONSTRUCTOR_INJECTION : null,
-        ($framework === 'symfony' || $framework === 'auto') ? \Rector\Symfony\Set\SymfonySetList::ANNOTATIONS_TO_ATTRIBUTES : null,
+        ($framework === 'symfony' || $framework === 'auto') ? SymfonySetList::SYMFONY_CODE_QUALITY : null,
+        ($framework === 'symfony' || $framework === 'auto') ? SymfonySetList::SYMFONY_CONSTRUCTOR_INJECTION : null,
+        ($framework === 'symfony' || $framework === 'auto') ? SymfonySetList::ANNOTATIONS_TO_ATTRIBUTES : null,
 
         // Doctrine sets
-        \Rector\Doctrine\Set\DoctrineSetList::DOCTRINE_CODE_QUALITY,
+        DoctrineSetList::DOCTRINE_CODE_QUALITY,
     ]));
-
