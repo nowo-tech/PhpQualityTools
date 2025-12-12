@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Updated installation documentation to use `--dev` flag
+  - Package should be installed as development dependency: `composer require --dev nowo-tech/php-quality-tools`
+- Fixed Rector 2.x compatibility: automatically skips incompatible packages
+  - Rector 2.x has integrated rules and conflicts with separate packages (`rector/rector-symfony`, `rector/rector-doctrine`, `rector/rector-phpunit`)
+  - Plugin now detects Rector 2.x and skips installation of these packages
+  - Only installs related packages for Rector 1.x or when Rector is not installed
+
 ## [1.1.0] - 2024-12-11
 
 ### Compatibility
