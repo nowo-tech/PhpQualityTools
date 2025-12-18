@@ -30,16 +30,28 @@ return [
 
         // Example: skip directories
         // __DIR__ . '/src/DataFixtures/*',
+        // __DIR__ . '/src/Migrations/*',
 
-        // Example: skip specific rules
-        // \Rector\DeadCode\Rector\Property\RemoveUnusedPrivatePropertyRector::class,
+        // Example: skip specific rules for certain paths
+        // \Rector\DeadCode\Rector\Property\RemoveUnusedPrivatePropertyRector::class => [
+        //     __DIR__ . '/src/Legacy',
+        // ],
+
+        // Example: skip specific rules globally
         // \Rector\Naming\Rector\Class_\RenamePropertyToMatchTypeRector::class,
     ],
 
     /**
      * Additional rules to apply
+     * 
+     * PHP Quality Tools custom rules are automatically included in rector.php
+     * if the CustomRulesSet class is available.
+     * 
+     * To add your own custom rules, add them here:
      */
     'rules' => [
+        // PHP Quality Tools custom rules are automatically included
+        // Add your additional custom rules here:
         // \Rector\TypeDeclaration\Rector\ClassMethod\AddParamTypeDeclarationRector::class,
     ],
 
@@ -51,9 +63,9 @@ return [
 
     /**
      * PHP version target
-     * Options: php74, php80, php81, php82, php83, php84
+     * Options: php74, php80, php81, php82, php83, php84, php85
      */
-    'php_version' => 'php84',
+    'php_version' => 'php85',
 
     /**
      * Enable/disable feature sets

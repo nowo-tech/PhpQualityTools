@@ -30,11 +30,24 @@ $custom = file_exists($customConfigPath) ? require $customConfigPath : [];
 // Default values
 $paths = $custom['paths'] ?? [__DIR__ . '/src'];
 $skip = $custom['skip'] ?? [];
-$rules = $custom['rules'] ?? [];
+$customRules = $custom['rules'] ?? [];
 $phpVersion = $custom['php_version'] ?? 'php84';
 $symfonyVersion = $custom['symfony_version'] ?? 74;
 $features = $custom['features'] ?? [];
 $indentSize = $custom['indent_size'] ?? 4;
+
+// Load PHP Quality Tools custom rules (if available)
+$phpQualityToolsRules = [];
+if (class_exists(\NowoTech\PhpQualityTools\Rector\Set\CustomRulesSet::class)) {
+    try {
+        $phpQualityToolsRules = \NowoTech\PhpQualityTools\Rector\Set\CustomRulesSet::getRules();
+    } catch (\Throwable $e) {
+        // Silently ignore if dependencies are missing
+    }
+}
+
+// Merge custom rules: PHP Quality Tools rules first, then user custom rules
+$rules = array_merge($phpQualityToolsRules, $customRules);
 
 // Build Symfony set name
 $symfonySetName = 'SYMFONY_' . $symfonyVersion;

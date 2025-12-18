@@ -41,8 +41,11 @@ return [
      * Custom rule configurations
      */
     'rule_config' => [
-        // Example: configure indent
-        // 'indent' => 4,
+        // Configure indent (spaces)
+        'indent' => 4,
+        
+        // Example: configure line ending
+        // 'line_ending' => "\n",
     ],
 ];
 

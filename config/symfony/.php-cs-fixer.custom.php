@@ -5,7 +5,7 @@
  * ==================================
  *
  * This file contains YOUR PROJECT-SPECIFIC customizations.
- * It is imported by .php-cs-fixer.dist.php and NEVER overwritten by package updates.
+ * It is imported by .php-cs-fixer.php and NEVER overwritten by package updates.
  *
  * @see https://cs.symfony.com/doc/config.html
  */
@@ -35,13 +35,26 @@ return [
      * These will be merged with the base rules
      *
      * @see https://cs.symfony.com/doc/rules/index.html
+     * 
+     * PHP Quality Tools custom fixers are automatically registered in .php-cs-fixer.php
+     * if the CustomFixersSet class is available.
      */
     'rules' => [
-        // Example: disable a specific rule
+        // PHP Quality Tools custom fixers are automatically included
+        // Enable method argument space for multiline (works with SplitLongConstructorParametersRector)
+        'method_argument_space' => ['ensure_fully_multiline' => true],
+        
+        // Example: configure concat spacing
+        'concat_space' => ['spacing' => 'one'],
+        
+        // Example: configure array syntax
+        'array_syntax' => ['syntax' => 'short'],
+        
+        // Example: configure ordered imports
+        'ordered_imports' => ['sort_algorithm' => 'alpha'],
+        
+        // Example: disable a specific rule if needed
         // 'no_unused_imports' => false,
-
-        // Example: configure a rule
-        // 'concat_space' => ['spacing' => 'one'],
     ],
 
     /**
