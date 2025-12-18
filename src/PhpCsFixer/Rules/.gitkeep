@@ -1,0 +1,3 @@
+# This file ensures the Rules directory is tracked by Git
+# Add your custom PHP-CS-Fixer fixers in this directory
+

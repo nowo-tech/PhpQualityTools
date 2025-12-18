@@ -29,6 +29,18 @@ $paths = $custom['paths'] ?? [__DIR__ . '/src'];
 $exclude = $custom['exclude'] ?? ['vendor', 'var', 'node_modules'];
 $customRules = $custom['rules'] ?? [];
 
+// Load PHP Quality Tools custom fixers (if available)
+$phpQualityToolsFixers = [];
+$phpQualityToolsRules = [];
+if (class_exists(\NowoTech\PhpQualityTools\PhpCsFixer\Set\CustomFixersSet::class)) {
+    try {
+        $phpQualityToolsFixers = \NowoTech\PhpQualityTools\PhpCsFixer\Set\CustomFixersSet::getFixers();
+        $phpQualityToolsRules = \NowoTech\PhpQualityTools\PhpCsFixer\Set\CustomFixersSet::getRules();
+    } catch (\Throwable $e) {
+        // Silently ignore if dependencies are missing
+    }
+}
+
 // Create finder
 $finder = Finder::create()
     ->in($paths)
@@ -148,13 +160,20 @@ $baseRules = [
     'no_short_bool_cast' => true,
 ];
 
-// Merge with custom rules
-$rules = array_merge($baseRules, $customRules);
+// Merge with custom rules: PHP Quality Tools rules first, then base rules, then user custom rules
+$rules = array_merge($phpQualityToolsRules, $baseRules, $customRules);
 
-return (new Config())
+$config = (new Config())
     ->setRules($rules)
     ->setFinder($finder)
     ->setRiskyAllowed(true)
     ->setUsingCache(true)
     ->setCacheFile(__DIR__ . '/var/cache/.php-cs-fixer.cache');
+
+// Register PHP Quality Tools custom fixers if available
+if (!empty($phpQualityToolsFixers)) {
+    $config->registerCustomFixers($phpQualityToolsFixers);
+}
+
+return $config;
 

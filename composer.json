@@ -48,7 +48,8 @@
         "rector/rector-phpunit": "Rector rules for PHPUnit",
         "driftingly/rector-laravel": "Rector rules for Laravel projects",
         "friendsofphp/php-cs-fixer": "For code style fixing",
-        "vincentlanglet/twig-cs-fixer": "For Twig template style fixing"
+        "vincentlanglet/twig-cs-fixer": "For Twig template style fixing",
+        "symplify/rule-doc-generator-contracts": "Required for custom Rector rules (SplitLongGroupedImportsRector, SplitLongConstructorParametersRector)"
     },
     "autoload": {
         "psr-4": {

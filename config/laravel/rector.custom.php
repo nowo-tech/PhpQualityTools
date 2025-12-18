@@ -37,8 +37,15 @@ return [
 
     /**
      * Additional rules to apply
+     * 
+     * PHP Quality Tools custom rules are automatically included in rector.php
+     * if the CustomRulesSet class is available.
+     * 
+     * To add your own custom rules, add them here:
      */
     'rules' => [
+        // PHP Quality Tools custom rules are automatically included
+        // Add your additional custom rules here:
         // \Rector\TypeDeclaration\Rector\ClassMethod\AddParamTypeDeclarationRector::class,
     ],
 
@@ -50,9 +57,9 @@ return [
 
     /**
      * PHP version target
-     * Options: php80, php81, php82, php83, php84
+     * Options: php80, php81, php82, php83, php84, php85
      */
-    'php_version' => 'php83',
+    'php_version' => 'php85',
 
     /**
      * Enable/disable feature sets
