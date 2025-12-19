@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.9] - 2024-12-19
+
+### Changed
+
+- **Rector configuration file naming**: Changed from `rector.php` to `.rector.php` for consistency
+  - All Rector configuration files now use dot prefix (`.rector.php`, `.rector.custom.php`)
+  - Maintains consistency with other configuration files (`.php-cs-fixer.php`, `.twig-cs-fixer.php`)
+  - Scripts updated to reference `.rector.dist.php` configuration file
+  - Updated all documentation, tests, and examples to reflect new naming convention
+
+### Fixed
+
+- Fixed inconsistency in configuration file naming across all tools
+- All configuration files now follow consistent naming pattern with dot prefix
+
 ## [1.0.8] - 2024-12-19
 
 ### Added
@@ -40,7 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Rector scripts**: Renamed from `rector:fix` to `rector:check` for clarity
     - `rector` now applies changes (removed dry-run)
     - `rector:check` is the dry-run version
-    - Scripts now reference `rector.dist.php` configuration file
+    - Scripts now reference `.rector.dist.php` configuration file
   - **Twig-CS-Fixer scripts**: Renamed and expanded script names
     - `twig-check` → `twig:lint` (dry-run linting)
     - `twig-fix` → `twig:fix` (apply fixes)
@@ -140,7 +155,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Configuration file naming**: Renamed `.php-cs-fixer.dist.php` to `.php-cs-fixer.php` for consistency with `rector.php` naming
+- **Configuration file naming**: Renamed `.php-cs-fixer.dist.php` to `.php-cs-fixer.php` for consistency with `.rector.php` naming
   - All configuration files now follow the same naming pattern (without `.dist` suffix)
   - Updated all references in documentation, tests, and examples
 - **Template formatter installation**: Template formatter configurations are now only installed if their corresponding template engine dependencies are detected

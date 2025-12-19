@@ -15,7 +15,7 @@ composer update nowo-tech/php-quality-tools
 **Important**: Configuration files are **never overwritten** during updates. This means:
 
 - ✅ Your customizations in `*.custom.php` files are **always preserved**
-- ✅ Main config files (`rector.php`, `.php-cs-fixer.php`, etc.) are **not modified**
+- ✅ Main config files (`.rector.php`, `.php-cs-fixer.php`, etc.) are **not modified**
 - ✅ New configuration files are **automatically created** during updates if they don't exist (starting from version 1.0.6)
 
 ### 3. Get Latest Base Configurations (Optional)
@@ -24,11 +24,11 @@ If you want to update to the latest base configurations:
 
 ```bash
 # Backup your custom files first
-cp rector.custom.php rector.custom.php.backup
+cp .rector.custom.php .rector.custom.php.backup
 cp .php-cs-fixer.custom.php .php-cs-fixer.custom.php.backup
 
 # Remove main config files (they will be recreated)
-rm rector.php .php-cs-fixer.php .twig-cs-fixer.php
+rm .rector.php .php-cs-fixer.php .twig-cs-fixer.php
 
 # Reinstall to get latest base configs (works with both install and update)
 composer install
@@ -79,6 +79,26 @@ Always check [CHANGELOG.md](CHANGELOG.md) for:
 
 ## Version-Specific Upgrade Notes
 
+### Upgrading to 1.0.9
+
+**Configuration File Naming Change:**
+- **Rector configuration files renamed**: Changed from `rector.php` to `.rector.php`
+  - Main config: `rector.php` → `.rector.php`
+  - Custom config: `rector.custom.php` → `.rector.custom.php`
+  - This maintains consistency with other configuration files (`.php-cs-fixer.php`, `.twig-cs-fixer.php`)
+
+**Action Required:**
+- If you have existing `rector.php` or `rector.custom.php` files, rename them:
+  ```bash
+  mv rector.php .rector.php
+  mv rector.custom.php .rector.custom.php
+  ```
+- The plugin will automatically install the new `.rector.php` files on next install/update
+- Your existing customizations in `rector.custom.php` should be moved to `.rector.custom.php`
+- Update any scripts or CI/CD configurations that reference the old filenames
+
+**Note**: This change ensures all configuration files follow a consistent naming convention with dot prefix.
+
 ### Upgrading to 1.0.8
 
 **New Features:**
@@ -105,7 +125,7 @@ Always check [CHANGELOG.md](CHANGELOG.md) for:
 - **Rector scripts**: Improved naming for clarity
   - `rector` now applies changes (was `rector:fix`)
   - `rector:check` is the new dry-run version (was just `rector`)
-  - Scripts reference `rector.dist.php` configuration file
+  - Scripts reference `.rector.dist.php` configuration file
 - **Twig-CS-Fixer scripts**: Renamed for consistency and expanded
   - `twig-check` → `twig:lint` (lint templates, dry-run)
   - `twig-fix` → `twig:fix` (fix templates)
@@ -247,13 +267,13 @@ If you need the latest base configurations:
 
 1. **Backup your customizations**:
    ```bash
-   cp rector.custom.php rector.custom.php.backup
+   cp .rector.custom.php .rector.custom.php.backup
    cp .php-cs-fixer.custom.php .php-cs-fixer.custom.php.backup
    ```
 
 2. **Remove and reinstall**:
    ```bash
-   rm rector.php .php-cs-fixer.php .twig-cs-fixer.php
+   rm .rector.php .php-cs-fixer.php .twig-cs-fixer.php
    composer install
    ```
 

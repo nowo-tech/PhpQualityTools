@@ -88,8 +88,8 @@ During installation, the plugin will:
 
 ```
 php-quality-tools: Detected framework: symfony
-php-quality-tools: Installing rector.php
-php-quality-tools: Installing rector.custom.php
+php-quality-tools: Installing .rector.php
+php-quality-tools: Installing .rector.custom.php
 php-quality-tools: Installing .php-cs-fixer.php
 php-quality-tools: Installing .php-cs-fixer.custom.php
 php-quality-tools: Installing .twig-cs-fixer.php
@@ -147,8 +147,8 @@ After installation, the following files are created in your project root:
 
 | File | Purpose | Overwritten on update? |
 |------|---------|------------------------|
-| `rector.php` | Rector main config | ❌ Never |
-| `rector.custom.php` | Your customizations | ❌ Never |
+| `.rector.php` | Rector main config | ❌ Never |
+| `.rector.custom.php` | Your customizations | ❌ Never |
 | `.php-cs-fixer.php` | PHP-CS-Fixer main config | ❌ Never |
 | `.php-cs-fixer.custom.php` | Your customizations | ❌ Never |
 | `.twig-cs-fixer.php` | Twig-CS-Fixer main config (if `twig/twig` installed) | ❌ Never |
@@ -249,8 +249,8 @@ If you prefer different script names or commands, you can manually add them to y
   "scripts": {
     "fix": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix --config=.php-cs-fixer.dist.php --allow-risky=yes",
     "fix:check": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff --allow-risky=yes",
-    "rector": "rector process -c rector.dist.php",
-    "rector:check": "rector process -c rector.dist.php --dry-run",
+    "rector": "rector process -c .rector.dist.php",
+    "rector:check": "rector process -c .rector.dist.php --dry-run",
     "twig:fix": "twig-cs-fixer fix --config=.twig-cs-fixer.dist.php",
     "twig:lint": "twig-cs-fixer lint --config=.twig-cs-fixer.dist.php",
     "twig:fix:check": "twig-cs-fixer lint --config=.twig-cs-fixer.dist.php --fix",
@@ -295,7 +295,7 @@ All customizations go in the `*.custom.php` files. These files are never overwri
 
 ### Rector Customization
 
-Edit `rector.custom.php`:
+Edit `.rector.custom.php`:
 
 ```php
 <?php
@@ -524,7 +524,7 @@ composer update nowo-tech/php-quality-tools
 To get the latest base configs, delete the main files and reinstall:
 
 ```bash
-rm rector.php .php-cs-fixer.php .twig-cs-fixer.php
+rm .rector.php .php-cs-fixer.php .twig-cs-fixer.php
 composer install
 ```
 

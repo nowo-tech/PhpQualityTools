@@ -10,7 +10,7 @@ namespace NowoTech\PhpQualityTools\Rector\Set;
  * This class provides a convenient way to include all custom Rector rules
  * from PHP Quality Tools in your Rector configuration.
  *
- * Usage in rector.php or rector.custom.php:
+ * Usage in .rector.php or .rector.custom.php:
  *
  * ```php
  * use NowoTech\PhpQualityTools\Rector\Set\CustomRulesSet;

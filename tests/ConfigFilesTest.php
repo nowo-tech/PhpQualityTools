@@ -22,8 +22,8 @@ class ConfigFilesTest extends TestCase
 
     public function testGenericConfigFilesExist(): void
     {
-        $this->assertFileExists($this->configDir . '/generic/rector.php');
-        $this->assertFileExists($this->configDir . '/generic/rector.custom.php');
+        $this->assertFileExists($this->configDir . '/generic/.rector.php');
+        $this->assertFileExists($this->configDir . '/generic/.rector.custom.php');
         $this->assertFileExists($this->configDir . '/generic/.php-cs-fixer.php');
         $this->assertFileExists($this->configDir . '/generic/.php-cs-fixer.custom.php');
         $this->assertFileExists($this->configDir . '/generic/.twig-cs-fixer.php');
@@ -32,8 +32,8 @@ class ConfigFilesTest extends TestCase
 
     public function testSymfonyConfigFilesExist(): void
     {
-        $this->assertFileExists($this->configDir . '/symfony/rector.php');
-        $this->assertFileExists($this->configDir . '/symfony/rector.custom.php');
+        $this->assertFileExists($this->configDir . '/symfony/.rector.php');
+        $this->assertFileExists($this->configDir . '/symfony/.rector.custom.php');
         $this->assertFileExists($this->configDir . '/symfony/.php-cs-fixer.php');
         $this->assertFileExists($this->configDir . '/symfony/.php-cs-fixer.custom.php');
         $this->assertFileExists($this->configDir . '/symfony/.twig-cs-fixer.php');
@@ -42,8 +42,8 @@ class ConfigFilesTest extends TestCase
 
     public function testLaravelConfigFilesExist(): void
     {
-        $this->assertFileExists($this->configDir . '/laravel/rector.php');
-        $this->assertFileExists($this->configDir . '/laravel/rector.custom.php');
+        $this->assertFileExists($this->configDir . '/laravel/.rector.php');
+        $this->assertFileExists($this->configDir . '/laravel/.rector.custom.php');
         $this->assertFileExists($this->configDir . '/laravel/.php-cs-fixer.php');
         $this->assertFileExists($this->configDir . '/laravel/.php-cs-fixer.custom.php');
     }
@@ -51,9 +51,9 @@ class ConfigFilesTest extends TestCase
     public function testRectorConfigFilesAreValidPhp(): void
     {
         $rectorFiles = [
-            $this->configDir . '/generic/rector.php',
-            $this->configDir . '/symfony/rector.php',
-            $this->configDir . '/laravel/rector.php',
+            $this->configDir . '/generic/.rector.php',
+            $this->configDir . '/symfony/.rector.php',
+            $this->configDir . '/laravel/.rector.php',
         ];
 
         foreach ($rectorFiles as $file) {
@@ -67,9 +67,9 @@ class ConfigFilesTest extends TestCase
     public function testCustomConfigFilesReturnArray(): void
     {
         $customFiles = [
-            $this->configDir . '/generic/rector.custom.php',
-            $this->configDir . '/symfony/rector.custom.php',
-            $this->configDir . '/laravel/rector.custom.php',
+            $this->configDir . '/generic/.rector.custom.php',
+            $this->configDir . '/symfony/.rector.custom.php',
+            $this->configDir . '/laravel/.rector.custom.php',
         ];
 
         foreach ($customFiles as $file) {
