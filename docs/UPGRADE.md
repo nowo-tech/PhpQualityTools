@@ -42,9 +42,14 @@ The plugin will automatically detect and offer to install missing suggested depe
 
 If you're in non-interactive mode, install dependencies manually:
 
+**Note**: The plugin now automatically detects your Rector version and uses compatible package versions. If you install manually, use the versions compatible with your Rector version:
+
 ```bash
-# For Symfony projects
-composer require --dev rector/rector rector/rector-symfony rector/rector-doctrine rector/rector-phpunit friendsofphp/php-cs-fixer vincentlanglet/twig-cs-fixer
+# For Symfony projects (Rector 1.x)
+composer require --dev rector/rector rector/rector-symfony:^1.0 rector/rector-doctrine:^0.16 rector/rector-phpunit:^1.0 friendsofphp/php-cs-fixer vincentlanglet/twig-cs-fixer
+
+# For Symfony projects (Rector 2.x)
+composer require --dev rector/rector rector/rector-symfony:^2.0 rector/rector-doctrine:^2.0 rector/rector-phpunit:^2.0 friendsofphp/php-cs-fixer vincentlanglet/twig-cs-fixer
 
 # For Laravel projects
 composer require --dev rector/rector driftingly/rector-laravel friendsofphp/php-cs-fixer
@@ -62,6 +67,22 @@ Always check [CHANGELOG.md](CHANGELOG.md) for:
 - Deprecations
 
 ## Version-Specific Upgrade Notes
+
+### Upgrading to 1.0.3
+
+**Bug Fixes:**
+- **PHP 8.1 compatibility**: Fixed typed constants that required PHP 8.3+
+  - All constants now use untyped syntax compatible with PHP 8.1+
+  - Fixes PHPUnit code coverage HTML generation errors
+- **PHP-CS-Fixer configuration**: Removed conflicting `single_blank_line_before_namespace` rule
+  - This rule conflicts with `blank_lines_before_namespace` included in `@PSR12`
+  - Configuration now works correctly without conflicts
+- **Rector package compatibility**: Added automatic Rector version detection
+  - Plugin now detects installed Rector version (1.x or 2.x)
+  - Automatically uses compatible versions of optional Rector packages
+  - Fixes installation errors when Rector 2.x is installed
+
+**No action required** - These are bug fixes that improve compatibility.
 
 ### Upgrading from Pre-Release to Latest
 
