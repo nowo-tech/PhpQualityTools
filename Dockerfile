@@ -8,7 +8,8 @@ RUN apk add --no-cache \
     g++ \
     make \
     linux-headers \
-    bash
+    bash \
+    curl
 
 # Install pcov for code coverage
 RUN pecl install pcov && docker-php-ext-enable pcov
@@ -25,3 +26,7 @@ WORKDIR /app
 # Set environment
 ENV COMPOSER_ALLOW_SUPERUSER=1
 ENV PATH="/app/vendor/bin:${PATH}"
+
+# Install project dependencies on build (optional, can be done at runtime)
+# This ensures the container is ready to run tests immediately
+# RUN composer install --no-interaction --prefer-dist --no-scripts || true
