@@ -104,11 +104,13 @@ php-quality-tools: Twig not detected, skipping Twig-CS-Fixer configuration
 
 php-quality-tools: Missing suggested dependencies detected:
   - rector/rector: Rector for automated code refactoring
-  - rector/rector-symfony: Rector rules for Symfony
-  - rector/rector-doctrine: Rector rules for Doctrine
-  - rector/rector-phpunit: Rector rules for PHPUnit
+  - rector/rector-symfony: Rector rules for Symfony (only for Rector 1.x)
+  - rector/rector-doctrine: Rector rules for Doctrine (only for Rector 1.x)
+  - rector/rector-phpunit: Rector rules for PHPUnit (only for Rector 1.x)
   - friendsofphp/php-cs-fixer: PHP-CS-Fixer for code style fixing
   - vincentlanglet/twig-cs-fixer: Twig-CS-Fixer for Twig template style fixing
+
+**Note**: If you're using Rector 2.x, the optional packages (`rector-symfony`, `rector-doctrine`, `rector-phpunit`) will be automatically skipped as they are not compatible with Rector 2.x yet.
 
 Would you like to install these dependencies now? (yes/no) [yes]: yes
 
@@ -122,9 +124,17 @@ If you choose **yes**, dependencies will be installed automatically. If **no**, 
 
 If you prefer to install dependencies manually or in non-interactive mode:
 
+**Note**: The plugin automatically detects your Rector version:
+- **For Rector 1.x**: Optional packages are installed normally
+- **For Rector 2.x**: Optional packages are automatically skipped (not compatible yet)
+
 ```bash
-# For Symfony projects
-composer require --dev rector/rector rector/rector-symfony rector/rector-doctrine rector/rector-phpunit friendsofphp/php-cs-fixer vincentlanglet/twig-cs-fixer
+# For Symfony projects (Rector 1.x)
+composer require --dev rector/rector rector/rector-symfony:^1.0 rector/rector-doctrine:^0.16 rector/rector-phpunit:^1.0 friendsofphp/php-cs-fixer vincentlanglet/twig-cs-fixer
+
+# For Symfony projects (Rector 2.x)
+# Note: Optional Rector packages are NOT compatible with Rector 2.x
+composer require --dev rector/rector friendsofphp/php-cs-fixer vincentlanglet/twig-cs-fixer
 
 # For Laravel projects
 composer require --dev rector/rector driftingly/rector-laravel friendsofphp/php-cs-fixer
