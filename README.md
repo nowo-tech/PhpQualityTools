@@ -219,15 +219,16 @@ Laravel Blade templates (`.blade.php` files) are PHP files with special syntax a
 The following scripts are automatically added (if they don't already exist):
 
 **All frameworks:**
-- `cs-check` - Check code style (dry-run)
-- `cs-fix` - Fix code style
-- `rector` - Preview Rector changes (dry-run)
-- `rector:fix` - Apply Rector changes
+- `fix:check` - Check code style with PHP-CS-Fixer (dry-run)
+- `fix` - Fix code style with PHP-CS-Fixer
+- `rector:check` - Preview Rector changes (dry-run)
+- `rector` - Apply Rector changes
 - `test` - Run PHPUnit tests (if phpunit is installed)
 
 **If Twig is installed:**
-- `twig-check` - Check Twig templates
-- `twig-fix` - Fix Twig templates
+- `twig:lint` - Lint Twig templates (dry-run)
+- `twig:fix` - Fix Twig templates
+- `twig:fix:check` - Check and fix Twig templates
 
 **Laravel only:**
 - `blade-check` - Check Blade templates (dry-run)
@@ -246,15 +247,15 @@ If you prefer different script names or commands, you can manually add them to y
 ```json
 {
   "scripts": {
-    "fix": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix --config=.php-cs-fixer.php --allow-risky=yes",
-    "fix:check": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix --config=.php-cs-fixer.php --dry-run --diff --allow-risky=yes",
-    "rector": "rector -c rector.php",
-    "rector:process": "rector process -c rector.php",
-    "twig:fix": "twig-cs-fixer fix --config=.twig-cs-fixer.php",
-    "twig:lint": "twig-cs-fixer lint --config=.twig-cs-fixer.php",
-    "twig:fix:check": "twig-cs-fixer lint --config=.twig-cs-fixer.php --fix",
-    "blade:fix": "php-cs-fixer fix resources/views --config=.php-cs-fixer.php",
-    "blade:lint": "php-cs-fixer fix resources/views --config=.php-cs-fixer.php --dry-run --diff"
+    "fix": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix --config=.php-cs-fixer.dist.php --allow-risky=yes",
+    "fix:check": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff --allow-risky=yes",
+    "rector": "rector process -c rector.dist.php",
+    "rector:check": "rector process -c rector.dist.php --dry-run",
+    "twig:fix": "twig-cs-fixer fix --config=.twig-cs-fixer.dist.php",
+    "twig:lint": "twig-cs-fixer lint --config=.twig-cs-fixer.dist.php",
+    "twig:fix:check": "twig-cs-fixer lint --config=.twig-cs-fixer.dist.php --fix",
+    "blade:fix": "php-cs-fixer fix resources/views --config=.php-cs-fixer.dist.php",
+    "blade:lint": "php-cs-fixer fix resources/views --config=.php-cs-fixer.dist.php --dry-run --diff"
   }
 }
 ```
@@ -265,17 +266,18 @@ After installation, you can run the automatically installed scripts:
 
 ```bash
 # PHP-CS-Fixer (automatically installed)
-composer cs-check     # Check code style (dry-run)
-composer cs-fix       # Fix code style
+composer fix:check    # Check code style (dry-run)
+composer fix          # Fix code style
 
 # Rector (automatically installed)
-composer rector       # Preview changes (dry-run)
-composer rector:fix   # Apply changes
+composer rector:check # Preview changes (dry-run)
+composer rector       # Apply changes
 
 # Template Formatters (if dependencies are installed)
 # Twig-CS-Fixer (automatically installed if Twig is present)
-composer twig-check   # Check Twig templates
-composer twig-fix     # Fix Twig templates
+composer twig:lint      # Lint Twig templates (dry-run)
+composer twig:fix       # Fix Twig templates
+composer twig:fix:check # Check and fix Twig templates
 
 # Blade Templates (Laravel only, automatically installed)
 composer blade-check  # Check Blade templates (dry-run)
