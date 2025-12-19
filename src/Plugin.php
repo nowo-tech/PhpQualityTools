@@ -539,6 +539,8 @@ class Plugin implements PluginInterface, EventSubscriberInterface
      * Adds quality tool scripts if they don't already exist.
      * Never overwrites existing scripts.
      * Preserves the original JSON formatting (indentation).
+     * Preserves the original order of existing scripts.
+     * New scripts are added at the beginning of the scripts section.
      *
      * @param IOInterface $io The IO interface
      */
@@ -580,7 +582,9 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
         $addedCount = 0;
         $existingCount = 0;
+        $newScripts = [];
 
+        // Collect new scripts that don't exist yet
         foreach ($scriptsToAdd as $scriptName => $scriptCommand) {
             // Skip if script already exists
             if (isset($composerJson['scripts'][$scriptName])) {
@@ -588,14 +592,14 @@ class Plugin implements PluginInterface, EventSubscriberInterface
                 continue;
             }
 
-            $composerJson['scripts'][$scriptName] = $scriptCommand;
+            $newScripts[$scriptName] = $scriptCommand;
             $addedCount++;
         }
 
         // Only write if we added new scripts
         if ($addedCount > 0) {
-            // Sort scripts alphabetically for better readability
-            ksort($composerJson['scripts']);
+            // Add new scripts at the beginning, preserving existing order
+            $composerJson['scripts'] = array_merge($newScripts, $composerJson['scripts']);
 
             // Encode JSON with detected indentation
             $jsonContent = $this->encodeJsonWithIndentation($composerJson, $indent);
