@@ -61,7 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Compatibility
 
-- **PHP**: >= 8.1 (tested with 8.1, 8.2, 8.3)
+- **PHP**: >= 8.1 (tested with 8.1, 8.2, 8.3, 8.4, 8.5)
 - **Symfony**: 6.0 - 7.4
 - **Laravel**: 9.0 - 11.0
 - **Composer**: >= 2.0
@@ -84,17 +84,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Framework-specific configurations**:
   - **Symfony**: Full Rector with SymfonySetList, Doctrine, PHPUnit, Twig-CS-Fixer
     - Supports Symfony 6.0 - 7.4
-    - PHP 8.1 - 8.4
+    - PHP 8.1 - 8.5
     - Suggested packages: `rector/rector`, `rector/rector-symfony`, `rector/rector-doctrine`, `rector/rector-phpunit`, `friendsofphp/php-cs-fixer`, `vincentlanglet/twig-cs-fixer`
   - **Laravel**: Rector with Laravel sets, PHP-CS-Fixer
     - Supports Laravel 9.0 - 11.0
-    - PHP 8.0 - 8.4
+    - PHP 8.1 - 8.5
     - Suggested packages: `rector/rector`, `driftingly/rector-laravel`, `friendsofphp/php-cs-fixer`
   - **Generic**: Works with any PHP project
-    - PHP 8.1 - 8.4
+    - PHP 8.1 - 8.5
     - Suggested packages: `rector/rector`, `friendsofphp/php-cs-fixer`, `vincentlanglet/twig-cs-fixer`
 - Rector configuration with customizable settings
-  - PHP 7.4 - 8.4 support
+  - PHP 8.1 - 8.5 support
   - Doctrine, PHPUnit integration
   - Configurable feature flags
   - Framework-specific rule sets

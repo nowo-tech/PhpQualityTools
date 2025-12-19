@@ -45,17 +45,33 @@ return [
     /**
      * Additional rules to apply
      * Add custom rules specific to your project
+     * 
+     * To use PHP Quality Tools custom rules, uncomment the following:
+     * 
+     * use NowoTech\PhpQualityTools\Rector\Set\CustomRulesSet;
+     * 
+     * Then add to rules:
+     * 'rules' => array_merge(
+     *     CustomRulesSet::getRules(),
+     *     [
+     *         // Your additional custom rules here
+     *     ]
+     * ),
      */
     'rules' => [
+        // PHP Quality Tools custom rules (requires symplify/rule-doc-generator-contracts)
+        // Uncomment to enable:
+        // ...\NowoTech\PhpQualityTools\Rector\Set\CustomRulesSet::getRules(),
+        
         // Example: add specific rules
         // \Rector\TypeDeclaration\Rector\ClassMethod\AddParamTypeDeclarationRector::class,
     ],
 
     /**
      * PHP version target
-     * Options: php74, php80, php81, php82, php83, php84
+     * Options: php74, php80, php81, php82, php83, php84, php85
      */
-    'php_version' => 'php84',
+    'php_version' => 'php85',
 
     /**
      * Framework detection
