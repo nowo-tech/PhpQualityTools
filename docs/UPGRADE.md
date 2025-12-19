@@ -79,6 +79,31 @@ Always check [CHANGELOG.md](CHANGELOG.md) for:
 
 ## Version-Specific Upgrade Notes
 
+### Upgrading to 1.0.7
+
+**Script Names Changed:**
+- **PHP-CS-Fixer scripts**: Renamed for consistency
+  - `cs-check` → `fix:check` (check code style)
+  - `cs-fix` → `fix` (fix code style)
+  - Scripts now include `PHP_CS_FIXER_IGNORE_ENV=1` and `--allow-risky=yes` flags
+  - Scripts reference `.php-cs-fixer.dist.php` configuration file
+- **Rector scripts**: Improved naming for clarity
+  - `rector` now applies changes (was `rector:fix`)
+  - `rector:check` is the new dry-run version (was just `rector`)
+  - Scripts reference `rector.dist.php` configuration file
+- **Twig-CS-Fixer scripts**: Renamed for consistency and expanded
+  - `twig-check` → `twig:lint` (lint templates, dry-run)
+  - `twig-fix` → `twig:fix` (fix templates)
+  - Added `twig:fix:check` (check and fix templates)
+  - All scripts reference `.twig-cs-fixer.dist.php` configuration file
+
+**Action Required:**
+- If you have custom scripts that reference the old script names, update them to use the new names
+- If you're using the automatically installed scripts, they will be updated automatically on next install/update
+- Existing scripts in your `composer.json` are never overwritten, so old scripts remain until you manually update them
+
+**Note**: The old script names will continue to work if you haven't removed them, but we recommend updating to the new names for consistency.
+
 ### Upgrading to 1.0.6
 
 **Bug Fixes:**

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.7] - 2024-12-19
+
+### Changed
+
+- **Composer scripts updated**: Improved script names and commands for better consistency
+  - **PHP-CS-Fixer scripts**: Renamed from `cs-check`/`cs-fix` to `fix:check`/`fix`
+    - Added `PHP_CS_FIXER_IGNORE_ENV=1` environment variable to ignore environment-specific config
+    - Added `--allow-risky=yes` flag for risky rules
+    - Scripts now reference `.php-cs-fixer.dist.php` configuration file
+  - **Rector scripts**: Renamed from `rector:fix` to `rector:check` for clarity
+    - `rector` now applies changes (removed dry-run)
+    - `rector:check` is the dry-run version
+    - Scripts now reference `rector.dist.php` configuration file
+  - **Twig-CS-Fixer scripts**: Renamed and expanded script names
+    - `twig-check` → `twig:lint` (dry-run linting)
+    - `twig-fix` → `twig:fix` (apply fixes)
+    - Added `twig:fix:check` (check with fix option)
+    - All scripts now reference `.twig-cs-fixer.dist.php` configuration file
+    - Better namespace-style naming consistency with colons (`:`) separator
+
+### Improved
+
+- Script naming follows a more consistent pattern with namespace-style separators (`:`)
+- Scripts use `.dist.php` suffix to indicate distribution configuration files
+- PHP-CS-Fixer scripts ignore environment-specific configurations for consistent behavior
+
 ## [1.0.6] - 2024-12-19
 
 ### Fixed
