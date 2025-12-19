@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2024-12-18
+
+### Changed
+
+- **Configuration file naming**: Renamed `.php-cs-fixer.dist.php` to `.php-cs-fixer.php` for consistency with `rector.php` naming
+  - All configuration files now follow the same naming pattern (without `.dist` suffix)
+  - Updated all references in documentation, tests, and examples
+- **Template formatter installation**: Template formatter configurations are now only installed if their corresponding template engine dependencies are detected
+  - Twig-CS-Fixer config is only installed if `twig/twig` package is present
+  - Improved detection logic to work across all frameworks (not just Symfony/Generic)
+  - Added informative messages when template engines are not detected
+
+### Added
+
+- **Automatic Composer Scripts Installation**: The plugin now automatically adds Composer scripts to your `composer.json` during installation. Scripts are added based on the detected framework and installed dependencies:
+  - `cs-check` and `cs-fix` for PHP-CS-Fixer (all frameworks)
+  - `rector` and `rector:fix` for Rector (all frameworks)
+  - `twig-check` and `twig-fix` for Twig-CS-Fixer (if Twig is installed)
+  - `blade-check` and `blade-fix` for Laravel Blade templates
+  - `test` for PHPUnit (if installed)
+  - Existing scripts are never overwritten
+  - Scripts are sorted alphabetically for better readability
+- **Template engine documentation**: Comprehensive documentation of template engines used by each framework
+  - Added "Template Engines by Framework" section in README
+  - Documented all template engines (Twig, Blade, Smarty, PHP native views, etc.)
+  - Listed template engines without dedicated formatters yet
+  - Added future template formatter support roadmap
+- **Execution order documentation**: Added clear documentation about the correct order to run quality tools
+  - PHP-CS-Fixer should run first
+  - Rector should run second
+  - Template formatters should run last
+  - Added explanation of why order matters
+
+### Improved
+
+- **Plugin template detection**: Twig-CS-Fixer is now available for all frameworks if Twig is installed
+  - Previously only available for Symfony and Generic
+  - Now works with Laravel, Yii, CakePHP, Laminas, Slim, and Generic
+  - Better framework-agnostic template engine detection
+- **Code comments**: Enhanced code comments in Plugin.php with detailed template engine information
+  - Documented template engines by framework
+  - Added instructions for adding future template formatters
+  - Improved code maintainability
+
+## [1.0.1] - 2024-12-XX
+
+### Fixed
+
+- Minor bug fixes and improvements
+
 ## [1.0.0] - 2024-12-11
 
 ### Compatibility
