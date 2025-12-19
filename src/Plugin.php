@@ -586,8 +586,8 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
         // Collect new scripts that don't exist yet
         foreach ($scriptsToAdd as $scriptName => $scriptCommand) {
-            // Skip if script already exists
-            if (isset($composerJson['scripts'][$scriptName])) {
+            // Skip if script already exists (use array_key_exists to catch null values too)
+            if (array_key_exists($scriptName, $composerJson['scripts'])) {
                 $existingCount++;
                 continue;
             }
@@ -597,28 +597,43 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         }
 
         // Only write if we added new scripts
-        if ($addedCount > 0) {
-            // Add new scripts at the beginning, preserving existing order
-            $composerJson['scripts'] = array_merge($newScripts, $composerJson['scripts']);
-
-            // Encode JSON with detected indentation
-            $jsonContent = $this->encodeJsonWithIndentation($composerJson, $indent);
-            if ($jsonContent === false) {
-                $io->writeError('<error>php-quality-tools: Failed to encode composer.json</error>');
-
-                return;
+        if ($addedCount > 0 && !empty($newScripts)) {
+            // Final safety check: Remove any scripts that somehow already exist
+            $finalNewScripts = [];
+            foreach ($newScripts as $scriptName => $scriptCommand) {
+                // Double-check it doesn't exist (shouldn't happen, but safety first)
+                if (!array_key_exists($scriptName, $composerJson['scripts'])) {
+                    $finalNewScripts[$scriptName] = $scriptCommand;
+                } else {
+                    // Script already exists, skip it and adjust count
+                    $addedCount--;
+                }
             }
 
-            // Add trailing newline (preserve original newline style if possible)
-            $jsonContent .= "\n";
+            // Only proceed if we still have scripts to add after all checks
+            if ($addedCount > 0 && !empty($finalNewScripts)) {
+                // Add new scripts at the beginning, preserving existing order
+                $composerJson['scripts'] = array_merge($finalNewScripts, $composerJson['scripts']);
 
-            if (file_put_contents($composerJsonPath, $jsonContent) === false) {
-                $io->writeError('<error>php-quality-tools: Failed to write composer.json</error>');
+                // Encode JSON with detected indentation
+                $jsonContent = $this->encodeJsonWithIndentation($composerJson, $indent);
+                if ($jsonContent === false) {
+                    $io->writeError('<error>php-quality-tools: Failed to encode composer.json</error>');
 
-                return;
+                    return;
+                }
+
+                // Add trailing newline (preserve original newline style if possible)
+                $jsonContent .= "\n";
+
+                if (file_put_contents($composerJsonPath, $jsonContent) === false) {
+                    $io->writeError('<error>php-quality-tools: Failed to write composer.json</error>');
+
+                    return;
+                }
+
+                $io->write(sprintf('<info>php-quality-tools: Added %d script(s) to composer.json</info>', $addedCount));
             }
-
-            $io->write(sprintf('<info>php-quality-tools: Added %d script(s) to composer.json</info>', $addedCount));
         }
 
         if ($existingCount > 0) {
