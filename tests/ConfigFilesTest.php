@@ -132,7 +132,25 @@ class ConfigFilesTest extends TestCase
             $this->assertFileExists($file);
             $result = require $file;
             $this->assertIsArray($result, "File {$file} should return an array");
+            
+            // Verify that project_custom_fixers key exists (if present)
+            if (isset($result['project_custom_fixers'])) {
+                $this->assertIsArray($result['project_custom_fixers'], "project_custom_fixers should be an array");
+            }
         }
+    }
+
+    public function testPhpCsFixerConfigSupportsProjectCustomFixers(): void
+    {
+        $configFile = $this->configDir . '/generic/.php-cs-fixer.php';
+        $this->assertFileExists($configFile);
+        
+        $content = file_get_contents($configFile);
+        
+        // Verify that project custom fixers loading logic exists
+        $this->assertStringContainsString('project_custom_fixers', $content);
+        $this->assertStringContainsString('projectCustomFixers', $content);
+        $this->assertStringContainsString('registerCustomFixers', $content);
     }
 
     public function testCustomTwigCsFixerConfigFilesReturnArray(): void

@@ -41,6 +41,19 @@ if (class_exists(\NowoTech\PhpQualityTools\PhpCsFixer\Set\CustomFixersSet::class
     }
 }
 
+// Load project custom fixers from custom configuration (if available)
+$projectCustomFixers = [];
+$projectCustomFixerClasses = $custom['project_custom_fixers'] ?? [];
+foreach ($projectCustomFixerClasses as $fixerClass) {
+    if (class_exists($fixerClass)) {
+        try {
+            $projectCustomFixers[] = new $fixerClass();
+        } catch (\Throwable $e) {
+            // Silently ignore if dependencies are missing
+        }
+    }
+}
+
 // Create finder
 $finder = Finder::create()
     ->in($paths)
@@ -173,6 +186,11 @@ $config = (new Config())
 // Register PHP Quality Tools custom fixers if available
 if (!empty($phpQualityToolsFixers)) {
     $config->registerCustomFixers($phpQualityToolsFixers);
+}
+
+// Register project custom fixers if available
+if (!empty($projectCustomFixers)) {
+    $config->registerCustomFixers($projectCustomFixers);
 }
 
 return $config;

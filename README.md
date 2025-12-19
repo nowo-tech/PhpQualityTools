@@ -328,6 +328,23 @@ return [
 
 Edit `.php-cs-fixer.custom.php`:
 
+**Project Custom Fixers:**
+
+You can add your own project-specific custom fixers by adding them to the `project_custom_fixers` array:
+
+```php
+return [
+    // ... other settings ...
+    
+    'project_custom_fixers' => [
+        \App\Fixer\Custom\MyCustomFixer::class,
+        // Add more custom fixers here
+    ],
+];
+```
+
+Your project custom fixers will be automatically registered alongside PHP Quality Tools fixers. This allows you to extend functionality with project-specific code style rules.
+
 ```php
 <?php
 return [

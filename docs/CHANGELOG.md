@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.8] - 2024-12-19
+
+### Added
+
+- **Project custom fixers support**: PHP-CS-Fixer configuration now supports project-specific custom fixers
+  - Add your own custom fixers via `project_custom_fixers` array in `.php-cs-fixer.custom.php`
+  - Project fixers are registered in addition to PHP Quality Tools fixers
+  - Allows extending functionality with project-specific code style rules
+  - Example: `'project_custom_fixers' => [\App\Fixer\Custom\MyCustomFixer::class]`
+
+### Improved
+
+- **PHP-CS-Fixer configuration**: Enhanced custom configuration file
+  - Added `cache_file` option in `.php-cs-fixer.custom.php` for custom cache location
+  - Changed `line_ending` from hardcoded `"\n"` to `PHP_EOL` for better cross-platform compatibility
+  - Improved code formatting and documentation in custom configuration files
+
+### Fixed
+
+- Fixed indentation issue in `.php-cs-fixer.custom.php` documentation comments
+
 ## [1.0.7] - 2024-12-19
 
 ### Changed

@@ -79,6 +79,21 @@ Always check [CHANGELOG.md](CHANGELOG.md) for:
 
 ## Version-Specific Upgrade Notes
 
+### Upgrading to 1.0.8
+
+**New Features:**
+- **Project custom fixers support**: You can now add your own project-specific PHP-CS-Fixer fixers
+  - Add fixers via `project_custom_fixers` array in `.php-cs-fixer.custom.php`
+  - Project fixers are registered automatically alongside PHP Quality Tools fixers
+  - Example: `'project_custom_fixers' => [\App\Fixer\Custom\MyCustomFixer::class]`
+
+**Improvements:**
+- **PHP-CS-Fixer configuration**: Enhanced custom configuration options
+  - Added `cache_file` option for custom cache location
+  - Changed `line_ending` to use `PHP_EOL` for better cross-platform compatibility
+
+**No action required** - These are new features and improvements. Existing configurations continue to work.
+
 ### Upgrading to 1.0.7
 
 **Script Names Changed:**
