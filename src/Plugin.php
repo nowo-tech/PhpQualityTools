@@ -390,9 +390,8 @@ class Plugin implements PluginInterface, EventSubscriberInterface
      * Install configuration files to the project root.
      *
      * Behavior:
-     * - On install (isUpdate=false): Creates all configuration files that don't exist
-     * - On update (isUpdate=true): Does NOT create new files, only reports existing ones
-     * - Existing files are NEVER overwritten in either case
+     * - Creates all configuration files that don't exist (both on install and update)
+     * - Existing files are NEVER overwritten
      *
      * @param IOInterface $io       The IO interface
      * @param bool        $isUpdate Whether this is an update operation (true) or install (false)
@@ -414,7 +413,6 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
         $installedCount = 0;
         $skippedCount = 0;
-        $notCreatedCount = 0;
 
         foreach ($files as $source => $dest) {
             $sourcePath = $packageDir . '/' . $source;
@@ -430,13 +428,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
                 continue;
             }
 
-            // On update, don't create new files - only create on install
-            if ($isUpdate) {
-                $notCreatedCount++;
-                continue;
-            }
-
-            // On install, create the file
+            // Create the file if it doesn't exist
             $io->write(sprintf('<info>php-quality-tools: Installing %s</info>', $dest));
             copy($sourcePath, $destPath);
             $installedCount++;
@@ -446,13 +438,8 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             $io->write(sprintf('<info>php-quality-tools: Installed %d file(s) for %s</info>', $installedCount, $framework));
         }
 
-        if ($isUpdate) {
-            if ($skippedCount > 0) {
-                $io->write(sprintf('<comment>php-quality-tools: %d file(s) already exist (not overwritten)</comment>', $skippedCount));
-            }
-            if ($notCreatedCount > 0) {
-                $io->write(sprintf('<comment>php-quality-tools: %d new file(s) available but not created (run composer install to create them)</comment>', $notCreatedCount));
-            }
+        if ($skippedCount > 0) {
+            $io->write(sprintf('<comment>php-quality-tools: %d file(s) already exist (not overwritten)</comment>', $skippedCount));
         }
     }
 
@@ -551,6 +538,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
      *
      * Adds quality tool scripts if they don't already exist.
      * Never overwrites existing scripts.
+     * Preserves the original JSON formatting (indentation).
      *
      * @param IOInterface $io The IO interface
      */
@@ -564,7 +552,18 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             return;
         }
 
-        $composerJson = json_decode(file_get_contents($composerJsonPath), true);
+        // Read original file content to detect indentation
+        $originalContent = file_get_contents($composerJsonPath);
+        if ($originalContent === false) {
+            $io->writeError('<error>php-quality-tools: Failed to read composer.json</error>');
+
+            return;
+        }
+
+        // Detect original indentation (2 or 4 spaces, or tabs)
+        $indent = $this->detectJsonIndentation($originalContent);
+
+        $composerJson = json_decode($originalContent, true);
         if (json_last_error() !== JSON_ERROR_NONE) {
             $io->writeError('<error>php-quality-tools: Failed to parse composer.json</error>');
 
@@ -598,15 +597,15 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             // Sort scripts alphabetically for better readability
             ksort($composerJson['scripts']);
 
-            // Write back to composer.json with proper formatting
-            $jsonContent = json_encode($composerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            // Encode JSON with detected indentation
+            $jsonContent = $this->encodeJsonWithIndentation($composerJson, $indent);
             if ($jsonContent === false) {
                 $io->writeError('<error>php-quality-tools: Failed to encode composer.json</error>');
 
                 return;
             }
 
-            // Add trailing newline
+            // Add trailing newline (preserve original newline style if possible)
             $jsonContent .= "\n";
 
             if (file_put_contents($composerJsonPath, $jsonContent) === false) {
@@ -621,6 +620,91 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         if ($existingCount > 0) {
             $io->write(sprintf('<comment>php-quality-tools: %d script(s) already exist in composer.json (not overwritten)</comment>', $existingCount));
         }
+    }
+
+    /**
+     * Detect the indentation used in a JSON file.
+     *
+     * @param string $content The JSON file content
+     *
+     * @return string The indentation string (2 spaces, 4 spaces, or tab)
+     */
+    private function detectJsonIndentation(string $content): string
+    {
+        // Look for the first line with indentation after the opening brace
+        // or after the first property
+        if (preg_match('/^\{\s*\n(\s+)"[^"]+"/m', $content, $matches)) {
+            $firstIndent = $matches[1];
+            // Check if it's tabs
+            if (strpos($firstIndent, "\t") !== false) {
+                return "\t";
+            }
+            // Count spaces
+            $spaceCount = strlen($firstIndent);
+            if ($spaceCount === 2) {
+                return '  ';
+            }
+            // Default to 4 spaces, but also check for other common values
+            if ($spaceCount === 4) {
+                return '    ';
+            }
+            // If we find an unusual indentation, return it as-is
+            return $firstIndent;
+        }
+
+        // Default to 2 spaces if we can't detect
+        return '  ';
+    }
+
+    /**
+     * Encode JSON with a specific indentation.
+     *
+     * @param array  $data   The data to encode
+     * @param string $indent The indentation string (2 spaces, 4 spaces, or tab)
+     *
+     * @return string|false The encoded JSON string or false on failure
+     */
+    private function encodeJsonWithIndentation(array $data, string $indent): string|false
+    {
+        // First encode with standard pretty print (4 spaces)
+        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if ($json === false) {
+            return false;
+        }
+
+        // If indent is already 4 spaces, we're done
+        if ($indent === '    ') {
+            return $json;
+        }
+
+        // Replace indentation with the desired one
+        // Split by lines and re-indent
+        $lines = explode("\n", $json);
+        $result = [];
+
+        foreach ($lines as $line) {
+            // Detect the current indent level
+            $originalIndent = '';
+            $level = 0;
+            if (preg_match('/^(\s*)/', $line, $matches)) {
+                $originalIndent = $matches[1];
+                // Count how many 4-space increments we have
+                $level = (int) (strlen($originalIndent) / 4);
+            }
+
+            // Rebuild line with new indentation
+            $trimmedLine = ltrim($line);
+            if (empty($trimmedLine)) {
+                $result[] = '';
+                continue;
+            }
+
+            // Apply new indentation
+            $newIndent = str_repeat($indent, $level);
+            $result[] = $newIndent . $trimmedLine;
+        }
+
+        return implode("\n", $result);
     }
 
     /**

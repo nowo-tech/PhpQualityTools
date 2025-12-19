@@ -16,7 +16,7 @@ composer update nowo-tech/php-quality-tools
 
 - ✅ Your customizations in `*.custom.php` files are **always preserved**
 - ✅ Main config files (`rector.php`, `.php-cs-fixer.php`, etc.) are **not modified**
-- ✅ New configuration files are **not automatically created** during updates
+- ✅ New configuration files are **automatically created** during updates if they don't exist (starting from version 1.0.6)
 
 ### 3. Get Latest Base Configurations (Optional)
 
@@ -30,11 +30,15 @@ cp .php-cs-fixer.custom.php .php-cs-fixer.custom.php.backup
 # Remove main config files (they will be recreated)
 rm rector.php .php-cs-fixer.php .twig-cs-fixer.php
 
-# Reinstall to get latest base configs
+# Reinstall to get latest base configs (works with both install and update)
 composer install
+# OR
+composer update
 ```
 
 **Note**: Your `*.custom.php` files will remain untouched.
+
+**Note**: Starting from version 1.0.6, configuration files are copied during both `composer install` and `composer update`, so you can use either command.
 
 ### 4. Check for Missing Dependencies
 
@@ -74,6 +78,21 @@ Always check [CHANGELOG.md](CHANGELOG.md) for:
 - Deprecations
 
 ## Version-Specific Upgrade Notes
+
+### Upgrading to 1.0.6
+
+**Bug Fixes:**
+- **JSON format preservation**: The plugin now preserves your `composer.json` indentation format when adding scripts
+  - If your `composer.json` uses 2 spaces, it will remain 2 spaces
+  - If it uses 4 spaces, it will remain 4 spaces
+  - If it uses tabs, it will remain tabs
+  - No more forced formatting changes to your `composer.json`
+- **Configuration files installation**: Configuration files are now copied during both `composer install` and `composer update`
+  - Previously, new files were only created during `composer install`
+  - Now files are created automatically regardless of which command you use
+  - This fixes the issue where files weren't copied when using `composer update` or `composer require`
+
+**No action required** - These are bug fixes that improve the installation experience.
 
 ### Upgrading to 1.0.4
 
