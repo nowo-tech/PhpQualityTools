@@ -81,7 +81,7 @@ This project is maintained by [Héctor Franco Aceituno](https://github.com/HecFr
 - Add tests for new features
 - Update documentation as needed
 - Keep commits atomic and descriptive
-- Update CHANGELOG.md with compatibility information
+- Update docs/CHANGELOG.md with compatibility information
 
 ## Running Tests
 
@@ -129,7 +129,7 @@ When adding support for a new framework:
 3. Create framework-specific config files
 4. Add tests for framework detection
 5. Update README.md with framework compatibility
-6. Update CHANGELOG.md with PHP and framework versions
+6. Update docs/CHANGELOG.md with PHP and framework versions
 
 ## Version Compatibility
 

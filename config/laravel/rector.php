@@ -32,11 +32,24 @@ $custom = file_exists($customConfigPath) ? require $customConfigPath : [];
 // Default values
 $paths = $custom['paths'] ?? [__DIR__ . '/app'];
 $skip = $custom['skip'] ?? [];
-$rules = $custom['rules'] ?? [];
+$customRules = $custom['rules'] ?? [];
 $phpVersion = $custom['php_version'] ?? 'php83';
 $laravelVersion = $custom['laravel_version'] ?? 110;
 $features = $custom['features'] ?? [];
 $indentSize = $custom['indent_size'] ?? 4;
+
+// Load PHP Quality Tools custom rules (if available)
+$phpQualityToolsRules = [];
+if (class_exists(\NowoTech\PhpQualityTools\Rector\Set\CustomRulesSet::class)) {
+    try {
+        $phpQualityToolsRules = \NowoTech\PhpQualityTools\Rector\Set\CustomRulesSet::getRules();
+    } catch (\Throwable $e) {
+        // Silently ignore if dependencies are missing
+    }
+}
+
+// Merge custom rules: PHP Quality Tools rules first, then user custom rules
+$rules = array_merge($phpQualityToolsRules, $customRules);
 
 // Check if Laravel Rector is available
 $hasLaravelRector = class_exists('RectorLaravel\Set\LaravelSetList');

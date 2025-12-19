@@ -1,0 +1,219 @@
+# Upgrade Guide
+
+This guide helps you upgrade between versions of PHP Quality Tools.
+
+## General Upgrade Process
+
+### 1. Update the Package
+
+```bash
+composer update nowo-tech/php-quality-tools
+```
+
+### 2. Review Configuration Files
+
+**Important**: Configuration files are **never overwritten** during updates. This means:
+
+- ✅ Your customizations in `*.custom.php` files are **always preserved**
+- ✅ Main config files (`rector.php`, `.php-cs-fixer.php`, etc.) are **not modified**
+- ✅ New configuration files are **not automatically created** during updates
+
+### 3. Get Latest Base Configurations (Optional)
+
+If you want to update to the latest base configurations:
+
+```bash
+# Backup your custom files first
+cp rector.custom.php rector.custom.php.backup
+cp .php-cs-fixer.custom.php .php-cs-fixer.custom.php.backup
+
+# Remove main config files (they will be recreated)
+rm rector.php .php-cs-fixer.php .twig-cs-fixer.php
+
+# Reinstall to get latest base configs
+composer install
+```
+
+**Note**: Your `*.custom.php` files will remain untouched.
+
+### 4. Check for Missing Dependencies
+
+The plugin will automatically detect and offer to install missing suggested dependencies during updates (in interactive mode).
+
+If you're in non-interactive mode, install dependencies manually:
+
+```bash
+# For Symfony projects
+composer require --dev rector/rector rector/rector-symfony rector/rector-doctrine rector/rector-phpunit friendsofphp/php-cs-fixer vincentlanglet/twig-cs-fixer
+
+# For Laravel projects
+composer require --dev rector/rector driftingly/rector-laravel friendsofphp/php-cs-fixer
+
+# For generic PHP projects
+composer require --dev rector/rector friendsofphp/php-cs-fixer vincentlanglet/twig-cs-fixer
+```
+
+### 5. Review Changelog
+
+Always check [CHANGELOG.md](CHANGELOG.md) for:
+- New features
+- Breaking changes
+- Compatibility updates
+- Deprecations
+
+## Version-Specific Upgrade Notes
+
+### Upgrading from Pre-Release to Latest
+
+If you're upgrading from a version that used `.php-cs-fixer.dist.php`:
+
+1. **Configuration File Rename**: The file `.php-cs-fixer.dist.php` has been renamed to `.php-cs-fixer.php`
+   - If you have an old `.php-cs-fixer.dist.php` file, you can safely delete it
+   - The new `.php-cs-fixer.php` will be created on next install
+   - Update any scripts or references that use the old filename
+   - Composer scripts in README have been updated with the new filename
+
+2. **Template Formatter Detection**: Template formatter configs are now only installed if dependencies are detected
+   - If you had Twig-CS-Fixer config but don't have `twig/twig` installed, it won't be installed automatically
+   - Install `twig/twig` if you want Twig-CS-Fixer configuration
+   - This prevents unnecessary config files
+
+3. **Execution Order**: Follow the documented order when running quality tools
+   - Run PHP-CS-Fixer first
+   - Run Rector second
+   - Run template formatters last
+
+4. **Automatic Composer Scripts**: The plugin now automatically adds Composer scripts to your `composer.json` during installation
+   - Scripts are added automatically: `cs-check`, `cs-fix`, `rector`, `rector:fix`
+   - Twig scripts (`twig-check`, `twig-fix`) are added if Twig is installed
+   - Laravel Blade scripts (`blade-check`, `blade-fix`) are added for Laravel projects
+   - Test script (`test`) is added if PHPUnit is installed
+   - Existing scripts are never overwritten
+   - You can now use `composer cs-fix`, `composer rector:fix`, etc. immediately after installation
+
+### Upgrading to 1.0.0
+
+This is the initial release. If you're upgrading from a pre-release version:
+
+1. **PHP Version Requirement**: Ensure you're using PHP >= 8.1
+2. **Composer Version**: Requires Composer >= 2.0
+3. **Configuration Files**: All configuration files will be created on first install
+4. **Dependencies**: Install suggested dependencies as needed
+
+## Breaking Changes
+
+### PHP Version Requirements
+
+- **PHP 8.1+** is required starting from version 1.0.0
+- If you're using PHP 8.0 or earlier, you'll need to upgrade PHP first
+
+### Composer Version
+
+- **Composer 2.0+** is required
+- Upgrade Composer if you're using version 1.x:
+  ```bash
+  composer self-update
+  ```
+
+## Framework-Specific Considerations
+
+### Symfony Projects
+
+- **Symfony 6.0 - 7.4** are supported
+- Ensure your Symfony version is compatible
+- Twig-CS-Fixer is included for Symfony projects
+
+### Laravel Projects
+
+- **Laravel 9.0 - 11.0** are supported
+- **Blade templates**: Formatted using PHP-CS-Fixer (`.blade.php` files included automatically)
+- **Twig support**: Twig-CS-Fixer config will be installed if `twig/twig` is detected (optional, via twigbridge)
+- Uses `driftingly/rector-laravel` for Laravel-specific Rector rules
+
+### Generic PHP Projects
+
+- Works with any PHP 8.1+ project
+- **Twig support**: Twig-CS-Fixer config will be installed if `twig/twig` is detected
+- Supports any template engine that has a dedicated formatter
+
+## Troubleshooting
+
+### Configuration Files Not Updated
+
+If you need the latest base configurations:
+
+1. **Backup your customizations**:
+   ```bash
+   cp rector.custom.php rector.custom.php.backup
+   cp .php-cs-fixer.custom.php .php-cs-fixer.custom.php.backup
+   ```
+
+2. **Remove and reinstall**:
+   ```bash
+   rm rector.php .php-cs-fixer.php .twig-cs-fixer.php
+   composer install
+   ```
+
+3. **Restore your customizations** from the backup files
+
+### Missing Dependencies
+
+If you see errors about missing dependencies:
+
+1. Check the [README.md](../README.md) for framework-specific dependencies
+2. Install them manually:
+   ```bash
+   composer require --dev <package-name>
+   ```
+
+### Framework Detection Issues
+
+If the wrong framework is detected:
+
+1. Check your `composer.json` for framework packages
+2. The plugin detects frameworks based on these packages:
+   - Symfony: `symfony/framework-bundle` or `symfony/symfony`
+   - Laravel: `laravel/framework`
+   - Yii: `yiisoft/yii2`
+   - CakePHP: `cakephp/cakephp`
+   - Laminas: `laminas/laminas-mvc`
+   - CodeIgniter: `codeigniter4/framework`
+   - Slim: `slim/slim`
+   - Generic: Fallback for any other project
+
+## Best Practices
+
+1. **Always backup** your `*.custom.php` files before major updates
+2. **Review the changelog** before upgrading
+3. **Test in a development environment** first
+4. **Keep dependencies up to date** for best compatibility
+5. **Use version constraints** in `composer.json`:
+   ```json
+   {
+     "require-dev": {
+       "nowo-tech/php-quality-tools": "^1.0"
+     }
+   }
+   ```
+
+## Getting Help
+
+If you encounter issues during upgrade:
+
+1. Check the [CHANGELOG.md](CHANGELOG.md) for known issues
+2. Review the [README.md](../README.md) for usage instructions
+3. Open an issue on [GitHub](https://github.com/nowo-tech/PhpQualityTools/issues)
+4. Include:
+   - PHP version
+   - Framework and version
+   - Composer version
+   - Error messages
+   - Steps to reproduce
+
+## Related Documentation
+
+- [README.md](../README.md) - Installation and usage
+- [CHANGELOG.md](CHANGELOG.md) - Version history and changes
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Contributing guidelines
+- [CUSTOM_RULES.md](CUSTOM_RULES.md) - Custom rules documentation
+
