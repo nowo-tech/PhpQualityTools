@@ -4,17 +4,12 @@ declare(strict_types=1);
 
 namespace NowoTech\PhpQualityTools\Tests;
 
-use Composer\Composer;
-use Composer\Config;
-use Composer\IO\IOInterface;
-use Composer\Repository\RepositoryManager;
-use Composer\Repository\InstalledRepositoryInterface;
 use NowoTech\PhpQualityTools\Plugin;
-use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 /**
  * @author Héctor Franco Aceituno <hectorfranco@nowo.com>
+ *
  * @see    https://github.com/HecFranco
  */
 class DependencyInstallationTest extends TestCase
@@ -85,4 +80,3 @@ class DependencyInstallationTest extends TestCase
         $this->assertArrayHasKey('vincentlanglet/twig-cs-fixer', $genericPackages);
     }
 }
-

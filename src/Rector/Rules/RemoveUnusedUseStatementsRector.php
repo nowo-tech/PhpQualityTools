@@ -47,30 +47,29 @@ final class RemoveUnusedUseStatementsRector extends AbstractRector
             [
                 new CodeSample(
                     <<<'PHP'
-use App\Entity\User;
-use App\Service\OrderService;
-use App\Repository\ProductRepository;
+                        use App\Entity\User;
+                        use App\Service\OrderService;
+                        use App\Repository\ProductRepository;
 
-class Example
-{
-    public function test(): User
-    {
-        return new User();
-    }
-}
-PHP
-                    ,
+                        class Example
+                        {
+                            public function test(): User
+                            {
+                                return new User();
+                            }
+                        }
+                        PHP,
                     <<<'PHP'
-use App\Entity\User;
+                        use App\Entity\User;
 
-class Example
-{
-    public function test(): User
-    {
-        return new User();
-    }
-}
-PHP
+                        class Example
+                        {
+                            public function test(): User
+                            {
+                                return new User();
+                            }
+                        }
+                        PHP
                 ),
             ]
         );
@@ -98,7 +97,7 @@ PHP
         }
 
         $usedUses = [];
-        
+
         foreach ($node->uses as $use) {
             if ($this->isUseUsed($use, $node)) {
                 $usedUses[] = $use;
@@ -108,12 +107,14 @@ PHP
         // If no uses are needed, remove the entire use statement
         if (empty($usedUses)) {
             $this->removeNode($node);
+
             return null;
         }
 
         // If some uses are needed, keep only those
         if (count($usedUses) < count($node->uses)) {
             $node->uses = $usedUses;
+
             return $node;
         }
 
@@ -132,9 +133,8 @@ PHP
         // For a proper implementation, we would need to traverse the entire AST
         // and check all references. This requires complex analysis that Rector
         // already provides. This rule is kept as a placeholder for custom logic.
-        
+
         // By default, assume all uses are needed to avoid false positives
         return true;
     }
 }
-

@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * @author Héctor Franco Aceituno <hectorfranco@nowo.com>
+ *
  * @see    https://github.com/HecFranco
  */
 class ConfigFilesTest extends TestCase
@@ -156,4 +157,3 @@ class ConfigFilesTest extends TestCase
         $this->assertFileDoesNotExist($this->configDir . '/laravel/.twig-cs-fixer.custom.php');
     }
 }
-

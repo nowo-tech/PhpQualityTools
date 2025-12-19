@@ -148,4 +148,3 @@ final class CustomRulesSet
         return array_unique($packages);
     }
 }
-

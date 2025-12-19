@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace NowoTech\PhpQualityTools\Tests;
 
-use Composer\Composer;
-use Composer\Config;
-use Composer\IO\IOInterface;
 use NowoTech\PhpQualityTools\Plugin;
 use PHPUnit\Framework\TestCase;
 
 /**
  * @author Héctor Franco Aceituno <hectorfranco@nowo.com>
+ *
  * @see    https://github.com/HecFranco
  */
 class FrameworkDetectionTest extends TestCase
@@ -66,4 +64,3 @@ class FrameworkDetectionTest extends TestCase
         }
     }
 }
-

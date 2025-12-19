@@ -21,6 +21,7 @@ use PhpCsFixer\Tokenizer\Tokens;
  *
  * Example:
  * - Before:
+ *
  *   `/** @var string *\/`
  * - After:
  *   `/** @var string *\/`
@@ -37,19 +38,19 @@ final class ConsistentDocblockFixer extends AbstractFixer
             [
                 new CodeSample(
                     <<<'PHP'
-<?php
-class Example
-{
-    /** @var string */
-    private $name;
-    
-    /**
-     * @param string $name
-     * @return void
-     */
-    public function setName($name) {}
-}
-PHP
+                        <?php
+                        class Example
+                        {
+                            /** @var string */
+                            private $name;
+                            
+                            /**
+                             * @param string $name
+                             * @return void
+                             */
+                            public function setName($name) {}
+                        }
+                        PHP
                 ),
             ]
         );
@@ -127,7 +128,7 @@ PHP
 
         foreach ($lines as $line) {
             $line = rtrim($line);
-            
+
             // Skip empty lines at start/end
             if (empty($line) && (empty($formatted) || end($formatted) === ' */')) {
                 continue;
@@ -149,6 +150,3 @@ PHP
         return implode("\n", $formatted);
     }
 }
-
-
-

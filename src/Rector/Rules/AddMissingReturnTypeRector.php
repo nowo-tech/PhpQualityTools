@@ -40,34 +40,33 @@ final class AddMissingReturnTypeRector extends AbstractRector
             [
                 new CodeSample(
                     <<<'PHP'
-class Example
-{
-    public function getName()
-    {
-        return $this->name;
-    }
-    
-    protected function getCount()
-    {
-        return 42;
-    }
-}
-PHP
-                    ,
+                        class Example
+                        {
+                            public function getName()
+                            {
+                                return $this->name;
+                            }
+                            
+                            protected function getCount()
+                            {
+                                return 42;
+                            }
+                        }
+                        PHP,
                     <<<'PHP'
-class Example
-{
-    public function getName(): string
-    {
-        return $this->name;
-    }
-    
-    protected function getCount(): int
-    {
-        return 42;
-    }
-}
-PHP
+                        class Example
+                        {
+                            public function getName(): string
+                            {
+                                return $this->name;
+                            }
+                            
+                            protected function getCount(): int
+                            {
+                                return 42;
+                            }
+                        }
+                        PHP
                 ),
             ]
         );
@@ -119,6 +118,7 @@ PHP
         // Complex type inference would require more sophisticated analysis
         if (in_array(strtolower($returnType), ['string', 'int', 'float', 'bool', 'array', 'void'])) {
             $node->returnType = new Node\Name($returnType);
+
             return $node;
         }
 
@@ -135,7 +135,7 @@ PHP
         // Simple inference based on return statements
         // This is a basic implementation - more sophisticated analysis could be added
         $stmts = $node->stmts ?? [];
-        
+
         if (empty($stmts)) {
             return 'void';
         }
@@ -204,6 +204,7 @@ PHP
 
         if ($expr instanceof Node\Expr\New_) {
             $class = $this->getName($expr->class);
+
             return $class;
         }
 
@@ -214,6 +215,4 @@ PHP
 
         return null;
     }
-
 }
-

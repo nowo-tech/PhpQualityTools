@@ -57,16 +57,15 @@ final class SplitLongMethodCallRector extends AbstractRector
             [
                 new CodeSample(
                     <<<'PHP'
-$result = $this->service->getData()->process()->format()->output();
-PHP
-                    ,
+                        $result = $this->service->getData()->process()->format()->output();
+                        PHP,
                     <<<'PHP'
-$result = $this->service
-    ->getData()
-    ->process()
-    ->format()
-    ->output();
-PHP
+                        $result = $this->service
+                            ->getData()
+                            ->process()
+                            ->format()
+                            ->output();
+                        PHP
                 ),
             ]
         );
@@ -91,14 +90,14 @@ PHP
     {
         // Count chain length
         $chainLength = $this->countChainLength($node);
-        
+
         if ($chainLength < self::MIN_CHAIN_LENGTH) {
             return null;
         }
 
         // Calculate approximate length
         $length = $this->calculateChainLength($node);
-        
+
         if ($length <= self::MAX_LINE_LENGTH) {
             return null;
         }
@@ -114,7 +113,7 @@ PHP
     private function countChainLength(Node $node): int
     {
         $count = 1; // Count the current call
-        
+
         if ($node instanceof MethodCall) {
             $var = $node->var;
             while ($var instanceof MethodCall || $var instanceof StaticCall) {
@@ -178,6 +177,3 @@ PHP
         return $length;
     }
 }
-
-
-

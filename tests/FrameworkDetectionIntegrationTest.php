@@ -7,7 +7,6 @@ namespace NowoTech\PhpQualityTools\Tests;
 use Composer\Composer;
 use Composer\Config;
 use Composer\IO\IOInterface;
-use Composer\Repository\RepositoryManager;
 use NowoTech\PhpQualityTools\Plugin;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
@@ -16,6 +15,7 @@ use ReflectionClass;
  * Integration tests for framework detection functionality.
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.com>
+ *
  * @see    https://github.com/HecFranco
  */
 class FrameworkDetectionIntegrationTest extends TestCase
@@ -27,7 +27,7 @@ class FrameworkDetectionIntegrationTest extends TestCase
     {
         // Create a temporary directory for testing
         $this->tempDir = sys_get_temp_dir() . '/php-quality-tools-test-' . uniqid();
-        mkdir($this->tempDir, 0777, true);
+        mkdir($this->tempDir, 0o777, true);
         $this->tempComposerJson = $this->tempDir . '/composer.json';
     }
 
@@ -152,4 +152,3 @@ class FrameworkDetectionIntegrationTest extends TestCase
         return $method->invoke($plugin);
     }
 }
-

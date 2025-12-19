@@ -8,10 +8,9 @@ use Composer\Composer;
 use Composer\Config;
 use Composer\IO\IOInterface;
 use Composer\Package\Package;
-use Composer\Repository\RepositoryManager;
 use Composer\Repository\InstalledRepositoryInterface;
+use Composer\Repository\RepositoryManager;
 use NowoTech\PhpQualityTools\Plugin;
-use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 
@@ -19,6 +18,7 @@ use ReflectionClass;
  * Tests for Rector version detection functionality.
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.com>
+ *
  * @see    https://github.com/HecFranco
  */
 class RectorVersionDetectionTest extends TestCase
@@ -30,7 +30,7 @@ class RectorVersionDetectionTest extends TestCase
     {
         $reflection = new ReflectionClass(Plugin::class);
         $this->assertTrue($reflection->hasMethod('getRectorVersion'));
-        
+
         $method = $reflection->getMethod('getRectorVersion');
         $this->assertTrue($method->isPrivate());
         $this->assertEquals('int', $method->getReturnType()->getName());
@@ -205,4 +205,3 @@ class RectorVersionDetectionTest extends TestCase
         $this->assertEquals(1, $version);
     }
 }
-

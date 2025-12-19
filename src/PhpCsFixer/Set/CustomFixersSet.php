@@ -68,4 +68,3 @@ final class CustomFixersSet
         return count(self::getFixers()) > 0;
     }
 }
-
