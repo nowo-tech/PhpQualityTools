@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.4] - 2024-12-19
+
+### Added
+
+- **Test coverage for Rector version detection**: Added comprehensive tests for `getRectorVersion()` method
+  - 5 new test cases covering all scenarios (Rector 1.x, 2.x, not installed, invalid version)
+  - New test file: `RectorVersionDetectionTest.php`
+  - Improved test coverage for Plugin class
+
+### Improved
+
+- **Dockerfile**: Enhanced development container setup
+  - Added `curl` to system dependencies
+  - Container now fully ready for dependency installation and test execution
+  - All necessary tools pre-installed (PHP, Composer, PCOV, Git, etc.)
+
 ## [1.0.3] - 2024-12-19
 
 ### Fixed
