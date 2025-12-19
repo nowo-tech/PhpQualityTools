@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.5] - 2024-12-19
+
+### Fixed
+
+- **Rector 2.x compatibility**: Fixed compatibility issues with optional Rector packages
+  - Plugin now detects Rector version and handles optional packages accordingly
+  - **For Rector 1.x**: Optional packages (`rector-symfony`, `rector-doctrine`, `rector-phpunit`) are installed normally
+  - **For Rector 2.x**: Optional packages are automatically skipped (not compatible with Rector 2.x yet)
+  - These packages (`rector-symfony:^1.0`, `rector-doctrine:^0.16`, `rector-phpunit:^1.0`) conflict with Rector 2.x
+  - Fixes installation errors when Rector 2.x is installed
+
+### Documentation
+
+- Updated README.md with Rector 2.x compatibility information
+- Updated UPGRADE.md with instructions for Rector 2.x
+- Updated CHANGELOG.md with detailed Rector 2.x compatibility notes
+
 ## [1.0.4] - 2024-12-19
 
 ### Added
@@ -33,11 +50,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **PHP-CS-Fixer configuration conflict**: Removed conflicting `single_blank_line_before_namespace` rule
   - This rule conflicts with `blank_lines_before_namespace` included in `@PSR12`
   - Configuration now works correctly without conflicts
-- **Rector package version compatibility**: Added automatic Rector version detection for optional packages
-  - Plugin now detects installed Rector version (1.x or 2.x)
-  - Automatically uses compatible versions of optional Rector packages:
-    - Rector 1.x: `rector-symfony:^1.0`, `rector-doctrine:^0.16`, `rector-phpunit:^1.0`
-    - Rector 2.x: `rector-symfony:^2.0`, `rector-doctrine:^2.0`, `rector-phpunit:^2.0`
+- **Rector package version compatibility**: Fixed compatibility issues with Rector 2.x
+  - Plugin now detects Rector version and handles optional packages accordingly
+  - **For Rector 1.x**: Optional packages (`rector-symfony`, `rector-doctrine`, `rector-phpunit`) are installed normally
+  - **For Rector 2.x**: Optional packages are automatically skipped (not compatible yet)
+  - These packages (`rector-symfony:^1.0`, `rector-doctrine:^0.16`, `rector-phpunit:^1.0`) conflict with Rector 2.x
   - Fixes installation errors when Rector 2.x is installed
 
 ## [1.0.2] - 2024-12-18

@@ -246,8 +246,20 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         $suggestedPackages = self::SUGGESTED_PACKAGES[$framework] ?? self::SUGGESTED_PACKAGES['generic'];
 
         $missingPackages = [];
+        $rectorVersion = $this->getRectorVersion();
+
         foreach ($suggestedPackages as $package => $description) {
             if (!$this->isPackageInstalled($package)) {
+                // Skip optional Rector packages if Rector 2.x is installed
+                // These packages (rector-symfony, rector-doctrine, rector-phpunit)
+                // are not compatible with Rector 2.x yet
+                if ($rectorVersion >= 2 && in_array($package, [
+                    'rector/rector-symfony',
+                    'rector/rector-doctrine',
+                    'rector/rector-phpunit',
+                ], true)) {
+                    continue; // Skip these packages for Rector 2.x
+                }
                 $missingPackages[$package] = $description;
             }
         }
@@ -263,16 +275,19 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         }
 
         // Build command with correct versions for optional Rector packages
-        // Detect Rector version to use compatible package versions
-        $rectorVersion = $this->getRectorVersion();
+        // Note: These packages don't have version 2.0, even with Rector 2.x
+        // Latest versions: rector-symfony:^1.1, rector-doctrine:^0.16, rector-phpunit:^1.1
         $packagesForMessage = [];
         foreach (array_keys($missingPackages) as $package) {
             if ($package === 'rector/rector-doctrine') {
-                $packagesForMessage[] = $rectorVersion >= 2 ? 'rector/rector-doctrine:^2.0' : 'rector/rector-doctrine:^0.16';
+                // rector/rector-doctrine max version is 0.16.0 (compatible with both Rector 1.x and 2.x)
+                $packagesForMessage[] = 'rector/rector-doctrine:^0.16';
             } elseif ($package === 'rector/rector-symfony') {
-                $packagesForMessage[] = $rectorVersion >= 2 ? 'rector/rector-symfony:^2.0' : 'rector/rector-symfony:^1.0';
+                // rector/rector-symfony max version is 1.1.0 (compatible with both Rector 1.x and 2.x)
+                $packagesForMessage[] = 'rector/rector-symfony:^1.0';
             } elseif ($package === 'rector/rector-phpunit') {
-                $packagesForMessage[] = $rectorVersion >= 2 ? 'rector/rector-phpunit:^2.0' : 'rector/rector-phpunit:^1.0';
+                // rector/rector-phpunit max version is 1.1.0 (compatible with both Rector 1.x and 2.x)
+                $packagesForMessage[] = 'rector/rector-phpunit:^1.0';
             } else {
                 $packagesForMessage[] = $package;
             }
@@ -314,19 +329,19 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         $io->write('<info>php-quality-tools: Installing dependencies...</info>');
 
         // Build command with correct versions for optional Rector packages
-        // Detect Rector version to use compatible package versions
-        $rectorVersion = $this->getRectorVersion();
+        // Note: These packages don't have version 2.0, even with Rector 2.x
+        // Latest versions: rector-symfony:^1.1, rector-doctrine:^0.16, rector-phpunit:^1.1
         $packagesWithVersions = [];
         foreach ($packages as $package) {
             if ($package === 'rector/rector-doctrine') {
-                // rector/rector-doctrine 0.16 is compatible with Rector 1.x, 2.x needs ^2.0
-                $packagesWithVersions[] = $rectorVersion >= 2 ? 'rector/rector-doctrine:^2.0' : 'rector/rector-doctrine:^0.16';
+                // rector/rector-doctrine max version is 0.16.0 (compatible with both Rector 1.x and 2.x)
+                $packagesWithVersions[] = 'rector/rector-doctrine:^0.16';
             } elseif ($package === 'rector/rector-symfony') {
-                // rector/rector-symfony 1.x is compatible with Rector 1.x, 2.x needs ^2.0
-                $packagesWithVersions[] = $rectorVersion >= 2 ? 'rector/rector-symfony:^2.0' : 'rector/rector-symfony:^1.0';
+                // rector/rector-symfony max version is 1.1.0 (compatible with both Rector 1.x and 2.x)
+                $packagesWithVersions[] = 'rector/rector-symfony:^1.0';
             } elseif ($package === 'rector/rector-phpunit') {
-                // rector/rector-phpunit 1.x is compatible with Rector 1.x, 2.x needs ^2.0
-                $packagesWithVersions[] = $rectorVersion >= 2 ? 'rector/rector-phpunit:^2.0' : 'rector/rector-phpunit:^1.0';
+                // rector/rector-phpunit max version is 1.1.0 (compatible with both Rector 1.x and 2.x)
+                $packagesWithVersions[] = 'rector/rector-phpunit:^1.0';
             } else {
                 $packagesWithVersions[] = $package;
             }
@@ -349,16 +364,19 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             $io->writeError('<error>php-quality-tools: Output: ' . implode("\n", $output) . '</error>');
 
             // Build command with correct versions for optional Rector packages
-            // Detect Rector version to use compatible package versions
-            $rectorVersion = $this->getRectorVersion();
+            // Note: These packages don't have version 2.0, even with Rector 2.x
+            // Latest versions: rector-symfony:^1.1, rector-doctrine:^0.16, rector-phpunit:^1.1
             $packagesWithVersions = [];
             foreach ($packages as $package) {
                 if ($package === 'rector/rector-doctrine') {
-                    $packagesWithVersions[] = $rectorVersion >= 2 ? 'rector/rector-doctrine:^2.0' : 'rector/rector-doctrine:^0.16';
+                    // rector/rector-doctrine max version is 0.16.0 (compatible with both Rector 1.x and 2.x)
+                    $packagesWithVersions[] = 'rector/rector-doctrine:^0.16';
                 } elseif ($package === 'rector/rector-symfony') {
-                    $packagesWithVersions[] = $rectorVersion >= 2 ? 'rector/rector-symfony:^2.0' : 'rector/rector-symfony:^1.0';
+                    // rector/rector-symfony max version is 1.1.0 (compatible with both Rector 1.x and 2.x)
+                    $packagesWithVersions[] = 'rector/rector-symfony:^1.0';
                 } elseif ($package === 'rector/rector-phpunit') {
-                    $packagesWithVersions[] = $rectorVersion >= 2 ? 'rector/rector-phpunit:^2.0' : 'rector/rector-phpunit:^1.0';
+                    // rector/rector-phpunit max version is 1.1.0 (compatible with both Rector 1.x and 2.x)
+                    $packagesWithVersions[] = 'rector/rector-phpunit:^1.0';
                 } else {
                     $packagesWithVersions[] = $package;
                 }

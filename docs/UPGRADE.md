@@ -42,14 +42,21 @@ The plugin will automatically detect and offer to install missing suggested depe
 
 If you're in non-interactive mode, install dependencies manually:
 
-**Note**: The plugin now automatically detects your Rector version and uses compatible package versions. If you install manually, use the versions compatible with your Rector version:
+**Note**: The plugin automatically detects your Rector version and handles optional packages accordingly:
+
+- **For Rector 1.x**: Optional packages (`rector-symfony`, `rector-doctrine`, `rector-phpunit`) are installed normally
+- **For Rector 2.x**: Optional packages are automatically skipped (not compatible with Rector 2.x yet)
+
+If you install manually:
 
 ```bash
 # For Symfony projects (Rector 1.x)
 composer require --dev rector/rector rector/rector-symfony:^1.0 rector/rector-doctrine:^0.16 rector/rector-phpunit:^1.0 friendsofphp/php-cs-fixer vincentlanglet/twig-cs-fixer
 
 # For Symfony projects (Rector 2.x)
-composer require --dev rector/rector rector/rector-symfony:^2.0 rector/rector-doctrine:^2.0 rector/rector-phpunit:^2.0 friendsofphp/php-cs-fixer vincentlanglet/twig-cs-fixer
+# Note: Optional Rector packages are NOT compatible with Rector 2.x
+# The plugin will automatically skip them. Install only:
+composer require --dev rector/rector friendsofphp/php-cs-fixer vincentlanglet/twig-cs-fixer
 
 # For Laravel projects
 composer require --dev rector/rector driftingly/rector-laravel friendsofphp/php-cs-fixer
