@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.3] - 2024-12-19
+
+### Fixed
+
+- **PHP 8.1 compatibility**: Removed typed constants (`private const int`) which require PHP 8.3+
+  - All constants now use untyped syntax compatible with PHP 8.1+
+  - Fixed PHPUnit code coverage HTML generation error
+- **PHP-CS-Fixer configuration conflict**: Removed conflicting `single_blank_line_before_namespace` rule
+  - This rule conflicts with `blank_lines_before_namespace` included in `@PSR12`
+  - Configuration now works correctly without conflicts
+- **Rector package version compatibility**: Added automatic Rector version detection for optional packages
+  - Plugin now detects installed Rector version (1.x or 2.x)
+  - Automatically uses compatible versions of optional Rector packages:
+    - Rector 1.x: `rector-symfony:^1.0`, `rector-doctrine:^0.16`, `rector-phpunit:^1.0`
+    - Rector 2.x: `rector-symfony:^2.0`, `rector-doctrine:^2.0`, `rector-phpunit:^2.0`
+  - Fixes installation errors when Rector 2.x is installed
+
 ## [1.0.2] - 2024-12-18
 
 ### Changed
