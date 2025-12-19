@@ -237,6 +237,8 @@ The following scripts are automatically added (if they don't already exist):
 
 **Note**: The plugin preserves your `composer.json` formatting (2 spaces, 4 spaces, or tabs) when adding scripts. Your original indentation style is maintained.
 
+**Note**: The plugin preserves the original order of your existing scripts. New scripts are added at the beginning of the scripts section, so your preferred organization is maintained.
+
 ### Manual Scripts (Optional)
 
 If you prefer different script names or commands, you can manually add them to your `composer.json`:

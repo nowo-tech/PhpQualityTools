@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Detects original indentation (2 spaces, 4 spaces, or tabs)
   - Maintains the original format instead of forcing 4-space indentation
   - Prevents unnecessary formatting changes to `composer.json`
+- **Scripts order preservation**: Plugin now preserves the original order of existing scripts in `composer.json`
+  - New scripts are added at the beginning of the scripts section (instead of being sorted alphabetically)
+  - Existing scripts maintain their original order (no alphabetical reordering)
+  - Respects your preferred script organization
 - **Configuration files installation**: Configuration files are now copied during both `composer install` and `composer update`
   - Previously, files were only copied during `composer install`
   - Now files are created automatically on first installation, regardless of command used
