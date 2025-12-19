@@ -60,7 +60,7 @@ final class ExampleCustomRule extends AbstractRector
 
 ## Usage
 
-To use custom rules, add them to your `rector.php` or `rector.custom.php`:
+To use custom rules, add them to your `.rector.php` or `.rector.custom.php`:
 
 ```php
 use NowoTech\PhpQualityTools\Rector\Rules\ExampleCustomRule;

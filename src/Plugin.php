@@ -457,18 +457,18 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         $files = [];
 
         // Rector
-        $rectorSource = "config/{$framework}/rector.php";
-        $rectorCustomSource = "config/{$framework}/rector.custom.php";
+        $rectorSource = "config/{$framework}/.rector.php";
+        $rectorCustomSource = "config/{$framework}/.rector.custom.php";
 
         // Fallback to generic if framework-specific doesn't exist
         $packageDir = __DIR__ . '/..';
         if (!file_exists($packageDir . '/' . $rectorSource)) {
-            $rectorSource = 'config/generic/rector.php';
-            $rectorCustomSource = 'config/generic/rector.custom.php';
+            $rectorSource = 'config/generic/.rector.php';
+            $rectorCustomSource = 'config/generic/.rector.custom.php';
         }
 
-        $files[$rectorSource] = 'rector.php';
-        $files[$rectorCustomSource] = 'rector.custom.php';
+        $files[$rectorSource] = '.rector.php';
+        $files[$rectorCustomSource] = '.rector.custom.php';
 
         // PHP-CS-Fixer
         $csfixerSource = "config/{$framework}/.php-cs-fixer.php";
@@ -741,8 +741,8 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             'fix:check' => 'PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff --allow-risky=yes',
 
             // Rector scripts
-            'rector' => 'rector process -c rector.dist.php',
-            'rector:check' => 'rector process -c rector.dist.php --dry-run',
+            'rector' => 'rector process -c .rector.dist.php',
+            'rector:check' => 'rector process -c .rector.dist.php --dry-run',
         ];
 
         // Add Twig-CS-Fixer scripts if Twig is installed

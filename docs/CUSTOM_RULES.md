@@ -94,7 +94,7 @@ return [
 ];
 ```
 
-#### Opción 2: Añadir manualmente en rector.custom.php
+#### Opción 2: Añadir manualmente en .rector.custom.php
 
 ```php
 use NowoTech\PhpQualityTools\Rector\Rules\ExampleCustomRule;
@@ -106,7 +106,7 @@ return [
 ];
 ```
 
-#### Opción 3: Añadir directamente en rector.php
+#### Opción 3: Añadir directamente en .rector.php
 
 ```php
 use Rector\Config\RectorConfig;
@@ -321,7 +321,7 @@ composer require --dev symplify/rule-doc-generator-contracts
 Las reglas custom están disponibles automáticamente cuando usas el `CustomRulesSet`:
 
 ```php
-// En rector.php o rector.custom.php
+// En .rector.php o .rector.custom.php
 use NowoTech\PhpQualityTools\Rector\Set\CustomRulesSet;
 
 return [
