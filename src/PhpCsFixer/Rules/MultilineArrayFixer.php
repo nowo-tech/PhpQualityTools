@@ -49,9 +49,9 @@ final class MultilineArrayFixer extends AbstractFixer
             [
                 new CodeSample(
                     <<<'PHP'
-<?php
-$data = ['key1' => 'value1', 'key2' => 'value2', 'key3' => 'value3'];
-PHP
+                        <?php
+                        $data = ['key1' => 'value1', 'key2' => 'value2', 'key3' => 'value3'];
+                        PHP
                 ),
             ]
         );
@@ -196,7 +196,7 @@ PHP
         $count = 0;
         $depth = 0;
         $startToken = $tokens[$startIndex];
-        
+
         // Skip opening bracket/parenthesis
         $i = $startIndex + 1;
         if ($startToken->isGivenKind(T_ARRAY) && $tokens[$i]->equals('(')) {
@@ -267,4 +267,3 @@ PHP
         }
     }
 }
-

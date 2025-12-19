@@ -19,6 +19,7 @@ use Composer\Script\ScriptEvents;
  * Optionally installs suggested dependencies (Rector, PHP-CS-Fixer, etc.)
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.com>
+ *
  * @see    https://github.com/HecFranco
  */
 class Plugin implements PluginInterface, EventSubscriberInterface
@@ -216,19 +217,19 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     {
         $localRepository = $this->composer->getRepositoryManager()->getLocalRepository();
         $rectorPackage = $localRepository->findPackage('rector/rector', '*');
-        
+
         if ($rectorPackage === null) {
             // Default to version 1 if Rector is not installed
             return 1;
         }
-        
+
         $version = $rectorPackage->getVersion();
-        
+
         // Extract major version from version string (e.g., "2.2.14" -> 2)
         if (preg_match('/^(\d+)\./', $version, $matches)) {
             return (int) $matches[1];
         }
-        
+
         // Default to version 1 if version cannot be determined
         return 1;
     }
@@ -276,10 +277,11 @@ class Plugin implements PluginInterface, EventSubscriberInterface
                 $packagesForMessage[] = $package;
             }
         }
-        
+
         if (!$io->isInteractive()) {
             $io->write('<comment>php-quality-tools: Run in interactive mode to install dependencies automatically</comment>');
             $io->write('<comment>php-quality-tools: Or install manually: composer require --dev --with-all-dependencies ' . implode(' ', $packagesForMessage) . '</comment>');
+
             return;
         }
 
@@ -329,7 +331,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
                 $packagesWithVersions[] = $package;
             }
         }
-        
+
         $command = sprintf(
             '%s require --dev --no-interaction --with-all-dependencies %s',
             escapeshellarg($composerBin),
@@ -345,7 +347,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         } else {
             $io->writeError('<error>php-quality-tools: Failed to install dependencies</error>');
             $io->writeError('<error>php-quality-tools: Output: ' . implode("\n", $output) . '</error>');
-            
+
             // Build command with correct versions for optional Rector packages
             // Detect Rector version to use compatible package versions
             $rectorVersion = $this->getRectorVersion();
@@ -361,7 +363,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
                     $packagesWithVersions[] = $package;
                 }
             }
-            
+
             $io->writeError('<error>php-quality-tools: Please install manually: composer require --dev --with-all-dependencies ' . implode(' ', $packagesWithVersions) . '</error>');
         }
     }
@@ -476,7 +478,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         $files[$csfixerCustomSource] = '.php-cs-fixer.custom.php';
 
         // Template formatters (framework-specific)
-        // 
+        //
         // Template engines by framework:
         // - Symfony: Twig (default)
         // - Laravel: Blade (default), Twig (optional via twigbridge)
@@ -486,7 +488,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         // - CodeIgniter: PHP native views
         // - Slim: PHP native, Twig (optional)
         // - Generic: Varies (Twig, PHP native, etc.)
-        
+
         // Twig-CS-Fixer: Available for all frameworks if Twig is installed
         // Check for Twig in all frameworks (not just Symfony/Generic)
         if ($this->isPackageInstalled('twig/twig')) {
@@ -510,7 +512,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         // Laravel Blade templates (.blade.php) are PHP files with special syntax.
         // The Laravel PHP-CS-Fixer config includes .blade.php files in the finder.
         // No additional config files needed - support is built into .php-cs-fixer.php
-        
+
         // Future template formatters (not yet implemented):
         // - Smarty-CS-Fixer: For Smarty templates (.tpl) used by Laminas
         // - CakePHP Template Formatter: For .ctp files
@@ -528,7 +530,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
     /**
      * Install Composer scripts to the project's composer.json.
-     * 
+     *
      * Adds quality tool scripts if they don't already exist.
      * Never overwrites existing scripts.
      *
@@ -547,6 +549,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         $composerJson = json_decode(file_get_contents($composerJsonPath), true);
         if (json_last_error() !== JSON_ERROR_NONE) {
             $io->writeError('<error>php-quality-tools: Failed to parse composer.json</error>');
+
             return;
         }
 
@@ -581,6 +584,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             $jsonContent = json_encode($composerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
             if ($jsonContent === false) {
                 $io->writeError('<error>php-quality-tools: Failed to encode composer.json</error>');
+
                 return;
             }
 
@@ -589,6 +593,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
             if (file_put_contents($composerJsonPath, $jsonContent) === false) {
                 $io->writeError('<error>php-quality-tools: Failed to write composer.json</error>');
+
                 return;
             }
 
@@ -613,7 +618,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             // PHP-CS-Fixer scripts
             'cs-check' => 'php-cs-fixer fix --dry-run --diff',
             'cs-fix' => 'php-cs-fixer fix',
-            
+
             // Rector scripts
             'rector' => 'rector process --dry-run',
             'rector:fix' => 'rector process',

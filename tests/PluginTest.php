@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace NowoTech\PhpQualityTools\Tests;
 
 use Composer\Composer;
-use Composer\Config;
 use Composer\EventDispatcher\EventSubscriberInterface;
 use Composer\IO\IOInterface;
 use Composer\Plugin\PluginInterface;
@@ -16,6 +15,7 @@ use ReflectionClass;
 
 /**
  * @author Héctor Franco Aceituno <hectorfranco@nowo.com>
+ *
  * @see    https://github.com/HecFranco
  */
 class PluginTest extends TestCase
@@ -99,4 +99,3 @@ class PluginTest extends TestCase
         $this->assertTrue(true);
     }
 }
-
