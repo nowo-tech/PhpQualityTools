@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.6] - 2024-12-19
+
+### Fixed
+
+- **JSON format preservation**: Plugin now preserves the original indentation format when adding scripts to `composer.json`
+  - Detects original indentation (2 spaces, 4 spaces, or tabs)
+  - Maintains the original format instead of forcing 4-space indentation
+  - Prevents unnecessary formatting changes to `composer.json`
+- **Configuration files installation**: Configuration files are now copied during both `composer install` and `composer update`
+  - Previously, files were only copied during `composer install`
+  - Now files are created automatically on first installation, regardless of command used
+  - Existing files are still never overwritten (preserves customizations)
+
+### Added
+
+- **JSON indentation detection**: New method `detectJsonIndentation()` to detect original JSON formatting
+- **JSON formatting preservation**: New method `encodeJsonWithIndentation()` to maintain original formatting
+- **Test coverage**: Added `JsonFormatPreservationTest.php` with comprehensive tests for JSON format preservation
+
+### Improved
+
+- Better user experience when installing/updating the package
+- Configuration files are automatically available after installation or update
+
 ## [1.0.5] - 2024-12-19
 
 ### Fixed

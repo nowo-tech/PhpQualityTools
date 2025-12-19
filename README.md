@@ -235,6 +235,8 @@ The following scripts are automatically added (if they don't already exist):
 
 **Note**: Existing scripts in your `composer.json` are never overwritten. The plugin only adds missing scripts.
 
+**Note**: The plugin preserves your `composer.json` formatting (2 spaces, 4 spaces, or tabs) when adding scripts. Your original indentation style is maintained.
+
 ### Manual Scripts (Optional)
 
 If you prefer different script names or commands, you can manually add them to your `composer.json`:
