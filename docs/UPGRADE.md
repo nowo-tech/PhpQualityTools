@@ -68,6 +68,22 @@ Always check [CHANGELOG.md](CHANGELOG.md) for:
 
 ## Version-Specific Upgrade Notes
 
+### Upgrading to 1.0.4
+
+**Test Coverage Improvements:**
+- **Rector version detection tests**: Added comprehensive test coverage for `getRectorVersion()` method
+  - 5 new test cases covering all scenarios (Rector 1.x, 2.x, not installed, invalid version)
+  - Improved overall test coverage for Plugin class
+  - New test file: `RectorVersionDetectionTest.php`
+
+**Development Environment:**
+- **Dockerfile enhancements**: Improved development container setup
+  - Added `curl` to system dependencies
+  - Container now fully ready for dependency installation and test execution
+  - All necessary tools pre-installed
+
+**No action required** - These are improvements to test coverage and development environment.
+
 ### Upgrading to 1.0.3
 
 **Bug Fixes:**
