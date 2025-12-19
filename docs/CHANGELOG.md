@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Previously, files were only copied during `composer install`
   - Now files are created automatically on first installation, regardless of command used
   - Existing files are still never overwritten (preserves customizations)
+- **Duplicate scripts prevention**: Added robust duplicate detection when adding scripts
+  - Uses `array_key_exists()` instead of `isset()` for more reliable duplicate detection
+  - Double-checks scripts before merging to prevent any duplicates
+  - Ensures scripts are never added if they already exist in `composer.json`
 
 ### Added
 
