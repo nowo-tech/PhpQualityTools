@@ -1,10 +1,6 @@
 # PHP Quality Tools
 
-[![CI](https://github.com/nowo-tech/PhpQualityTools/actions/workflows/ci.yml/badge.svg)](https://github.com/nowo-tech/PhpQualityTools/actions/workflows/ci.yml)
-[![Latest Stable Version](https://poser.pugx.org/nowo-tech/php-quality-tools/v)](https://packagist.org/packages/nowo-tech/php-quality-tools)
-[![License](https://poser.pugx.org/nowo-tech/php-quality-tools/license)](https://packagist.org/packages/nowo-tech/php-quality-tools)
-[![PHP Version Require](https://poser.pugx.org/nowo-tech/php-quality-tools/require/php)](https://packagist.org/packages/nowo-tech/php-quality-tools)
-[![GitHub stars](https://img.shields.io/github/stars/nowo-tech/PhpQualityTools.svg?style=social&label=Star)](https://github.com/nowo-tech/PhpQualityTools)
+[![CI](https://github.com/nowo-tech/PhpQualityTools/actions/workflows/ci.yml/badge.svg)](https://github.com/nowo-tech/PhpQualityTools/actions/workflows/ci.yml) [![Packagist Version](https://img.shields.io/packagist/v/nowo-tech/php-quality-tools.svg?style=flat)](https://packagist.org/packages/nowo-tech/php-quality-tools) [![Packagist Downloads](https://img.shields.io/packagist/dt/nowo-tech/php-quality-tools.svg)](https://packagist.org/packages/nowo-tech/php-quality-tools) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![PHP](https://img.shields.io/badge/PHP-8.1%2B-777BB4?logo=php)](https://php.net) [![GitHub stars](https://img.shields.io/github/stars/nowo-tech/php-quality-tools.svg?style=social&label=Star)](https://github.com/nowo-tech/PhpQualityTools)
 
 > ⭐ **Found this project useful?** Give it a star on GitHub! It helps us maintain and improve the project.
 
@@ -35,7 +31,7 @@ The package **automatically detects** your framework and installs the appropriat
 
 | Version | PHP | Symfony | Laravel | Composer |
 |---------|-----|---------|---------|----------|
-| **1.0.0** | >= 8.1 | 6.0 - 7.4 | 9.0 - 11.0 | >= 2.0 |
+| **1.0.x** (1.0.0 – 1.0.10) | >= 8.1 | 6.0 - 7.4 | 9.0 - 11.0 | >= 2.0 |
 
 ### PHP Versions
 
@@ -102,6 +98,8 @@ php-quality-tools: Installed 6 file(s) for symfony
 php-quality-tools: Twig not detected, skipping Twig-CS-Fixer configuration
 ```
 
+Then you may see:
+```
 php-quality-tools: Missing suggested dependencies detected:
   - rector/rector: Rector for automated code refactoring
   - rector/rector-symfony: Rector rules for Symfony (only for Rector 1.x)
@@ -110,13 +108,13 @@ php-quality-tools: Missing suggested dependencies detected:
   - friendsofphp/php-cs-fixer: PHP-CS-Fixer for code style fixing
   - vincentlanglet/twig-cs-fixer: Twig-CS-Fixer for Twig template style fixing
 
-**Note**: If you're using Rector 2.x, the optional packages (`rector-symfony`, `rector-doctrine`, `rector-phpunit`) will be automatically skipped as they are not compatible with Rector 2.x yet.
-
 Would you like to install these dependencies now? (yes/no) [yes]: yes
 
 php-quality-tools: Installing dependencies...
 php-quality-tools: Dependencies installed successfully!
 ```
+
+**Note**: If you're using Rector 2.x, the optional packages (`rector-symfony`, `rector-doctrine`, `rector-phpunit`) will be automatically skipped as they are not compatible with Rector 2.x yet.
 
 If you choose **yes**, dependencies will be installed automatically. If **no**, you can install them manually later.
 
@@ -528,7 +526,7 @@ rm .rector.php .php-cs-fixer.php .twig-cs-fixer.php
 composer install
 ```
 
-For detailed upgrade instructions, breaking changes, and version-specific notes, see the [UPGRADE Guide](docs/UPGRADE.md).
+For detailed upgrade instructions, breaking changes, and version-specific notes, see the [UPGRADE Guide](docs/UPGRADING.md).
 
 ## Development
 
@@ -655,7 +653,7 @@ Please see [docs/CHANGELOG.md](docs/CHANGELOG.md) for version history and compat
 
 ## Upgrade Guide
 
-For upgrade instructions, breaking changes, and troubleshooting, see [docs/UPGRADE.md](docs/UPGRADE.md).
+For upgrade instructions, breaking changes, and troubleshooting, see [docs/UPGRADING.md](docs/UPGRADING.md).
 
 ## Author
 

@@ -122,7 +122,7 @@ final class SplitLongConstructorParametersRector extends AbstractRector
         }
 
         // Make the constructor multiline
-        $this->makeMultiline($node);
+        $this->makeMultiline();
 
         return $node;
     }
@@ -156,15 +156,15 @@ final class SplitLongConstructorParametersRector extends AbstractRector
         foreach ($node->params as $param) {
             // Add length for parameter modifiers (readonly, public, protected, private)
             if ($param->flags !== 0) {
-                if ($param->flags & Node\Stmt\Class_::MODIFIER_PUBLIC) {
+                if (($param->flags & Node\Stmt\Class_::MODIFIER_PUBLIC) !== 0) {
                     $length += 7; // "public "
-                } elseif ($param->flags & Node\Stmt\Class_::MODIFIER_PROTECTED) {
+                } elseif (($param->flags & Node\Stmt\Class_::MODIFIER_PROTECTED) !== 0) {
                     $length += 10; // "protected "
-                } elseif ($param->flags & Node\Stmt\Class_::MODIFIER_PRIVATE) {
+                } elseif (($param->flags & Node\Stmt\Class_::MODIFIER_PRIVATE) !== 0) {
                     $length += 8; // "private "
                 }
 
-                if ($param->flags & Node\Stmt\Class_::MODIFIER_READONLY) {
+                if (($param->flags & Node\Stmt\Class_::MODIFIER_READONLY) !== 0) {
                     $length += 9; // "readonly "
                 }
             }
@@ -217,14 +217,13 @@ final class SplitLongConstructorParametersRector extends AbstractRector
      * Note: Rector cannot directly change line formatting - that's PHP-CS-Fixer's job.
      * This rule just identifies constructors that need multiline formatting.
      */
-    private function makeMultiline(ClassMethod $node): void
+    private function makeMultiline(): void
     {
         // Rector cannot directly modify line breaks/formatting.
         // The actual multiline formatting must be done by PHP-CS-Fixer.
         // This method exists to mark the node as processed.
         // PHP-CS-Fixer's method_argument_space with 'ensure_fully_multiline' will
         // format parameters on separate lines when there are 2+ parameters.
-
         // We return the node as-is, and PHP-CS-Fixer will handle the formatting
         // when configured with: 'method_argument_space' => ['ensure_fully_multiline' => true]
     }

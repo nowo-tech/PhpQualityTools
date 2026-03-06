@@ -79,6 +79,14 @@ Always check [CHANGELOG.md](CHANGELOG.md) for:
 
 ## Version-Specific Upgrade Notes
 
+### Upgrading to 1.0.10
+
+**Code quality and static analysis:**
+- PHPStan level 8 compliance: type annotations and strict checks added across the codebase
+- No configuration or API changes
+
+**No action required** – Internal improvements only. Existing configurations and usage remain unchanged.
+
 ### Upgrading to 1.0.9
 
 **Configuration File Naming Change:**

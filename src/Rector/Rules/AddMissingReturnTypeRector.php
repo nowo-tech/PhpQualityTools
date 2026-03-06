@@ -84,8 +84,6 @@ final class AddMissingReturnTypeRector extends AbstractRector
 
     /**
      * Refactor the node if it matches the criteria.
-     *
-     * @param ClassMethod $node
      */
     public function refactor(Node $node): ?Node
     {
@@ -94,7 +92,7 @@ final class AddMissingReturnTypeRector extends AbstractRector
         }
 
         // Skip if already has return type
-        if ($node->returnType !== null) {
+        if ($node->returnType instanceof Node) {
             return null;
         }
 
@@ -136,14 +134,14 @@ final class AddMissingReturnTypeRector extends AbstractRector
         // This is a basic implementation - more sophisticated analysis could be added
         $stmts = $node->stmts ?? [];
 
-        if (empty($stmts)) {
+        if ($stmts === []) {
             return 'void';
         }
 
         $returnTypes = [];
         foreach ($stmts as $stmt) {
             if ($stmt instanceof Node\Stmt\Return_) {
-                if ($stmt->expr === null) {
+                if (!$stmt->expr instanceof Node\Expr) {
                     $returnTypes[] = 'void';
                 } else {
                     $type = $this->getTypeFromExpression($stmt->expr);
@@ -154,7 +152,7 @@ final class AddMissingReturnTypeRector extends AbstractRector
             }
         }
 
-        if (empty($returnTypes)) {
+        if ($returnTypes === []) {
             return 'void';
         }
 
@@ -170,8 +168,6 @@ final class AddMissingReturnTypeRector extends AbstractRector
 
     /**
      * Get type from expression.
-     *
-     * @return string|null
      */
     private function getTypeFromExpression(Node\Expr $expr): ?string
     {
@@ -194,23 +190,12 @@ final class AddMissingReturnTypeRector extends AbstractRector
             return 'float';
         }
 
-        if ($expr instanceof Node\Scalar\Bool_) {
-            return 'bool';
-        }
-
         if ($expr instanceof Node\Expr\Array_) {
             return 'array';
         }
 
         if ($expr instanceof Node\Expr\New_) {
-            $class = $this->getName($expr->class);
-
-            return $class;
-        }
-
-        if ($expr instanceof Node\Expr\MethodCall || $expr instanceof Node\Expr\StaticCall) {
-            // Could try to infer from method return type, but that's complex
-            return null;
+            return $this->getName($expr->class);
         }
 
         return null;

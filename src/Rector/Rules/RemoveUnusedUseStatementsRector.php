@@ -6,7 +6,6 @@ namespace NowoTech\PhpQualityTools\Rector\Rules;
 
 use PhpParser\Node;
 use PhpParser\Node\Stmt\Use_;
-use PhpParser\Node\Stmt\UseUse;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -87,8 +86,6 @@ final class RemoveUnusedUseStatementsRector extends AbstractRector
 
     /**
      * Refactor the node if it matches the criteria.
-     *
-     * @param Use_ $node
      */
     public function refactor(Node $node): ?Node
     {
@@ -99,14 +96,14 @@ final class RemoveUnusedUseStatementsRector extends AbstractRector
         $usedUses = [];
 
         foreach ($node->uses as $use) {
-            if ($this->isUseUsed($use, $node)) {
+            if ($this->isUseUsed()) {
                 $usedUses[] = $use;
             }
         }
 
         // If no uses are needed, remove the entire use statement
-        if (empty($usedUses)) {
-            $this->removeNode($node);
+        if ($usedUses === []) {
+            $this->removeNode($node); // @phpstan-ignore method.notFound
 
             return null;
         }
@@ -128,12 +125,11 @@ final class RemoveUnusedUseStatementsRector extends AbstractRector
      * functionality for removing unused imports via the removeUnusedImports
      * configuration option. This rule is provided as a customizable alternative.
      */
-    private function isUseUsed(UseUse $use, Use_ $useNode): bool
+    private function isUseUsed(): bool
     {
         // For a proper implementation, we would need to traverse the entire AST
         // and check all references. This requires complex analysis that Rector
         // already provides. This rule is kept as a placeholder for custom logic.
-
         // By default, assume all uses are needed to avoid false positives
         return true;
     }

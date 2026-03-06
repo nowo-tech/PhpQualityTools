@@ -18,7 +18,8 @@ use Composer\Script\ScriptEvents;
  * Existing files are NEVER overwritten.
  * Optionally installs suggested dependencies (Rector, PHP-CS-Fixer, etc.)
  *
- * @author Héctor Franco Aceituno <hectorfranco@nowo.com>
+ * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
+ * @copyright 2026 Nowo.tech
  *
  * @see    https://github.com/HecFranco
  */
@@ -154,10 +155,10 @@ class Plugin implements PluginInterface, EventSubscriberInterface
      */
     public function onPostUpdate(Event $event): void
     {
-        $this->installFiles($event->getIO(), isUpdate: true);
+        $this->installFiles($event->getIO());
         // Only check dependencies on update if explicitly requested
         if ($this->io->isInteractive()) {
-            $this->checkAndInstallDependencies($event->getIO(), isUpdate: true);
+            $this->checkAndInstallDependencies($event->getIO());
         }
         // Always try to add missing scripts on update
         $this->installComposerScripts($event->getIO());
@@ -171,14 +172,18 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     private function detectFramework(): string
     {
         $vendorDir = $this->composer->getConfig()->get('vendor-dir');
-        $projectDir = dirname($vendorDir);
+        $projectDir = dirname((string) $vendorDir);
         $composerJsonPath = $projectDir . '/composer.json';
 
         if (!file_exists($composerJsonPath)) {
             return 'generic';
         }
 
-        $composerJson = json_decode(file_get_contents($composerJsonPath), true);
+        $composerJsonContent = file_get_contents($composerJsonPath);
+        if ($composerJsonContent === false) {
+            return 'generic';
+        }
+        $composerJson = json_decode($composerJsonContent, true);
         $require = array_merge(
             $composerJson['require'] ?? [],
             $composerJson['require-dev'] ?? []
@@ -202,7 +207,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
      */
     private function isPackageInstalled(string $packageName): bool
     {
-        $repositoryManager = $this->composer->getRepositoryManager();
+        $this->composer->getRepositoryManager();
         $localRepository = $this->composer->getRepositoryManager()->getLocalRepository();
 
         return $localRepository->findPackage($packageName, '*') !== null;
@@ -237,10 +242,9 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     /**
      * Check and optionally install suggested dependencies.
      *
-     * @param IOInterface $io       The IO interface
-     * @param bool        $isUpdate Whether this is an update operation
+     * @param IOInterface $io The IO interface
      */
-    private function checkAndInstallDependencies(IOInterface $io, bool $isUpdate = false): void
+    private function checkAndInstallDependencies(IOInterface $io): void
     {
         $framework = $this->detectFramework();
         $suggestedPackages = self::SUGGESTED_PACKAGES[$framework] ?? self::SUGGESTED_PACKAGES['generic'];
@@ -264,7 +268,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             }
         }
 
-        if (empty($missingPackages)) {
+        if ($missingPackages === []) {
             return;
         }
 
@@ -312,13 +316,12 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     /**
      * Install dependencies using Composer.
      *
-     * @param IOInterface $io       The IO interface
-     * @param array       $packages Array of package names to install
+     * @param IOInterface   $io       The IO interface
+     * @param array<string> $packages Array of package names to install
      */
     private function installDependencies(IOInterface $io, array $packages): void
     {
-        $vendorDir = $this->composer->getConfig()->get('vendor-dir');
-        $projectDir = dirname($vendorDir);
+        $this->composer->getConfig()->get('vendor-dir');
         $composerBin = $this->composer->getConfig()->get('bin-dir') . '/composer';
 
         // Fallback to system composer if not found in vendor
@@ -350,7 +353,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         $command = sprintf(
             '%s require --dev --no-interaction --with-all-dependencies %s',
             escapeshellarg($composerBin),
-            implode(' ', array_map('escapeshellarg', $packagesWithVersions))
+            implode(' ', array_map(escapeshellarg(...), $packagesWithVersions))
         );
 
         $output = [];
@@ -393,13 +396,12 @@ class Plugin implements PluginInterface, EventSubscriberInterface
      * - Creates all configuration files that don't exist (both on install and update)
      * - Existing files are NEVER overwritten
      *
-     * @param IOInterface $io       The IO interface
-     * @param bool        $isUpdate Whether this is an update operation (true) or install (false)
+     * @param IOInterface $io The IO interface
      */
-    private function installFiles(IOInterface $io, bool $isUpdate = false): void
+    private function installFiles(IOInterface $io): void
     {
         $vendorDir = $this->composer->getConfig()->get('vendor-dir');
-        $projectDir = dirname($vendorDir);
+        $projectDir = dirname((string) $vendorDir);
         $packageDir = __DIR__ . '/..';
 
         // Detect framework
@@ -508,7 +510,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
             $files[$twigSource] = '.twig-cs-fixer.php';
             $files[$twigCustomSource] = '.twig-cs-fixer.custom.php';
-        } elseif ($io !== null && in_array($framework, ['symfony', 'generic'])) {
+        } elseif ($io instanceof IOInterface && in_array($framework, ['symfony', 'generic'])) {
             // Only show message for frameworks that typically use Twig
             $io->write('<comment>php-quality-tools: Twig not detected, skipping Twig-CS-Fixer configuration</comment>');
         }
@@ -547,7 +549,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     private function installComposerScripts(IOInterface $io): void
     {
         $vendorDir = $this->composer->getConfig()->get('vendor-dir');
-        $projectDir = dirname($vendorDir);
+        $projectDir = dirname((string) $vendorDir);
         $composerJsonPath = $projectDir . '/composer.json';
 
         if (!file_exists($composerJsonPath)) {
@@ -597,7 +599,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         }
 
         // Only write if we added new scripts
-        if ($addedCount > 0 && !empty($newScripts)) {
+        if ($addedCount > 0 && $newScripts !== []) {
             // Final safety check: Remove any scripts that somehow already exist
             $finalNewScripts = [];
             foreach ($newScripts as $scriptName => $scriptCommand) {
@@ -611,7 +613,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             }
 
             // Only proceed if we still have scripts to add after all checks
-            if ($addedCount > 0 && !empty($finalNewScripts)) {
+            if ($addedCount > 0 && $finalNewScripts !== []) {
                 // Add new scripts at the beginning, preserving existing order
                 $composerJson['scripts'] = array_merge($finalNewScripts, $composerJson['scripts']);
 
@@ -655,7 +657,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         if (preg_match('/^\{\s*\n(\s+)"[^"]+"/m', $content, $matches)) {
             $firstIndent = $matches[1];
             // Check if it's tabs
-            if (strpos($firstIndent, "\t") !== false) {
+            if (str_contains($firstIndent, "\t")) {
                 return "\t";
             }
             // Count spaces
@@ -667,6 +669,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             if ($spaceCount === 4) {
                 return '    ';
             }
+
             // If we find an unusual indentation, return it as-is
             return $firstIndent;
         }
@@ -678,8 +681,8 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     /**
      * Encode JSON with a specific indentation.
      *
-     * @param array  $data   The data to encode
-     * @param string $indent The indentation string (2 spaces, 4 spaces, or tab)
+     * @param array<string, mixed> $data   The data to encode
+     * @param string               $indent The indentation string (2 spaces, 4 spaces, or tab)
      *
      * @return string|false The encoded JSON string or false on failure
      */
@@ -713,7 +716,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
             // Rebuild line with new indentation
             $trimmedLine = ltrim($line);
-            if (empty($trimmedLine)) {
+            if ($trimmedLine === '' || $trimmedLine === '0') {
                 $result[] = '';
                 continue;
             }
@@ -760,11 +763,9 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         }
 
         // Test script (if phpunit is available)
-        if ($this->isPackageInstalled('phpunit/phpunit')) {
-            // Only add if not already present
-            if (!isset($scripts['test'])) {
-                $scripts['test'] = 'phpunit';
-            }
+        // Only add if not already present
+        if ($this->isPackageInstalled('phpunit/phpunit') && !array_key_exists('test', $scripts)) { // @phpstan-ignore function.impossibleType
+            $scripts['test'] = 'phpunit';
         }
 
         return $scripts;

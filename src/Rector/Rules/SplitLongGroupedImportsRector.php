@@ -86,12 +86,8 @@ final class SplitLongGroupedImportsRector extends AbstractRector
 
     /**
      * Refactor the node if it matches the criteria.
-     *
-     * @param Use_|GroupUse $node
-     *
-     * @return Node|array|null
      */
-    public function refactor(Node $node): Node|array|null
+    public function refactor(Node $node): ?Node
     {
         // Process GroupUse nodes (grouped imports like use App\Entity\{Class1, Class2};)
         if ($node instanceof GroupUse) {
@@ -129,7 +125,7 @@ final class SplitLongGroupedImportsRector extends AbstractRector
             if ($groupedImportLength > self::MAX_LINE_LENGTH || count($node->uses) >= 3) {
                 // Try to convert to GroupUse if there's a common prefix
                 $formatted = $this->formatGroupedImportFromUseMultiline($node);
-                if ($formatted !== null) {
+                if ($formatted instanceof GroupUse) {
                     return $formatted;
                 }
 
@@ -227,7 +223,7 @@ final class SplitLongGroupedImportsRector extends AbstractRector
      */
     private function getCommonPrefix(array $uses): string
     {
-        if (empty($uses)) {
+        if ($uses === []) {
             return '';
         }
 
@@ -239,7 +235,7 @@ final class SplitLongGroupedImportsRector extends AbstractRector
             }
         }
 
-        if (empty($names)) {
+        if ($names === []) {
             return '';
         }
 
@@ -271,27 +267,9 @@ final class SplitLongGroupedImportsRector extends AbstractRector
     }
 
     /**
-     * Format a GroupUse import with multiline format.
-     *
-     * Simply returns the node as-is. The actual formatting will be handled by PHP-CS-Fixer
-     * when configured with the appropriate rules for grouped imports.
-     * This rule just marks which imports need to be formatted multiline.
-     *
-     * @return GroupUse
-     */
-    private function formatGroupedImportMultiline(GroupUse $node): GroupUse
-    {
-        // Return the node as-is - PHP-CS-Fixer will handle the multiline formatting
-        // when the grouped import exceeds the line length
-        return $node;
-    }
-
-    /**
      * Format a Use_ import with multiple uses with multiline format.
      *
      * Converts it to a GroupUse with multiline format.
-     *
-     * @return GroupUse|null
      */
     private function formatGroupedImportFromUseMultiline(Use_ $node): ?GroupUse
     {
@@ -310,7 +288,7 @@ final class SplitLongGroupedImportsRector extends AbstractRector
 
         $formattedUses = [];
 
-        foreach ($node->uses as $index => $use) {
+        foreach ($node->uses as $use) {
             $name = $this->getName($use);
             if ($name === null) {
                 continue;

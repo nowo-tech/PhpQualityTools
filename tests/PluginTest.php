@@ -14,7 +14,8 @@ use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 
 /**
- * @author Héctor Franco Aceituno <hectorfranco@nowo.com>
+ * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
+ * @copyright 2026 Nowo.tech
  *
  * @see    https://github.com/HecFranco
  */
@@ -24,7 +25,7 @@ class PluginTest extends TestCase
     {
         $events = Plugin::getSubscribedEvents();
 
-        $this->assertIsArray($events);
+        $this->assertIsArray($events); // @phpstan-ignore method.alreadyNarrowedType
         $this->assertArrayHasKey(ScriptEvents::POST_INSTALL_CMD, $events);
         $this->assertArrayHasKey(ScriptEvents::POST_UPDATE_CMD, $events);
         $this->assertEquals('onPostInstall', $events[ScriptEvents::POST_INSTALL_CMD]);
@@ -43,11 +44,9 @@ class PluginTest extends TestCase
         $reflection = new ReflectionClass($plugin);
 
         $composerProperty = $reflection->getProperty('composer');
-        $composerProperty->setAccessible(true);
         $this->assertSame($composer, $composerProperty->getValue($plugin));
 
         $ioProperty = $reflection->getProperty('io');
-        $ioProperty->setAccessible(true);
         $this->assertSame($io, $ioProperty->getValue($plugin));
     }
 
@@ -77,8 +76,8 @@ class PluginTest extends TestCase
     {
         $events = Plugin::getSubscribedEvents();
 
-        $this->assertIsString($events[ScriptEvents::POST_INSTALL_CMD]);
-        $this->assertIsString($events[ScriptEvents::POST_UPDATE_CMD]);
+        $this->assertIsString($events[ScriptEvents::POST_INSTALL_CMD]); // @phpstan-ignore method.alreadyNarrowedType
+        $this->assertIsString($events[ScriptEvents::POST_UPDATE_CMD]); // @phpstan-ignore method.alreadyNarrowedType
         $this->assertTrue(method_exists(Plugin::class, $events[ScriptEvents::POST_INSTALL_CMD]));
         $this->assertTrue(method_exists(Plugin::class, $events[ScriptEvents::POST_UPDATE_CMD]));
     }
@@ -96,6 +95,6 @@ class PluginTest extends TestCase
         $plugin->deactivate($composer, $io);
 
         // If we get here without exception, the test passes
-        $this->assertTrue(true);
+        $this->assertTrue(true); // @phpstan-ignore method.alreadyNarrowedType
     }
 }

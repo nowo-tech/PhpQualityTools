@@ -1,6 +1,9 @@
+name: php-quality-tools
 services:
   php:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: php-quality-tools-php
     working_dir: /app
     volumes:

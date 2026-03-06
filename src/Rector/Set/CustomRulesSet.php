@@ -26,7 +26,7 @@ final class CustomRulesSet
      * Required dependencies for custom Rector rules.
      */
     private const REQUIRED_DEPENDENCIES = [
-        'Symplify\\RuleDocGenerator\\ValueObject\\RuleDefinition' => [
+        \Symplify\RuleDocGenerator\ValueObject\RuleDefinition::class => [
             'package' => 'symplify/rule-doc-generator-contracts',
             'description' => 'Required for custom Rector rules documentation',
         ],
@@ -43,7 +43,7 @@ final class CustomRulesSet
     {
         if ($checkDependencies) {
             $missing = self::checkDependencies();
-            if (!empty($missing)) {
+            if ($missing !== []) {
                 self::reportMissingDependencies($missing);
             }
         }
@@ -92,7 +92,7 @@ final class CustomRulesSet
         $message .= "\n";
 
         $packages = [];
-        foreach ($missing as $class => $info) {
+        foreach ($missing as $info) {
             $message .= sprintf("  - %s: %s\n", $info['package'], $info['description']);
             $packages[] = $info['package'];
         }
@@ -128,7 +128,7 @@ final class CustomRulesSet
      */
     public static function hasAllDependencies(): bool
     {
-        return empty(self::checkDependencies());
+        return self::checkDependencies() === [];
     }
 
     /**
