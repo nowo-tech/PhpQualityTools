@@ -75,6 +75,8 @@ final class MultilineArrayFixer extends AbstractFixer
 
     /**
      * Check if the fixer is a candidate for a given token.
+     *
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     public function isCandidate(Tokens $tokens): bool
     {
@@ -91,6 +93,8 @@ final class MultilineArrayFixer extends AbstractFixer
 
     /**
      * Apply the fix.
+     *
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     protected function applyFix(\SplFileInfo $file, Tokens $tokens): void
     {
@@ -135,6 +139,8 @@ final class MultilineArrayFixer extends AbstractFixer
 
     /**
      * Find the end of an array.
+     *
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     private function findArrayEnd(Tokens $tokens, int $startIndex): ?int
     {
@@ -179,17 +185,24 @@ final class MultilineArrayFixer extends AbstractFixer
 
     /**
      * Check if array is already multiline.
+     *
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     private function isAlreadyMultiline(Tokens $tokens, int $startIndex, int $endIndex): bool
     {
-        $startLine = $tokens[$startIndex]->getLine();
-        $endLine = $tokens[$endIndex]->getLine();
+        for ($i = $startIndex; $i <= $endIndex; ++$i) {
+            if (str_contains($tokens[$i]->getContent(), "\n")) {
+                return true;
+            }
+        }
 
-        return $endLine > $startLine;
+        return false;
     }
 
     /**
      * Count array elements.
+     *
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     private function countArrayElements(Tokens $tokens, int $startIndex, int $endIndex): int
     {
@@ -220,6 +233,8 @@ final class MultilineArrayFixer extends AbstractFixer
 
     /**
      * Calculate array length.
+     *
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     private function calculateArrayLength(Tokens $tokens, int $startIndex, int $endIndex): int
     {
@@ -235,6 +250,8 @@ final class MultilineArrayFixer extends AbstractFixer
 
     /**
      * Format array as multiline.
+     *
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     private function formatMultiline(Tokens $tokens, int $startIndex, int $endIndex): void
     {

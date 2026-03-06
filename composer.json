@@ -39,7 +39,9 @@
     "require-dev": {
         "composer/composer": "^2.0",
         "phpunit/phpunit": "^10.0 || ^11.0",
-        "friendsofphp/php-cs-fixer": "^3.0"
+        "friendsofphp/php-cs-fixer": "^3.0",
+        "rector/rector": "^2.0",
+        "phpstan/phpstan": "^2.0"
     },
     "suggest": {
         "rector/rector": "For automated code refactoring",
@@ -69,9 +71,12 @@
     },
     "scripts": {
         "test": "phpunit",
-        "test-coverage": "phpunit --coverage-html coverage --coverage-clover coverage.xml",
+        "test-coverage": "phpunit --coverage-html coverage --coverage-clover coverage.xml --coverage-text",
         "cs-check": "php-cs-fixer fix --dry-run --diff",
         "cs-fix": "php-cs-fixer fix",
+        "rector": "rector process",
+        "rector-dry": "rector process --dry-run --no-progress-bar",
+        "phpstan": "phpstan analyse --memory-limit=512M",
         "qa": [
             "@cs-check",
             "@test"
@@ -82,6 +87,9 @@
         "test-coverage": "Run PHPUnit tests with code coverage",
         "cs-check": "Check code style with PHP-CS-Fixer",
         "cs-fix": "Fix code style with PHP-CS-Fixer",
+        "rector": "Apply Rector refactoring",
+        "rector-dry": "Run Rector in dry-run mode",
+        "phpstan": "Run PHPStan static analysis",
         "qa": "Run all quality assurance checks"
     },
     "config": {

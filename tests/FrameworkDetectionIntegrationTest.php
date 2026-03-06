@@ -14,7 +14,8 @@ use ReflectionClass;
 /**
  * Integration tests for framework detection functionality.
  *
- * @author Héctor Franco Aceituno <hectorfranco@nowo.com>
+ * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
+ * @copyright 2026 Nowo.tech
  *
  * @see    https://github.com/HecFranco
  */
@@ -147,7 +148,6 @@ class FrameworkDetectionIntegrationTest extends TestCase
         // Use reflection to call the private detectFramework method
         $reflection = new ReflectionClass($plugin);
         $method = $reflection->getMethod('detectFramework');
-        $method->setAccessible(true);
 
         return $method->invoke($plugin);
     }

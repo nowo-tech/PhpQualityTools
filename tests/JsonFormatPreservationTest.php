@@ -10,7 +10,8 @@ use ReflectionClass;
 use ReflectionMethod;
 
 /**
- * @author Héctor Franco Aceituno <hectorfranco@nowo.com>
+ * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
+ * @copyright 2026 Nowo.tech
  *
  * @see    https://github.com/HecFranco
  */
@@ -26,10 +27,8 @@ class JsonFormatPreservationTest extends TestCase
         $reflection = new ReflectionClass($this->plugin);
 
         $this->detectMethod = $reflection->getMethod('detectJsonIndentation');
-        $this->detectMethod->setAccessible(true);
 
         $this->encodeMethod = $reflection->getMethod('encodeJsonWithIndentation');
-        $this->encodeMethod->setAccessible(true);
     }
 
     public function testDetectJsonIndentationWith2Spaces(): void
@@ -66,7 +65,7 @@ class JsonFormatPreservationTest extends TestCase
         $this->assertNotFalse($result);
 
         // Verify that the indentation is 2 spaces
-        $lines = explode("\n", $result);
+        $lines = explode("\n", (string) $result);
         $this->assertStringStartsWith('  ', $lines[1]); // First property line
     }
 
@@ -83,7 +82,7 @@ class JsonFormatPreservationTest extends TestCase
         $this->assertNotFalse($result);
 
         // Verify that the indentation is 4 spaces
-        $lines = explode("\n", $result);
+        $lines = explode("\n", (string) $result);
         $this->assertStringStartsWith('    ', $lines[1]); // First property line
     }
 
@@ -100,7 +99,7 @@ class JsonFormatPreservationTest extends TestCase
         $this->assertNotFalse($result);
 
         // Verify that the indentation is tabs
-        $lines = explode("\n", $result);
+        $lines = explode("\n", (string) $result);
         $this->assertStringStartsWith("\t", $lines[1]); // First property line
     }
 
@@ -120,7 +119,7 @@ class JsonFormatPreservationTest extends TestCase
         $this->assertNotFalse($result1);
 
         // Parse it back
-        $parsed = json_decode($result1, true);
+        $parsed = json_decode((string) $result1, true);
         $this->assertIsArray($parsed);
 
         // Encode again with 2 spaces
@@ -128,8 +127,8 @@ class JsonFormatPreservationTest extends TestCase
         $this->assertNotFalse($result2);
 
         // Both should have 2-space indentation
-        $lines1 = explode("\n", $result1);
-        $lines2 = explode("\n", $result2);
+        $lines1 = explode("\n", (string) $result1);
+        $lines2 = explode("\n", (string) $result2);
         $this->assertEquals('  ', substr($lines1[1], 0, 2));
         $this->assertEquals('  ', substr($lines2[1], 0, 2));
     }
@@ -141,5 +140,12 @@ class JsonFormatPreservationTest extends TestCase
         $indent = $this->detectMethod->invoke($this->plugin, $json);
         $this->assertEquals('  ', $indent);
     }
-}
 
+    public function testEncodeJsonWithLineContainingOnlyZero(): void
+    {
+        $data = ['a' => [0]];
+        $result = $this->encodeMethod->invoke($this->plugin, $data, '  ');
+        $this->assertNotFalse($result);
+        $this->assertStringContainsString('"a"', (string) $result);
+    }
+}

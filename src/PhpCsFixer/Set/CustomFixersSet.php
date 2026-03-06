@@ -31,31 +31,17 @@ final class CustomFixersSet
      */
     public static function getFixers(): array
     {
-        $fixers = [];
-
-        // Add custom fixers here as they are created
-        $fixers[] = new \NowoTech\PhpQualityTools\PhpCsFixer\Rules\MultilineGroupedImportsFixer();
-        $fixers[] = new \NowoTech\PhpQualityTools\PhpCsFixer\Rules\MultilineArrayFixer();
-        $fixers[] = new \NowoTech\PhpQualityTools\PhpCsFixer\Rules\ConsistentDocblockFixer();
-
-        return $fixers;
+        return [new \NowoTech\PhpQualityTools\PhpCsFixer\Rules\MultilineGroupedImportsFixer(), new \NowoTech\PhpQualityTools\PhpCsFixer\Rules\MultilineArrayFixer(), new \NowoTech\PhpQualityTools\PhpCsFixer\Rules\ConsistentDocblockFixer()];
     }
 
     /**
      * Get rules configuration for custom fixers.
      *
-     * @return array<string, bool|array> Array of rule configurations
+     * @return array<string, bool> Array of rule configurations
      */
     public static function getRules(): array
     {
-        $rules = [];
-
-        // Add rule configurations here as fixers are created
-        $rules['NowoTech/multiline_grouped_imports'] = true;
-        $rules['NowoTech/multiline_array'] = true;
-        $rules['NowoTech/consistent_docblock'] = true;
-
-        return $rules;
+        return ['NowoTech/multiline_grouped_imports' => true, 'NowoTech/multiline_array' => true, 'NowoTech/consistent_docblock' => true];
     }
 
     /**

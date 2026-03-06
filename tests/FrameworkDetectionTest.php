@@ -8,7 +8,8 @@ use NowoTech\PhpQualityTools\Plugin;
 use PHPUnit\Framework\TestCase;
 
 /**
- * @author Héctor Franco Aceituno <hectorfranco@nowo.com>
+ * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
+ * @copyright 2026 Nowo.tech
  *
  * @see    https://github.com/HecFranco
  */

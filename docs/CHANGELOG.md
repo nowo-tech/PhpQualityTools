@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.10] - 2025-03-06
+
+### Fixed
+
+- **PHPStan level 8**: Resolved all 43 PHPStan errors for strict static analysis compliance
+  - Added proper type annotations for iterable/array parameters and return types (`@param array<string>`, `@return array<string, bool>`, etc.)
+  - Validated `file_get_contents()` and `json_decode()` results before use (string|false handling) in Plugin and tests
+  - Replaced `isset($scripts['test'])` with `array_key_exists('test', $scripts)` for correct offset checks in Plugin
+  - Rector rules: removed obsolete `Node\Scalar\Bool_` reference (PHP-Parser 5 uses `ConstFetch` for bool); added PHPDoc/ignores for `removeNode()` and `VariadicPlaceholder` types; relaxed `@param` to `Node` where needed for PHPStan
+  - Tests: added `assertNotFalse()` for file_get_contents results, `ReflectionNamedType` for getReturnType(), and PHPDoc `array<int, mixed>` for test helpers
+
+### Improved
+
+- Static analysis and type safety across `src/` and `tests/` with zero PHPStan errors at level 8
+
 ## [1.0.9] - 2024-12-19
 
 ### Changed
@@ -115,7 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - Updated README.md with Rector 2.x compatibility information
-- Updated UPGRADE.md with instructions for Rector 2.x
+- Updated UPGRADING.md with instructions for Rector 2.x
 - Updated CHANGELOG.md with detailed Rector 2.x compatibility notes
 
 ## [1.0.4] - 2024-12-19

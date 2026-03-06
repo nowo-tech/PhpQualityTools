@@ -86,7 +86,7 @@ final class SplitLongMethodCallRector extends AbstractRector
      *
      * @param MethodCall|StaticCall $node
      */
-    public function refactor(Node $node): Node|array|null
+    public function refactor(Node $node): ?Node
     {
         // Count chain length
         $chainLength = $this->countChainLength($node);
@@ -160,20 +160,19 @@ final class SplitLongMethodCallRector extends AbstractRector
     /**
      * Calculate approximate length of arguments.
      *
-     * @param array<Node\Arg> $args
+     * @param array<Node\Arg|Node\VariadicPlaceholder> $args
      */
     private function calculateArgumentsLength(array $args): int
     {
-        if (empty($args)) {
+        if ($args === []) {
             return 2; // ()
         }
 
         $length = 2; // ()
         foreach ($args as $arg) {
             $length += 10; // Estimate for each argument
-        }
-        $length += (count($args) - 1) * 2; // Commas and spaces
+        } // Commas and spaces
 
-        return $length;
+        return $length + (count($args) - 1) * 2;
     }
 }

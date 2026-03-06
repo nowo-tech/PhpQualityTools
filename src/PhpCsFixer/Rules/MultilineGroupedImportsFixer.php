@@ -62,6 +62,8 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
 
     /**
      * Check if the fixer is a candidate for a given token.
+     *
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     public function isCandidate(Tokens $tokens): bool
     {
@@ -79,6 +81,8 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
 
     /**
      * Apply the fix.
+     *
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     protected function applyFix(\SplFileInfo $file, Tokens $tokens): void
     {
@@ -99,14 +103,14 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
             $groupEndIndex = null;
 
             for ($i = $useStartIndex; $i < $useEndIndex; ++$i) {
-                if ($tokens[$i]->equals('{')) {
+                if ($tokens[$i]->getContent() === '{') {
                     $groupStartIndex = $i;
                     // Find matching closing brace
                     $braceDepth = 1;
                     for ($j = $i + 1; $j < $useEndIndex; ++$j) {
-                        if ($tokens[$j]->equals('{')) {
+                        if ($tokens[$j]->getContent() === '{') {
                             ++$braceDepth;
-                        } elseif ($tokens[$j]->equals('}')) {
+                        } elseif ($tokens[$j]->getContent() === '}') {
                             --$braceDepth;
                             if ($braceDepth === 0) {
                                 $groupEndIndex = $j;
@@ -135,6 +139,8 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
 
     /**
      * Find the end index of a use statement.
+     *
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     private function findUseEndIndex(Tokens $tokens, int $startIndex): ?int
     {
@@ -144,13 +150,13 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
         while ($index < $tokens->count()) {
             $token = $tokens[$index];
 
-            if ($token->equals('{')) {
+            if ($token->getContent() === '{') {
                 ++$depth;
-            } elseif ($token->equals('}')) {
+            } elseif ($token->getContent() === '}') {
                 --$depth;
             }
 
-            if ($token->equals(';') && $depth === 0) {
+            if ($token->getContent() === ';' && $depth === 0) {
                 return $index;
             }
 
@@ -162,6 +168,8 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
 
     /**
      * Calculate the length of a use statement line.
+     *
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     private function calculateLineLength(Tokens $tokens, int $startIndex, int $endIndex): int
     {
@@ -180,6 +188,8 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
 
     /**
      * Count the number of items in a grouped import.
+     *
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     private function countItemsInGroup(Tokens $tokens, int $groupStartIndex, int $groupEndIndex): int
     {
@@ -199,6 +209,8 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
 
     /**
      * Format a grouped import with multiline format.
+     *
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     private function formatMultiline(Tokens $tokens, int $groupStartIndex, int $groupEndIndex): void
     {
@@ -247,9 +259,9 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
         // Insert newline before closing brace
         if ($groupEndIndex > 0) {
             $prevIndex = $groupEndIndex - 1;
-            if ($prevIndex >= 0 && !$tokens[$prevIndex]->isWhitespace()) {
+            if (!$tokens[$prevIndex]->isWhitespace()) {
                 $tokens->insertAt($groupEndIndex, new Token([T_WHITESPACE, "\n"]));
-            } elseif ($prevIndex >= 0 && $tokens[$prevIndex]->isWhitespace() && !str_contains($tokens[$prevIndex]->getContent(), "\n")) {
+            } elseif ($tokens[$prevIndex]->isWhitespace() && !str_contains($tokens[$prevIndex]->getContent(), "\n")) {
                 $tokens[$prevIndex] = new Token([T_WHITESPACE, "\n"]);
             }
         }

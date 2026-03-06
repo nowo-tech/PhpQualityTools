@@ -1,7 +1,7 @@
 # Makefile for PHP Quality Tools
 # Simplifies Docker commands for development
 
-.PHONY: help up down shell install test test-coverage cs-check cs-fix qa clean setup-hooks
+.PHONY: help up down shell ensure-up install test test-coverage cs-check cs-fix rector rector-dry phpstan qa clean setup-hooks
 
 # Default target
 help:
@@ -18,10 +18,22 @@ help:
 	@echo "  test-coverage Run tests with code coverage"
 	@echo "  cs-check      Check code style"
 	@echo "  cs-fix        Fix code style"
+	@echo "  rector        Apply Rector refactoring"
+	@echo "  rector-dry    Run Rector in dry-run mode"
+	@echo "  phpstan       Run PHPStan static analysis"
 	@echo "  qa            Run all QA checks (cs-check + test)"
 	@echo "  clean         Remove vendor and cache"
 	@echo "  setup-hooks   Install git pre-commit hooks"
 	@echo ""
+
+# Ensure container is running (start if not). Used by install, shell, test, test-coverage, cs-check, cs-fix, qa.
+ensure-up:
+	@if ! docker-compose exec -T php true 2>/dev/null; then \
+		echo "Starting container..."; \
+		docker-compose up -d; \
+		sleep 3; \
+		docker-compose exec -T php composer install --no-interaction; \
+	fi
 
 # Build and start container
 up:
@@ -40,31 +52,43 @@ down:
 	docker-compose down
 
 # Open shell in container
-shell:
+shell: ensure-up
 	docker-compose exec php sh
 
 # Install dependencies
-install:
+install: ensure-up
 	docker-compose exec -T php composer install
 
-# Run tests
-test:
-	docker-compose exec -T php composer test
+# Run tests (no -T so TTY is allocated and PHPUnit shows colors in console)
+test: ensure-up
+	docker-compose exec php composer test
 
-# Run tests with coverage
-test-coverage:
-	docker-compose exec -T php composer test-coverage
+# Run tests with coverage (no -T so coverage is shown in console with colors)
+test-coverage: ensure-up
+	docker-compose exec php composer test-coverage
 
 # Check code style
-cs-check:
+cs-check: ensure-up
 	docker-compose exec -T php composer cs-check
 
 # Fix code style
-cs-fix:
+cs-fix: ensure-up
 	docker-compose exec -T php composer cs-fix
 
+# Apply Rector refactoring
+rector: ensure-up
+	docker-compose exec -T php composer rector
+
+# Run Rector in dry-run mode
+rector-dry: ensure-up
+	docker-compose exec -T php composer rector-dry
+
+# Run PHPStan static analysis
+phpstan: ensure-up
+	docker-compose exec -T php composer phpstan
+
 # Run all QA
-qa:
+qa: ensure-up
 	docker-compose exec -T php composer qa
 
 # Clean vendor and cache

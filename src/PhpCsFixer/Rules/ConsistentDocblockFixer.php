@@ -74,6 +74,8 @@ final class ConsistentDocblockFixer extends AbstractFixer
 
     /**
      * Check if the fixer is a candidate for a given token.
+     *
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     public function isCandidate(Tokens $tokens): bool
     {
@@ -90,6 +92,8 @@ final class ConsistentDocblockFixer extends AbstractFixer
 
     /**
      * Apply the fix.
+     *
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     protected function applyFix(\SplFileInfo $file, Tokens $tokens): void
     {
@@ -130,7 +134,7 @@ final class ConsistentDocblockFixer extends AbstractFixer
             $line = rtrim($line);
 
             // Skip empty lines at start/end
-            if (empty($line) && (empty($formatted) || end($formatted) === ' */')) {
+            if (($line === '' || $line === '0') && ($formatted === [] || end($formatted) === ' */')) {
                 continue;
             }
 

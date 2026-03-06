@@ -17,7 +17,8 @@ use ReflectionClass;
 /**
  * Tests for Rector version detection functionality.
  *
- * @author Héctor Franco Aceituno <hectorfranco@nowo.com>
+ * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
+ * @copyright 2026 Nowo.tech
  *
  * @see    https://github.com/HecFranco
  */
@@ -33,7 +34,10 @@ class RectorVersionDetectionTest extends TestCase
 
         $method = $reflection->getMethod('getRectorVersion');
         $this->assertTrue($method->isPrivate());
-        $this->assertEquals('int', $method->getReturnType()->getName());
+        $returnType = $method->getReturnType();
+        $this->assertNotNull($returnType);
+        $this->assertInstanceOf(\ReflectionNamedType::class, $returnType);
+        $this->assertEquals('int', $returnType->getName());
     }
 
     /**
@@ -69,7 +73,6 @@ class RectorVersionDetectionTest extends TestCase
 
         $reflection = new ReflectionClass($plugin);
         $method = $reflection->getMethod('getRectorVersion');
-        $method->setAccessible(true);
 
         $version = $method->invoke($plugin);
         $this->assertEquals(1, $version);
@@ -112,7 +115,6 @@ class RectorVersionDetectionTest extends TestCase
 
         $reflection = new ReflectionClass($plugin);
         $method = $reflection->getMethod('getRectorVersion');
-        $method->setAccessible(true);
 
         $version = $method->invoke($plugin);
         $this->assertEquals(1, $version);
@@ -155,7 +157,6 @@ class RectorVersionDetectionTest extends TestCase
 
         $reflection = new ReflectionClass($plugin);
         $method = $reflection->getMethod('getRectorVersion');
-        $method->setAccessible(true);
 
         $version = $method->invoke($plugin);
         $this->assertEquals(2, $version);
@@ -198,7 +199,6 @@ class RectorVersionDetectionTest extends TestCase
 
         $reflection = new ReflectionClass($plugin);
         $method = $reflection->getMethod('getRectorVersion');
-        $method->setAccessible(true);
 
         $version = $method->invoke($plugin);
         // Should default to 1 for invalid versions
