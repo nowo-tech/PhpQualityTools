@@ -1,7 +1,7 @@
 # Makefile for PHP Quality Tools
 # Simplifies Docker commands for development
 
-.PHONY: help up down shell ensure-up install test test-coverage cs-check cs-fix rector rector-dry phpstan qa clean setup-hooks
+.PHONY: help build up down shell ensure-up install test test-coverage cs-check cs-fix rector rector-dry phpstan qa clean setup-hooks
 
 # Default target
 help:
@@ -10,6 +10,7 @@ help:
 	@echo "Usage: make <target>"
 	@echo ""
 	@echo "Targets:"
+	@echo "  build         Build Docker image"
 	@echo "  up            Start Docker container"
 	@echo "  down          Stop Docker container"
 	@echo "  shell         Open shell in container"
@@ -26,13 +27,20 @@ help:
 	@echo "  setup-hooks   Install git pre-commit hooks"
 	@echo ""
 
+# Use global Composer in container so install works even when vendor is broken (e.g. after failed update)
+COMPOSER_BIN := /usr/bin/composer
+
+# Build Docker image only
+build:
+	docker-compose build
+
 # Ensure container is running (start if not). Used by install, shell, test, test-coverage, cs-check, cs-fix, qa.
 ensure-up:
 	@if ! docker-compose exec -T php true 2>/dev/null; then \
 		echo "Starting container..."; \
 		docker-compose up -d; \
 		sleep 3; \
-		docker-compose exec -T php composer install --no-interaction; \
+		docker-compose exec -T php $(COMPOSER_BIN) install --no-interaction; \
 	fi
 
 # Build and start container
@@ -44,7 +52,7 @@ up:
 	@echo "Waiting for container to be ready..."
 	@sleep 2
 	@echo "Installing dependencies..."
-	docker-compose exec -T php composer install --no-interaction
+	docker-compose exec -T php $(COMPOSER_BIN) install --no-interaction
 	@echo "✅ Container ready!"
 
 # Stop container
@@ -57,7 +65,7 @@ shell: ensure-up
 
 # Install dependencies
 install: ensure-up
-	docker-compose exec -T php composer install
+	docker-compose exec -T php $(COMPOSER_BIN) install --no-interaction
 
 # Run tests (no -T so TTY is allocated and PHPUnit shows colors in console)
 test: ensure-up

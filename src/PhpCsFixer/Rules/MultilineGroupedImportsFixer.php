@@ -63,7 +63,7 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
     /**
      * Check if the fixer is a candidate for a given token.
      *
-     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
+     * @param Tokens<Token> $tokens
      */
     public function isCandidate(Tokens $tokens): bool
     {
@@ -82,7 +82,7 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
     /**
      * Apply the fix.
      *
-     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
+     * @param Tokens<Token> $tokens
      */
     protected function applyFix(\SplFileInfo $file, Tokens $tokens): void
     {
@@ -140,7 +140,7 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
     /**
      * Find the end index of a use statement.
      *
-     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
+     * @param Tokens<Token> $tokens
      */
     private function findUseEndIndex(Tokens $tokens, int $startIndex): ?int
     {
@@ -169,7 +169,7 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
     /**
      * Calculate the length of a use statement line.
      *
-     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
+     * @param Tokens<Token> $tokens
      */
     private function calculateLineLength(Tokens $tokens, int $startIndex, int $endIndex): int
     {
@@ -189,7 +189,7 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
     /**
      * Count the number of items in a grouped import.
      *
-     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
+     * @param Tokens<Token> $tokens
      */
     private function countItemsInGroup(Tokens $tokens, int $groupStartIndex, int $groupEndIndex): int
     {
@@ -210,7 +210,7 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
     /**
      * Format a grouped import with multiline format.
      *
-     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
+     * @param Tokens<Token> $tokens
      */
     private function formatMultiline(Tokens $tokens, int $groupStartIndex, int $groupEndIndex): void
     {
