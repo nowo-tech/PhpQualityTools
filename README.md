@@ -641,6 +641,14 @@ composer require --dev symplify/rule-doc-generator-contracts
 
 If you use the custom rules without this dependency, you'll see an informative message indicating what's missing.
 
+## Documentation
+
+- [Engram](docs/ENGRAM.md) — AI persistent memory in this repo (Cursor MCP setup)
+- [Contributing](docs/CONTRIBUTING.md)
+- [Changelog](docs/CHANGELOG.md)
+- [Upgrading](docs/UPGRADING.md)
+- [Branching](docs/BRANCHING.md)
+
 ## Contributing
 
 Please see [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for details.

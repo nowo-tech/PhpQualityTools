@@ -2,6 +2,33 @@
 
 PHP Quality Tools permite añadir reglas custom tanto para Rector como para PHP-CS-Fixer.
 
+
+## Table of contents
+
+- [Estructura](#estructura)
+- [Reglas Custom de Rector](#reglas-custom-de-rector)
+  - [Ubicación](#ubicación)
+  - [Estructura de una Regla](#estructura-de-una-regla)
+  - [Ejemplo de Regla Custom](#ejemplo-de-regla-custom)
+  - [Uso de Reglas Custom](#uso-de-reglas-custom)
+- [Fixers Custom de PHP-CS-Fixer](#fixers-custom-de-php-cs-fixer)
+  - [Ubicación](#ubicación)
+  - [Estructura de un Fixer](#estructura-de-un-fixer)
+  - [Ejemplo de Fixer Custom](#ejemplo-de-fixer-custom)
+  - [Uso de Fixers Custom](#uso-de-fixers-custom)
+- [Dependencias Requeridas](#dependencias-requeridas)
+  - [Para Reglas Custom de Rector](#para-reglas-custom-de-rector)
+  - [Para Fixers Custom de PHP-CS-Fixer](#para-fixers-custom-de-php-cs-fixer)
+- [Reglas Custom Incluidas](#reglas-custom-incluidas)
+  - [Rector](#rector)
+  - [PHP-CS-Fixer](#php-cs-fixer)
+- [Añadir Nuevas Reglas](#añadir-nuevas-reglas)
+- [Testing](#testing)
+- [Uso de las Reglas Incluidas](#uso-de-las-reglas-incluidas)
+  - [Activar Reglas Custom de Rector](#activar-reglas-custom-de-rector)
+  - [Activar Fixers Custom de PHP-CS-Fixer](#activar-fixers-custom-de-php-cs-fixer)
+- [Recursos](#recursos)
+
 ## Estructura
 
 Las reglas custom se organizan en los siguientes directorios:

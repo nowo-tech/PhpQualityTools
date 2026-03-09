@@ -2,6 +2,40 @@
 
 This guide helps you upgrade between versions of PHP Quality Tools.
 
+
+## Table of contents
+
+- [General Upgrade Process](#general-upgrade-process)
+  - [1. Update the Package](#1-update-the-package)
+  - [2. Review Configuration Files](#2-review-configuration-files)
+  - [3. Get Latest Base Configurations (Optional)](#3-get-latest-base-configurations-optional)
+  - [4. Check for Missing Dependencies](#4-check-for-missing-dependencies)
+  - [5. Review Changelog](#5-review-changelog)
+- [Version-Specific Upgrade Notes](#version-specific-upgrade-notes)
+  - [Upgrading to 1.0.10](#upgrading-to-1010)
+  - [Upgrading to 1.0.9](#upgrading-to-109)
+  - [Upgrading to 1.0.8](#upgrading-to-108)
+  - [Upgrading to 1.0.7](#upgrading-to-107)
+  - [Upgrading to 1.0.6](#upgrading-to-106)
+  - [Upgrading to 1.0.4](#upgrading-to-104)
+  - [Upgrading to 1.0.3](#upgrading-to-103)
+  - [Upgrading from Pre-Release to Latest](#upgrading-from-pre-release-to-latest)
+  - [Upgrading to 1.0.0](#upgrading-to-100)
+- [Breaking Changes](#breaking-changes)
+  - [PHP Version Requirements](#php-version-requirements)
+  - [Composer Version](#composer-version)
+- [Framework-Specific Considerations](#framework-specific-considerations)
+  - [Symfony Projects](#symfony-projects)
+  - [Laravel Projects](#laravel-projects)
+  - [Generic PHP Projects](#generic-php-projects)
+- [Troubleshooting](#troubleshooting)
+  - [Configuration Files Not Updated](#configuration-files-not-updated)
+  - [Missing Dependencies](#missing-dependencies)
+  - [Framework Detection Issues](#framework-detection-issues)
+- [Best Practices](#best-practices)
+- [Getting Help](#getting-help)
+- [Related Documentation](#related-documentation)
+
 ## General Upgrade Process
 
 ### 1. Update the Package

@@ -2,6 +2,25 @@
 
 Thank you for considering contributing to PHP Quality Tools!
 
+
+## Table of contents
+
+- [Maintainer](#maintainer)
+- [Development Setup](#development-setup)
+  - [Using Docker (Recommended)](#using-docker-recommended)
+  - [Without Docker](#without-docker)
+- [Pull Request Process](#pull-request-process)
+- [Coding Standards](#coding-standards)
+- [Running Tests](#running-tests)
+  - [With Docker](#with-docker)
+  - [Without Docker](#without-docker)
+- [Adding Framework Support](#adding-framework-support)
+- [Version Compatibility](#version-compatibility)
+- [[1.1.0] - 2024-12-15](#110-2024-12-15)
+  - [Compatibility](#compatibility)
+- [Reporting Issues](#reporting-issues)
+- [Contact](#contact)
+
 ## Maintainer
 
 This project is maintained by [Héctor Franco Aceituno](https://github.com/HecFranco) at [Nowo.tech](https://nowo.tech).
