@@ -2,6 +2,45 @@
 
 All notable changes to this project will be documented in this file.
 
+
+## Table of contents
+
+- [[Unreleased]](#unreleased)
+- [[1.0.10] - 2025-03-06](#1010-2025-03-06)
+  - [Fixed](#fixed)
+  - [Improved](#improved)
+- [[1.0.9] - 2024-12-19](#109-2024-12-19)
+  - [Changed](#changed)
+  - [Fixed](#fixed)
+- [[1.0.8] - 2024-12-19](#108-2024-12-19)
+  - [Added](#added)
+  - [Improved](#improved)
+  - [Fixed](#fixed)
+- [[1.0.7] - 2024-12-19](#107-2024-12-19)
+  - [Changed](#changed)
+  - [Improved](#improved)
+- [[1.0.6] - 2024-12-19](#106-2024-12-19)
+  - [Fixed](#fixed)
+  - [Added](#added)
+  - [Improved](#improved)
+- [[1.0.5] - 2024-12-19](#105-2024-12-19)
+  - [Fixed](#fixed)
+  - [Documentation](#documentation)
+- [[1.0.4] - 2024-12-19](#104-2024-12-19)
+  - [Added](#added)
+  - [Improved](#improved)
+- [[1.0.3] - 2024-12-19](#103-2024-12-19)
+  - [Fixed](#fixed)
+- [[1.0.2] - 2024-12-18](#102-2024-12-18)
+  - [Changed](#changed)
+  - [Added](#added)
+  - [Improved](#improved)
+- [[1.0.1] - 2024-12-XX](#101-2024-12-xx)
+  - [Fixed](#fixed)
+- [[1.0.0] - 2024-12-11](#100-2024-12-11)
+  - [Compatibility](#compatibility)
+  - [Added](#added)
+  - [Notes](#notes)
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 

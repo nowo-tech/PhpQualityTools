@@ -1,6 +1,11 @@
 # Dependencies
 /vendor
 
+# Environment (do not commit secrets)
+.env
+.env.local
+.env.*.local
+
 # IDE
 .idea/
 .vscode/
