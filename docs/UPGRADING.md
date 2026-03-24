@@ -113,6 +113,17 @@ Always check [CHANGELOG.md](CHANGELOG.md) for:
 
 ## Version-Specific Upgrade Notes
 
+### Upgrading to 1.0.11
+
+**Composer scripts (automatically added by the plugin):**
+- Script commands now pass `--config=` / `-c` to **`.php-cs-fixer.php`**, **`.rector.php`**, and **`.twig-cs-fixer.php`**, matching the filenames the plugin installs.
+- Previously, generated scripts referenced `*.dist.php` files that are **not** created by the installer, which could make `composer fix` / `composer rector` fail on a fresh setup.
+
+**Action required (only if you rely on the generated scripts):**
+- The plugin **does not overwrite** existing `scripts` entries in your `composer.json`. If you still have old commands pointing to `*.dist.php`, update them to the filenames above, or remove those keys and let the plugin add the defaults on the next run (only for keys that are missing).
+
+**No change** to config file names or to `*.custom.php` customization workflow.
+
 ### Upgrading to 1.0.10
 
 **Code quality and static analysis:**
@@ -163,16 +174,16 @@ Always check [CHANGELOG.md](CHANGELOG.md) for:
   - `cs-check` → `fix:check` (check code style)
   - `cs-fix` → `fix` (fix code style)
   - Scripts now include `PHP_CS_FIXER_IGNORE_ENV=1` and `--allow-risky=yes` flags
-  - Scripts reference `.php-cs-fixer.dist.php` configuration file
+  - Scripts were documented as referencing `.php-cs-fixer.dist.php`; installed configs use **`.php-cs-fixer.php`** (see **Upgrading to 1.0.11** for script command alignment).
 - **Rector scripts**: Improved naming for clarity
   - `rector` now applies changes (was `rector:fix`)
   - `rector:check` is the new dry-run version (was just `rector`)
-  - Scripts reference `.rector.dist.php` configuration file
+  - Scripts were documented as referencing `.rector.dist.php`; installed configs use **`.rector.php`** (see **Upgrading to 1.0.11**).
 - **Twig-CS-Fixer scripts**: Renamed for consistency and expanded
   - `twig-check` → `twig:lint` (lint templates, dry-run)
   - `twig-fix` → `twig:fix` (fix templates)
   - Added `twig:fix:check` (check and fix templates)
-  - All scripts reference `.twig-cs-fixer.dist.php` configuration file
+  - Scripts were documented as referencing `.twig-cs-fixer.dist.php`; installed configs use **`.twig-cs-fixer.php`** (see **Upgrading to 1.0.11**).
 
 **Action Required:**
 - If you have custom scripts that reference the old script names, update them to use the new names

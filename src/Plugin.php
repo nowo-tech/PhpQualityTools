@@ -739,27 +739,27 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     private function getScriptsForFramework(string $framework): array
     {
         $scripts = [
-            // PHP-CS-Fixer scripts
-            'fix' => 'PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix --config=.php-cs-fixer.dist.php --allow-risky=yes',
-            'fix:check' => 'PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff --allow-risky=yes',
+            // PHP-CS-Fixer scripts (must match installed filenames: .php-cs-fixer.php)
+            'fix' => 'PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix --config=.php-cs-fixer.php --allow-risky=yes',
+            'fix:check' => 'PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix --config=.php-cs-fixer.php --dry-run --diff --allow-risky=yes',
 
-            // Rector scripts
-            'rector' => 'rector process -c .rector.dist.php',
-            'rector:check' => 'rector process -c .rector.dist.php --dry-run',
+            // Rector scripts (must match installed filenames: .rector.php)
+            'rector' => 'rector process -c .rector.php',
+            'rector:check' => 'rector process -c .rector.php --dry-run',
         ];
 
         // Add Twig-CS-Fixer scripts if Twig is installed
         if ($this->isPackageInstalled('twig/twig')) {
-            $scripts['twig:fix'] = 'twig-cs-fixer fix --config=.twig-cs-fixer.dist.php';
-            $scripts['twig:fix:check'] = 'twig-cs-fixer lint --config=.twig-cs-fixer.dist.php --fix';
-            $scripts['twig:lint'] = 'twig-cs-fixer lint --config=.twig-cs-fixer.dist.php';
+            $scripts['twig:fix'] = 'twig-cs-fixer fix --config=.twig-cs-fixer.php';
+            $scripts['twig:fix:check'] = 'twig-cs-fixer lint --config=.twig-cs-fixer.php --fix';
+            $scripts['twig:lint'] = 'twig-cs-fixer lint --config=.twig-cs-fixer.php';
         }
 
         // Framework-specific scripts
         if ($framework === 'laravel') {
             // Laravel Blade is handled by PHP-CS-Fixer, but we can add specific scripts
-            $scripts['blade-check'] = 'php-cs-fixer fix resources/views --dry-run --diff';
-            $scripts['blade-fix'] = 'php-cs-fixer fix resources/views';
+            $scripts['blade-check'] = 'PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix resources/views --config=.php-cs-fixer.php --dry-run --diff --allow-risky=yes';
+            $scripts['blade-fix'] = 'PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix resources/views --config=.php-cs-fixer.php --allow-risky=yes';
         }
 
         // Test script (if phpunit is available)

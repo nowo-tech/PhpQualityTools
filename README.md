@@ -245,15 +245,15 @@ If you prefer different script names or commands, you can manually add them to y
 ```json
 {
   "scripts": {
-    "fix": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix --config=.php-cs-fixer.dist.php --allow-risky=yes",
-    "fix:check": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff --allow-risky=yes",
-    "rector": "rector process -c .rector.dist.php",
-    "rector:check": "rector process -c .rector.dist.php --dry-run",
-    "twig:fix": "twig-cs-fixer fix --config=.twig-cs-fixer.dist.php",
-    "twig:lint": "twig-cs-fixer lint --config=.twig-cs-fixer.dist.php",
-    "twig:fix:check": "twig-cs-fixer lint --config=.twig-cs-fixer.dist.php --fix",
-    "blade:fix": "php-cs-fixer fix resources/views --config=.php-cs-fixer.dist.php",
-    "blade:lint": "php-cs-fixer fix resources/views --config=.php-cs-fixer.dist.php --dry-run --diff"
+    "fix": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix --config=.php-cs-fixer.php --allow-risky=yes",
+    "fix:check": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix --config=.php-cs-fixer.php --dry-run --diff --allow-risky=yes",
+    "rector": "rector process -c .rector.php",
+    "rector:check": "rector process -c .rector.php --dry-run",
+    "twig:fix": "twig-cs-fixer fix --config=.twig-cs-fixer.php",
+    "twig:lint": "twig-cs-fixer lint --config=.twig-cs-fixer.php",
+    "twig:fix:check": "twig-cs-fixer lint --config=.twig-cs-fixer.php --fix",
+    "blade-check": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix resources/views --config=.php-cs-fixer.php --dry-run --diff --allow-risky=yes",
+    "blade-fix": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix resources/views --config=.php-cs-fixer.php --allow-risky=yes"
   }
 }
 ```
@@ -510,16 +510,11 @@ composer update nowo-tech/php-quality-tools
 
 - ✅ Your custom files (`*.custom.php`) are **preserved**
 - ✅ Main config files are **NOT overwritten**
-- ✅ **New config files are NOT created** during update (only on install)
-- ✅ Missing dependencies will be detected and offered for installation
+- ✅ **Missing** main config files (`.rector.php`, `.php-cs-fixer.php`, etc.) are **created on both** `composer install` and `composer update` if they do not exist yet
+- ✅ Missing dependencies will be detected and offered for installation (on update, only in **interactive** mode)
 - ℹ️ Check the [CHANGELOG](docs/CHANGELOG.md) for new features and compatibility updates
 
-**Important**: Configuration files are only created during `composer install`, not during `composer update`. This ensures that:
-- Existing files are never overwritten
-- New files are only added on fresh installations
-- Your customizations are always preserved
-
-To get the latest base configs, delete the main files and reinstall:
+**Important**: Existing files are never overwritten. The plugin only copies a template when the target file is absent. To replace a main config with a fresh template from the package, remove that file and run `composer install` or `composer update`:
 
 ```bash
 rm .rector.php .php-cs-fixer.php .twig-cs-fixer.php
