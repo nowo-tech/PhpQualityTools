@@ -27,3 +27,11 @@ coverage.xml
 
 # Cache
 var/
+
+# Archives / compressed
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
