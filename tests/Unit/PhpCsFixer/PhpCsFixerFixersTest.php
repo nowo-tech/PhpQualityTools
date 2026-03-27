@@ -19,6 +19,15 @@ use PHPUnit\Framework\TestCase;
  */
 class PhpCsFixerFixersTest extends TestCase
 {
+    private function invokePrivate(object $object, string $method, mixed ...$args): mixed
+    {
+        $reflection = new \ReflectionClass($object);
+        $privateMethod = $reflection->getMethod($method);
+        $privateMethod->setAccessible(true);
+
+        return $privateMethod->invoke($object, ...$args);
+    }
+
     public function testConsistentDocblockFixerDefinitionAndName(): void
     {
         $fixer = new ConsistentDocblockFixer();
@@ -333,5 +342,102 @@ class PhpCsFixerFixersTest extends TestCase
         $fixer->fix($file, $tokens);
         $this->assertStringContainsString('Line1', $tokens->generateCode());
         $this->assertStringContainsString('Line2', $tokens->generateCode());
+    }
+
+    public function testConsistentDocblockFixerFormatsClosingLineWithoutLeadingSpace(): void
+    {
+        $fixer = new ConsistentDocblockFixer();
+        $formatted = $this->invokePrivate($fixer, 'formatDocblock', "/**\n * Summary\n */");
+        $this->assertStringContainsString(" */", $formatted);
+    }
+
+    public function testConsistentDocblockFixerCoversEmptyLineAndClosingBranches(): void
+    {
+        $fixer = new ConsistentDocblockFixer();
+        $formatted = $this->invokePrivate($fixer, 'formatDocblock', "/**\n\n */\n");
+        $this->assertStringContainsString(" */", $formatted);
+    }
+
+    public function testMultilineArrayFixerFindArrayEndReturnsNullForUnsupportedStartToken(): void
+    {
+        $fixer = new MultilineArrayFixer();
+        $tokens = \PhpCsFixer\Tokenizer\Tokens::fromCode('<?php $a = [1, 2, 3];');
+        $this->assertNull($this->invokePrivate($fixer, 'findArrayEnd', $tokens, 0));
+    }
+
+    public function testMultilineGroupedImportsFixerFindUseEndIndexReturnsNullOutOfRangeStart(): void
+    {
+        $fixer = new MultilineGroupedImportsFixer();
+        $tokens = \PhpCsFixer\Tokenizer\Tokens::fromCode('<?php use App\\Ns\\{A, B};');
+        $this->assertNull($this->invokePrivate($fixer, 'findUseEndIndex', $tokens, $tokens->count() + 1));
+    }
+
+    public function testMultilineArrayFixerApplyFixContinuesWhenArrayEndCannotBeFound(): void
+    {
+        $fixer = new MultilineArrayFixer();
+        $file = new \SplFileInfo(__FILE__);
+        $tokens = \PhpCsFixer\Tokenizer\Tokens::fromArray([
+            new \PhpCsFixer\Tokenizer\Token([T_OPEN_TAG, '<?php ']),
+            new \PhpCsFixer\Tokenizer\Token([T_VARIABLE, '$a']),
+            new \PhpCsFixer\Tokenizer\Token('='),
+            new \PhpCsFixer\Tokenizer\Token([T_WHITESPACE, ' ']),
+            new \PhpCsFixer\Tokenizer\Token([\PhpCsFixer\Tokenizer\CT::T_ARRAY_SQUARE_BRACE_OPEN, '[']),
+            new \PhpCsFixer\Tokenizer\Token([T_LNUMBER, '1']),
+            new \PhpCsFixer\Tokenizer\Token(','),
+            new \PhpCsFixer\Tokenizer\Token([T_WHITESPACE, ' ']),
+            new \PhpCsFixer\Tokenizer\Token([T_LNUMBER, '2']),
+            new \PhpCsFixer\Tokenizer\Token(';'),
+        ]);
+
+        $fixer->fix($file, $tokens);
+        $this->assertGreaterThan(0, $tokens->count());
+    }
+
+    public function testMultilineGroupedImportsFixerHandlesMissingSemicolonAndNestedBraceDepth(): void
+    {
+        $fixer = new MultilineGroupedImportsFixer();
+        $file = new \SplFileInfo(__FILE__);
+
+        $tokensWithoutSemicolon = \PhpCsFixer\Tokenizer\Tokens::fromArray([
+            new \PhpCsFixer\Tokenizer\Token([T_OPEN_TAG, '<?php ']),
+            new \PhpCsFixer\Tokenizer\Token([T_USE, 'use']),
+            new \PhpCsFixer\Tokenizer\Token([T_WHITESPACE, ' ']),
+            new \PhpCsFixer\Tokenizer\Token([T_STRING, 'App']),
+            new \PhpCsFixer\Tokenizer\Token('\\'),
+            new \PhpCsFixer\Tokenizer\Token([T_STRING, 'Ns']),
+            new \PhpCsFixer\Tokenizer\Token('\\'),
+            new \PhpCsFixer\Tokenizer\Token('{'),
+            new \PhpCsFixer\Tokenizer\Token([T_STRING, 'A']),
+            new \PhpCsFixer\Tokenizer\Token(','),
+            new \PhpCsFixer\Tokenizer\Token([T_WHITESPACE, ' ']),
+            new \PhpCsFixer\Tokenizer\Token([T_STRING, 'B']),
+        ]);
+        $fixer->fix($file, $tokensWithoutSemicolon);
+
+        $tokensWithNestedBraces = \PhpCsFixer\Tokenizer\Tokens::fromArray([
+            new \PhpCsFixer\Tokenizer\Token([T_OPEN_TAG, '<?php ']),
+            new \PhpCsFixer\Tokenizer\Token([T_USE, 'use']),
+            new \PhpCsFixer\Tokenizer\Token([T_WHITESPACE, ' ']),
+            new \PhpCsFixer\Tokenizer\Token([T_STRING, 'App']),
+            new \PhpCsFixer\Tokenizer\Token('\\'),
+            new \PhpCsFixer\Tokenizer\Token([T_STRING, 'Ns']),
+            new \PhpCsFixer\Tokenizer\Token('\\'),
+            new \PhpCsFixer\Tokenizer\Token('{'),
+            new \PhpCsFixer\Tokenizer\Token([T_STRING, 'A']),
+            new \PhpCsFixer\Tokenizer\Token(','),
+            new \PhpCsFixer\Tokenizer\Token([T_WHITESPACE, ' ']),
+            new \PhpCsFixer\Tokenizer\Token('{'),
+            new \PhpCsFixer\Tokenizer\Token([T_STRING, 'B']),
+            new \PhpCsFixer\Tokenizer\Token(','),
+            new \PhpCsFixer\Tokenizer\Token([T_WHITESPACE, ' ']),
+            new \PhpCsFixer\Tokenizer\Token([T_STRING, 'C']),
+            new \PhpCsFixer\Tokenizer\Token('}'),
+            new \PhpCsFixer\Tokenizer\Token('}'),
+            new \PhpCsFixer\Tokenizer\Token(';'),
+        ]);
+        $fixer->fix($file, $tokensWithNestedBraces);
+
+        $this->assertGreaterThan(0, $tokensWithoutSemicolon->count());
+        $this->assertGreaterThan(0, $tokensWithNestedBraces->count());
     }
 }

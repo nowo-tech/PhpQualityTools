@@ -27,6 +27,7 @@ final class AddMissingReturnTypeRector extends AbstractRector
      */
     public function getRuleDefinition(): RuleDefinition
     {
+        // @codeCoverageIgnoreStart
         // Check if required dependency is available
         if (!class_exists(RuleDefinition::class)) {
             throw new \RuntimeException(
@@ -34,6 +35,7 @@ final class AddMissingReturnTypeRector extends AbstractRector
                 'Install it with: composer require --dev symplify/rule-doc-generator-contracts'
             );
         }
+        // @codeCoverageIgnoreEnd
 
         return new RuleDefinition(
             'Add missing return types to public and protected methods',

@@ -272,4 +272,203 @@ class PluginDependenciesTest extends TestCase
 
         $this->addToAssertionCount(1);
     }
+
+    public function testDetectFrameworkReturnsGenericWhenComposerJsonIsUnreadable(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/phpqt-unreadable-' . uniqid();
+        mkdir($tempDir, 0o777, true);
+        mkdir($tempDir . '/vendor', 0o777, true);
+        mkdir($tempDir . '/composer.json', 0o777, true);
+
+        $plugin = new Plugin();
+        $composer = $this->createMock(Composer::class);
+        $config = $this->createMock(Config::class);
+        $config->method('get')->with('vendor-dir')->willReturn($tempDir . '/vendor');
+        $composer->method('getConfig')->willReturn($config);
+        $plugin->activate($composer, $this->createMock(IOInterface::class));
+
+        $framework = $this->invokePrivateMethod($plugin, 'detectFramework');
+        $this->assertSame('generic', $framework);
+
+        rmdir($tempDir . '/composer.json');
+        rmdir($tempDir . '/vendor');
+        rmdir($tempDir);
+    }
+
+    public function testCheckAndInstallDependenciesBuildsOptionalPackageVersionsForRector1(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/phpqt-symfony-' . uniqid();
+        mkdir($tempDir, 0o777, true);
+        mkdir($tempDir . '/vendor', 0o777, true);
+        file_put_contents($tempDir . '/composer.json', json_encode([
+            'name' => 'test/project',
+            'require' => ['symfony/framework-bundle' => '^6.0'],
+        ], JSON_THROW_ON_ERROR));
+
+        $localRepo = $this->createMock(InstalledRepositoryInterface::class);
+        $localRepo->method('findPackage')->willReturnCallback(
+            static fn (string $name): ?\Composer\Package\Package => $name === 'rector/rector'
+                ? new Package('rector/rector', '1.2.10', '1.2.10')
+                : null
+        );
+
+        $composer = $this->createMock(Composer::class);
+        $config = $this->createMock(Config::class);
+        $config->method('get')->willReturnCallback(
+            static fn (string $key): ?string => $key === 'vendor-dir'
+                ? $tempDir . '/vendor'
+                : ($key === 'bin-dir' ? '/tmp/vendor/bin' : null)
+        );
+        $composer->method('getConfig')->willReturn($config);
+        $repoManager = $this->createMock(RepositoryManager::class);
+        $repoManager->method('getLocalRepository')->willReturn($localRepo);
+        $composer->method('getRepositoryManager')->willReturn($repoManager);
+
+        $io = $this->createMock(IOInterface::class);
+        $io->method('isInteractive')->willReturn(false);
+        $io->expects($this->atLeastOnce())->method('write');
+
+        $plugin = new Plugin();
+        $plugin->activate($composer, $io);
+        $this->assertSame('symfony', $this->invokePrivateMethod($plugin, 'detectFramework'));
+        $this->invokePrivateMethod($plugin, 'checkAndInstallDependencies', [$io]);
+        $this->addToAssertionCount(1);
+
+        unlink($tempDir . '/composer.json');
+        rmdir($tempDir . '/vendor');
+        rmdir($tempDir);
+    }
+
+    public function testCheckAndInstallDependenciesInteractiveYesTriggersInstallAttempt(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/phpqt-install-yes-' . uniqid();
+        mkdir($tempDir, 0o777, true);
+        mkdir($tempDir . '/vendor', 0o777, true);
+        file_put_contents($tempDir . '/composer.json', json_encode([
+            'name' => 'test/project',
+            'require' => ['symfony/framework-bundle' => '^6.0'],
+        ], JSON_THROW_ON_ERROR));
+
+        $localRepo = $this->createMock(InstalledRepositoryInterface::class);
+        $localRepo->method('findPackage')->willReturn(null);
+
+        $composer = $this->createMock(Composer::class);
+        $config = $this->createMock(Config::class);
+        $config->method('get')->willReturnMap([
+            ['vendor-dir', null, $tempDir . '/vendor'],
+            ['bin-dir', null, '/nonexistent-bin'],
+        ]);
+        $composer->method('getConfig')->willReturn($config);
+        $repoManager = $this->createMock(RepositoryManager::class);
+        $repoManager->method('getLocalRepository')->willReturn($localRepo);
+        $composer->method('getRepositoryManager')->willReturn($repoManager);
+
+        $io = $this->createMock(IOInterface::class);
+        $io->method('isInteractive')->willReturn(true);
+        $io->method('askConfirmation')->willReturn(true);
+        $io->expects($this->atLeastOnce())->method('write');
+
+        $plugin = new Plugin();
+        $plugin->activate($composer, $io);
+        $this->invokePrivateMethod($plugin, 'checkAndInstallDependencies', [$io]);
+        $this->addToAssertionCount(1);
+
+        unlink($tempDir . '/composer.json');
+        rmdir($tempDir . '/vendor');
+        rmdir($tempDir);
+    }
+
+    public function testCheckAndInstallDependenciesBuildsManualInstallMessage(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/phpqt-msg-' . uniqid();
+        mkdir($tempDir, 0o777, true);
+        mkdir($tempDir . '/vendor', 0o777, true);
+        file_put_contents($tempDir . '/composer.json', json_encode([
+            'name' => 'test/project',
+            'require' => ['symfony/framework-bundle' => '^6.0'],
+        ], JSON_THROW_ON_ERROR));
+
+        $localRepo = $this->createMock(InstalledRepositoryInterface::class);
+        $localRepo->method('findPackage')->willReturn(null);
+
+        $composer = $this->createMock(Composer::class);
+        $config = $this->createMock(Config::class);
+        $config->method('get')->willReturnMap([
+            ['vendor-dir', null, $tempDir . '/vendor'],
+            ['bin-dir', null, '/tmp/vendor/bin'],
+        ]);
+        $composer->method('getConfig')->willReturn($config);
+        $repoManager = $this->createMock(RepositoryManager::class);
+        $repoManager->method('getLocalRepository')->willReturn($localRepo);
+        $composer->method('getRepositoryManager')->willReturn($repoManager);
+
+        $writes = [];
+        $io = $this->createMock(IOInterface::class);
+        $io->method('isInteractive')->willReturn(false);
+        $io->method('write')->willReturnCallback(static function (string $message) use (&$writes): void {
+            $writes[] = $message;
+        });
+
+        $plugin = new Plugin();
+        $plugin->activate($composer, $io);
+        $this->invokePrivateMethod($plugin, 'checkAndInstallDependencies', [$io]);
+
+        $all = implode("\n", $writes);
+        $this->assertStringContainsString('composer require --dev --with-all-dependencies', $all);
+        $this->assertStringContainsString('rector/rector', $all);
+        $this->assertStringContainsString('friendsofphp/php-cs-fixer', $all);
+
+        unlink($tempDir . '/composer.json');
+        rmdir($tempDir . '/vendor');
+        rmdir($tempDir);
+    }
+
+    public function testCheckAndInstallDependenciesSkipsOptionalPackagesForSymfonyWithRector2(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/phpqt-skip-opt-' . uniqid();
+        mkdir($tempDir, 0o777, true);
+        mkdir($tempDir . '/vendor', 0o777, true);
+        file_put_contents($tempDir . '/composer.json', json_encode([
+            'name' => 'test/project',
+            'require' => ['symfony/framework-bundle' => '^6.0'],
+        ], JSON_THROW_ON_ERROR));
+
+        $localRepo = $this->createMock(InstalledRepositoryInterface::class);
+        $localRepo->method('findPackage')->willReturnCallback(
+            static fn (string $name): ?\Composer\Package\Package => $name === 'rector/rector'
+                ? new Package('rector/rector', '2.2.14', '2.2.14')
+                : null
+        );
+
+        $composer = $this->createMock(Composer::class);
+        $config = $this->createMock(Config::class);
+        $config->method('get')->willReturnMap([
+            ['vendor-dir', null, $tempDir . '/vendor'],
+            ['bin-dir', null, '/tmp/vendor/bin'],
+        ]);
+        $composer->method('getConfig')->willReturn($config);
+        $repoManager = $this->createMock(RepositoryManager::class);
+        $repoManager->method('getLocalRepository')->willReturn($localRepo);
+        $composer->method('getRepositoryManager')->willReturn($repoManager);
+
+        $writes = [];
+        $io = $this->createMock(IOInterface::class);
+        $io->method('isInteractive')->willReturn(false);
+        $io->method('write')->willReturnCallback(static function (string $message) use (&$writes): void {
+            $writes[] = $message;
+        });
+
+        $plugin = new Plugin();
+        $plugin->activate($composer, $io);
+        $this->invokePrivateMethod($plugin, 'checkAndInstallDependencies', [$io]);
+
+        $all = implode("\n", $writes);
+        $this->assertStringNotContainsString('rector/rector-symfony:^1.0', $all);
+        $this->assertStringNotContainsString('rector/rector-doctrine:^0.16', $all);
+        $this->assertStringNotContainsString('rector/rector-phpunit:^1.0', $all);
+
+        unlink($tempDir . '/composer.json');
+        rmdir($tempDir . '/vendor');
+        rmdir($tempDir);
+    }
 }

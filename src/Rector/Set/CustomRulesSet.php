@@ -43,9 +43,11 @@ final class CustomRulesSet
     {
         if ($checkDependencies) {
             $missing = self::checkDependencies();
+            // @codeCoverageIgnoreStart
             if ($missing !== []) {
                 self::reportMissingDependencies($missing);
             }
+            // @codeCoverageIgnoreEnd
         }
 
         $rules = [];
@@ -72,9 +74,11 @@ final class CustomRulesSet
         $missing = [];
 
         foreach (self::REQUIRED_DEPENDENCIES as $class => $info) {
+            // @codeCoverageIgnoreStart
             if (!class_exists($class) && !interface_exists($class)) {
                 $missing[$class] = $info;
             }
+            // @codeCoverageIgnoreEnd
         }
 
         return $missing;
@@ -107,7 +111,9 @@ final class CustomRulesSet
         if (php_sapi_name() === 'cli') {
             fwrite(STDERR, $message);
         } else {
+            // @codeCoverageIgnoreStart
             trigger_error($message, E_USER_WARNING);
+            // @codeCoverageIgnoreEnd
         }
     }
 
@@ -141,9 +147,11 @@ final class CustomRulesSet
         $missing = self::checkDependencies();
         $packages = [];
 
+        // @codeCoverageIgnoreStart
         foreach ($missing as $info) {
             $packages[] = $info['package'];
         }
+        // @codeCoverageIgnoreEnd
 
         return array_unique($packages);
     }

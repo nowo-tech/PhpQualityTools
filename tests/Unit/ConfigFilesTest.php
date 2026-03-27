@@ -18,7 +18,7 @@ class ConfigFilesTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->configDir = dirname(__DIR__) . '/config';
+        $this->configDir = dirname(__DIR__, 2) . '/config';
     }
 
     public function testGenericConfigFilesExist(): void

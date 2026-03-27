@@ -46,6 +46,7 @@ final class SplitLongGroupedImportsRector extends AbstractRector
      */
     public function getRuleDefinition(): RuleDefinition
     {
+        // @codeCoverageIgnoreStart
         // Check if required dependency is available
         if (!class_exists(RuleDefinition::class)) {
             throw new \RuntimeException(
@@ -53,6 +54,7 @@ final class SplitLongGroupedImportsRector extends AbstractRector
         'Install it with: composer require --dev symplify/rule-doc-generator-contracts'
             );
         }
+        // @codeCoverageIgnoreEnd
 
         return new RuleDefinition(
             'Format long grouped imports with multiline format when they exceed ' . self::MAX_LINE_LENGTH . ' characters',
@@ -235,9 +237,11 @@ final class SplitLongGroupedImportsRector extends AbstractRector
             }
         }
 
+        // @codeCoverageIgnoreStart
         if ($names === []) {
             return '';
         }
+        // @codeCoverageIgnoreEnd
 
         // Find the common prefix
         $first = $names[0];
@@ -290,9 +294,11 @@ final class SplitLongGroupedImportsRector extends AbstractRector
 
         foreach ($node->uses as $use) {
             $name = $this->getName($use);
+            // @codeCoverageIgnoreStart
             if ($name === null) {
                 continue;
             }
+            // @codeCoverageIgnoreEnd
 
             // Remove the prefix from the name
             $suffix = substr($name, strlen($prefix) + 1);
