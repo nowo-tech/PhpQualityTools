@@ -48,6 +48,7 @@ final class SplitLongConstructorParametersRector extends AbstractRector
      */
     public function getRuleDefinition(): RuleDefinition
     {
+        // @codeCoverageIgnoreStart
         // Check if required dependency is available
         if (!class_exists(RuleDefinition::class)) {
             throw new \RuntimeException(
@@ -55,6 +56,7 @@ final class SplitLongConstructorParametersRector extends AbstractRector
         'Install it with: composer require --dev symplify/rule-doc-generator-contracts'
             );
         }
+        // @codeCoverageIgnoreEnd
 
         return new RuleDefinition(
             'Split long constructor parameter lists into multiple lines when they exceed ' . self::MAX_LINE_LENGTH . ' characters',

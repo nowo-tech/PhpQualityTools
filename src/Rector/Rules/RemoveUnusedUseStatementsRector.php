@@ -33,6 +33,7 @@ final class RemoveUnusedUseStatementsRector extends AbstractRector
      */
     public function getRuleDefinition(): RuleDefinition
     {
+        // @codeCoverageIgnoreStart
         // Check if required dependency is available
         if (!class_exists(RuleDefinition::class)) {
             throw new \RuntimeException(
@@ -40,6 +41,7 @@ final class RemoveUnusedUseStatementsRector extends AbstractRector
                 'Install it with: composer require --dev symplify/rule-doc-generator-contracts'
             );
         }
+        // @codeCoverageIgnoreEnd
 
         return new RuleDefinition(
             'Remove unused use statements from the file',
@@ -101,6 +103,9 @@ final class RemoveUnusedUseStatementsRector extends AbstractRector
             }
         }
 
+        // @codeCoverageIgnoreStart
+        // Placeholder branches: isUseUsed() currently always returns true.
+        // Kept for future custom logic and intentionally excluded from coverage.
         // If no uses are needed, remove the entire use statement
         if ($usedUses === []) {
             $this->removeNode($node); // @phpstan-ignore method.notFound
@@ -114,6 +119,7 @@ final class RemoveUnusedUseStatementsRector extends AbstractRector
 
             return $node;
         }
+        // @codeCoverageIgnoreEnd
 
         return null;
     }

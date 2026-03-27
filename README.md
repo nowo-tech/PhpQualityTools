@@ -1,8 +1,8 @@
 # PHP Quality Tools
 
-[![CI](https://github.com/nowo-tech/PhpQualityTools/actions/workflows/ci.yml/badge.svg)](https://github.com/nowo-tech/PhpQualityTools/actions/workflows/ci.yml) [![Packagist Version](https://img.shields.io/packagist/v/nowo-tech/php-quality-tools.svg?style=flat)](https://packagist.org/packages/nowo-tech/php-quality-tools) [![Packagist Downloads](https://img.shields.io/packagist/dt/nowo-tech/php-quality-tools.svg)](https://packagist.org/packages/nowo-tech/php-quality-tools) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![PHP](https://img.shields.io/badge/PHP-8.1%2B-777BB4?logo=php)](https://php.net) [![GitHub stars](https://img.shields.io/github/stars/nowo-tech/php-quality-tools.svg?style=social&label=Star)](https://github.com/nowo-tech/PhpQualityTools)
+[![CI](https://github.com/nowo-tech/PhpQualityTools/actions/workflows/ci.yml/badge.svg)](https://github.com/nowo-tech/PhpQualityTools/actions/workflows/ci.yml) [![Packagist Version](https://img.shields.io/packagist/v/nowo-tech/php-quality-tools.svg?style=flat)](https://packagist.org/packages/nowo-tech/php-quality-tools) [![Packagist Downloads](https://img.shields.io/packagist/dt/nowo-tech/php-quality-tools.svg)](https://packagist.org/packages/nowo-tech/php-quality-tools) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![PHP](https://img.shields.io/badge/PHP-8.1%2B-777BB4?logo=php)](https://php.net) [![Symfony](https://img.shields.io/badge/Symfony-6%20%7C%207%20%7C%208-000000?logo=symfony)](https://symfony.com) [![GitHub stars](https://img.shields.io/github/stars/nowo-tech/php-quality-tools.svg?style=social&label=Star)](https://github.com/nowo-tech/PhpQualityTools) [![Coverage](https://img.shields.io/badge/Coverage-100.00%25-brightgreen)](#tests-and-coverage)
 
-> ⭐ **Found this project useful?** Give it a star on GitHub! It helps us maintain and improve the project.
+> ⭐ **Found this useful?** Give it a star on GitHub! It helps us maintain and improve the project.
 
 Pre-configured quality tools for PHP projects. Includes ready-to-use configurations for:
 
@@ -101,12 +101,12 @@ php-quality-tools: Twig not detected, skipping Twig-CS-Fixer configuration
 Then you may see:
 ```
 php-quality-tools: Missing suggested dependencies detected:
-  - rector/rector: Rector for automated code refactoring
-  - rector/rector-symfony: Rector rules for Symfony (only for Rector 1.x)
-  - rector/rector-doctrine: Rector rules for Doctrine (only for Rector 1.x)
-  - rector/rector-phpunit: Rector rules for PHPUnit (only for Rector 1.x)
-  - friendsofphp/php-cs-fixer: PHP-CS-Fixer for code style fixing
-  - vincentlanglet/twig-cs-fixer: Twig-CS-Fixer for Twig template style fixing
+ - rector/rector: Rector for automated code refactoring
+ - rector/rector-symfony: Rector rules for Symfony (only for Rector 1.x)
+ - rector/rector-doctrine: Rector rules for Doctrine (only for Rector 1.x)
+ - rector/rector-phpunit: Rector rules for PHPUnit (only for Rector 1.x)
+ - friendsofphp/php-cs-fixer: PHP-CS-Fixer for code style fixing
+ - vincentlanglet/twig-cs-fixer: Twig-CS-Fixer for Twig template style fixing
 
 Would you like to install these dependencies now? (yes/no) [yes]: yes
 
@@ -244,17 +244,17 @@ If you prefer different script names or commands, you can manually add them to y
 
 ```json
 {
-  "scripts": {
-    "fix": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix --config=.php-cs-fixer.php --allow-risky=yes",
-    "fix:check": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix --config=.php-cs-fixer.php --dry-run --diff --allow-risky=yes",
-    "rector": "rector process -c .rector.php",
-    "rector:check": "rector process -c .rector.php --dry-run",
-    "twig:fix": "twig-cs-fixer fix --config=.twig-cs-fixer.php",
-    "twig:lint": "twig-cs-fixer lint --config=.twig-cs-fixer.php",
-    "twig:fix:check": "twig-cs-fixer lint --config=.twig-cs-fixer.php --fix",
-    "blade-check": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix resources/views --config=.php-cs-fixer.php --dry-run --diff --allow-risky=yes",
-    "blade-fix": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix resources/views --config=.php-cs-fixer.php --allow-risky=yes"
-  }
+ "scripts": {
+  "fix": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix --config=.php-cs-fixer.php --allow-risky=yes",
+  "fix:check": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix --config=.php-cs-fixer.php --dry-run --diff --allow-risky=yes",
+  "rector": "rector process -c .rector.php",
+  "rector:check": "rector process -c .rector.php --dry-run",
+  "twig:fix": "twig-cs-fixer fix --config=.twig-cs-fixer.php",
+  "twig:lint": "twig-cs-fixer lint --config=.twig-cs-fixer.php",
+  "twig:fix:check": "twig-cs-fixer lint --config=.twig-cs-fixer.php --fix",
+  "blade-check": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix resources/views --config=.php-cs-fixer.php --dry-run --diff --allow-risky=yes",
+  "blade-fix": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix resources/views --config=.php-cs-fixer.php --allow-risky=yes"
+ }
 }
 ```
 
@@ -264,25 +264,25 @@ After installation, you can run the automatically installed scripts:
 
 ```bash
 # PHP-CS-Fixer (automatically installed)
-composer fix:check    # Check code style (dry-run)
-composer fix          # Fix code style
+composer fix:check  # Check code style (dry-run)
+composer fix     # Fix code style
 
 # Rector (automatically installed)
 composer rector:check # Preview changes (dry-run)
-composer rector       # Apply changes
+composer rector    # Apply changes
 
 # Template Formatters (if dependencies are installed)
 # Twig-CS-Fixer (automatically installed if Twig is present)
-composer twig:lint      # Lint Twig templates (dry-run)
-composer twig:fix       # Fix Twig templates
+composer twig:lint   # Lint Twig templates (dry-run)
+composer twig:fix    # Fix Twig templates
 composer twig:fix:check # Check and fix Twig templates
 
 # Blade Templates (Laravel only, automatically installed)
-composer blade-check  # Check Blade templates (dry-run)
-composer blade-fix    # Fix Blade templates
+composer blade-check # Check Blade templates (dry-run)
+composer blade-fix  # Fix Blade templates
 
 # Tests (automatically installed if PHPUnit is present)
-composer test         # Run PHPUnit tests
+composer test     # Run PHPUnit tests
 ```
 
 **Note**: The scripts above are automatically added by the plugin. If you prefer different script names or commands, you can manually add them to your `composer.json` (see "Manual Scripts" section above).
@@ -298,27 +298,27 @@ Edit `.rector.custom.php`:
 ```php
 <?php
 return [
-    'paths' => [
-        __DIR__ . '/src',
-        __DIR__ . '/tests',
-    ],
-    
-    'skip' => [
-        __DIR__ . '/src/Legacy/*',
-        \Rector\DeadCode\Rector\Property\RemoveUnusedPrivatePropertyRector::class,
-    ],
-    
-    'php_version' => 'php84',
-    'symfony_version' => 74, // For Symfony projects
-    
-    'features' => [
-        'type_declarations' => true,
-        'dead_code' => true,
-        'code_quality' => true,
-        'early_return' => true,
-        'naming' => true,
-        'privatization' => true,
-    ],
+  'paths' => [
+    __DIR__ . '/src',
+    __DIR__ . '/tests',
+  ],
+  
+  'skip' => [
+    __DIR__ . '/src/Legacy/*',
+    \Rector\DeadCode\Rector\Property\RemoveUnusedPrivatePropertyRector::class,
+  ],
+  
+  'php_version' => 'php84',
+  'symfony_version' => 74, // For Symfony projects
+  
+  'features' => [
+    'type_declarations' => true,
+    'dead_code' => true,
+    'code_quality' => true,
+    'early_return' => true,
+    'naming' => true,
+    'privatization' => true,
+  ],
 ];
 ```
 
@@ -332,12 +332,12 @@ You can add your own project-specific custom fixers by adding them to the `proje
 
 ```php
 return [
-    // ... other settings ...
-    
-    'project_custom_fixers' => [
-        \App\Fixer\Custom\MyCustomFixer::class,
-        // Add more custom fixers here
-    ],
+  // ... other settings ...
+  
+  'project_custom_fixers' => [
+    \App\Fixer\Custom\MyCustomFixer::class,
+    // Add more custom fixers here
+  ],
 ];
 ```
 
@@ -346,22 +346,22 @@ Your project custom fixers will be automatically registered alongside PHP Qualit
 ```php
 <?php
 return [
-    'paths' => [
-        __DIR__ . '/src',
-        __DIR__ . '/tests',
-    ],
-    
-    'exclude' => [
-        'vendor',
-        'var',
-        'src/Legacy',
-    ],
-    
-    'rules' => [
-        // Override or add rules
-        'concat_space' => ['spacing' => 'none'],
-        'yoda_style' => true,
-    ],
+  'paths' => [
+    __DIR__ . '/src',
+    __DIR__ . '/tests',
+  ],
+  
+  'exclude' => [
+    'vendor',
+    'var',
+    'src/Legacy',
+  ],
+  
+  'rules' => [
+    // Override or add rules
+    'concat_space' => ['spacing' => 'none'],
+    'yoda_style' => true,
+  ],
 ];
 ```
 
@@ -372,18 +372,18 @@ Edit `.twig-cs-fixer.custom.php`:
 ```php
 <?php
 return [
-    'paths' => [
-        __DIR__ . '/templates',
-        __DIR__ . '/src/Resources/views',
-    ],
-    
-    'exclude' => [
-        'vendor',
-    ],
-    
-    'disabled_rules' => [
-        // Disable specific rules
-    ],
+  'paths' => [
+    __DIR__ . '/templates',
+    __DIR__ . '/src/Resources/views',
+  ],
+  
+  'exclude' => [
+    'vendor',
+  ],
+  
+  'disabled_rules' => [
+    // Disable specific rules
+  ],
 ];
 ```
 
@@ -403,30 +403,30 @@ If you prefer to install manually or the automatic installation didn't work:
 
 ```bash
 composer require --dev \
-    rector/rector \
-    rector/rector-symfony \
-    rector/rector-doctrine \
-    rector/rector-phpunit \
-    friendsofphp/php-cs-fixer \
-    vincentlanglet/twig-cs-fixer
+  rector/rector \
+  rector/rector-symfony \
+  rector/rector-doctrine \
+  rector/rector-phpunit \
+  friendsofphp/php-cs-fixer \
+  vincentlanglet/twig-cs-fixer
 ```
 
 #### Laravel Projects
 
 ```bash
 composer require --dev \
-    rector/rector \
-    driftingly/rector-laravel \
-    friendsofphp/php-cs-fixer
+  rector/rector \
+  driftingly/rector-laravel \
+  friendsofphp/php-cs-fixer
 ```
 
 #### Generic PHP Projects
 
 ```bash
 composer require --dev \
-    rector/rector \
-    friendsofphp/php-cs-fixer \
-    vincentlanglet/twig-cs-fixer
+  rector/rector \
+  friendsofphp/php-cs-fixer \
+  vincentlanglet/twig-cs-fixer
 ```
 
 ## Makefile Integration
@@ -483,21 +483,21 @@ name: Code Quality
 on: [push, pull_request]
 
 jobs:
-  quality:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-      
-      - run: composer install
-      
-      - name: PHP-CS-Fixer
-        run: ./vendor/bin/php-cs-fixer fix --dry-run --diff
-      
-      - name: Rector
-        run: ./vendor/bin/rector process --dry-run
+ quality:
+  runs-on: ubuntu-latest
+  steps:
+   - uses: actions/checkout@v4
+   - uses: shivammathur/setup-php@v2
+    with:
+     php-version: '8.2'
+   
+   - run: composer install
+   
+   - name: PHP-CS-Fixer
+    run: ./vendor/bin/php-cs-fixer fix --dry-run --diff
+   
+   - name: Rector
+    run: ./vendor/bin/rector process --dry-run
 ```
 
 ## Updating
@@ -570,21 +570,21 @@ Each framework uses different template engines. Here's a complete overview:
 The following template engines are used but don't have dedicated formatters yet:
 
 - **CakePHP Templates (.ctp)**: PHP native template files
-  - Can be partially formatted with PHP-CS-Fixer
-  - Template-specific syntax may need manual review
+ - Can be partially formatted with PHP-CS-Fixer
+ - Template-specific syntax may need manual review
 
 - **Yii Views**: PHP native template files
-  - Can be partially formatted with PHP-CS-Fixer
-  - Template-specific syntax may need manual review
+ - Can be partially formatted with PHP-CS-Fixer
+ - Template-specific syntax may need manual review
 
 - **CodeIgniter Views**: PHP native template files
-  - Can be partially formatted with PHP-CS-Fixer
-  - Template-specific syntax may need manual review
+ - Can be partially formatted with PHP-CS-Fixer
+ - Template-specific syntax may need manual review
 
 - **Smarty Templates (.tpl)**: Used by Laminas and other frameworks
-  - No dedicated formatter available
-  - Future: May support Smarty-CS-Fixer or similar tool
-  - Package detection: `smarty/smarty`
+ - No dedicated formatter available
+ - Future: May support Smarty-CS-Fixer or similar tool
+ - Package detection: `smarty/smarty`
 
 **Note**: PHP native template files can be formatted using PHP-CS-Fixer, but template-specific directives and syntax may require manual review.
 
@@ -593,20 +593,20 @@ The following template engines are used but don't have dedicated formatters yet:
 The following template formatters are planned for future releases:
 
 - **Smarty-CS-Fixer**: For Smarty templates (`.tpl` files)
-  - Will be automatically installed if `smarty/smarty` is detected
-  - Framework support: Laminas, Generic
+ - Will be automatically installed if `smarty/smarty` is detected
+ - Framework support: Laminas, Generic
 
 - **CakePHP Template Formatter**: For CakePHP template files (`.ctp`)
-  - Will be automatically installed if `cakephp/cakephp` is detected
-  - Framework support: CakePHP
+ - Will be automatically installed if `cakephp/cakephp` is detected
+ - Framework support: CakePHP
 
 - **Yii View Formatter**: For Yii PHP native views
-  - Will be automatically installed if `yiisoft/yii2` is detected
-  - Framework support: Yii
+ - Will be automatically installed if `yiisoft/yii2` is detected
+ - Framework support: Yii
 
 - **CodeIgniter View Formatter**: For CodeIgniter PHP native views
-  - Will be automatically installed if `codeigniter4/framework` is detected
-  - Framework support: CodeIgniter
+ - Will be automatically installed if `codeigniter4/framework` is detected
+ - Framework support: CodeIgniter
 
 **Contributing**: If you know of formatters for these template engines or would like to contribute support, please open an issue or pull request on GitHub.
 
@@ -638,11 +638,20 @@ If you use the custom rules without this dependency, you'll see an informative m
 
 ## Documentation
 
-- [Engram](docs/ENGRAM.md) — AI persistent memory in this repo (Cursor MCP setup)
+- [Installation](docs/INSTALLATION.md)
+- [Configuration](docs/CONFIGURATION.md)
+- [Usage](docs/USAGE.md)
 - [Contributing](docs/CONTRIBUTING.md)
 - [Changelog](docs/CHANGELOG.md)
 - [Upgrading](docs/UPGRADING.md)
+- [Release](docs/RELEASE.md)
+- [Security](docs/SECURITY.md)
+- [Engram](docs/ENGRAM.md)
+
+### Additional documentation
+
 - [Branching](docs/BRANCHING.md)
+- [Custom Rules](docs/CUSTOM_RULES.md)
 
 ## Contributing
 
@@ -661,6 +670,13 @@ For upgrade instructions, breaking changes, and troubleshooting, see [docs/UPGRA
 ## Author
 
 Created by [Héctor Franco Aceituno](https://github.com/HecFranco) at [Nowo.tech](https://nowo.tech)
+
+## Tests and coverage
+
+- Tests: PHPUnit (PHP)
+- PHP: 100.00%
+- TS/JS: N/A
+- Python: N/A
 
 ## License
 

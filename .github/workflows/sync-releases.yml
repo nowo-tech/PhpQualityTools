@@ -1,0 +1,43 @@
+name: Sync Releases
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 1"
+
+permissions:
+  contents: write
+
+jobs:
+  sync-releases:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Sync missing or incomplete releases from tags
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          for tag in $(git tag -l 'v*'); do
+            msg="$(git tag -l --format='%(contents)' "$tag" 2>/dev/null || true)"
+            if [ -z "${msg}" ]; then
+              msg="Release $tag"
+            fi
+
+            if gh release view "$tag" >/dev/null 2>&1; then
+              current_body="$(gh release view "$tag" --json body --jq '.body // ""')"
+              if [ -z "$current_body" ]; then
+                gh release edit "$tag" --title "Release $tag" --notes "$msg"
+                echo "Updated incomplete release for $tag"
+              else
+                echo "Release for $tag already complete"
+              fi
+            else
+              gh release create "$tag" --title "Release $tag" --notes "$msg"
+              echo "Created release for $tag"
+            fi
+          done
