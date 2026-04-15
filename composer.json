@@ -38,12 +38,12 @@
     },
     "require-dev": {
         "composer/composer": "^2.0",
-        "friendsofphp/php-cs-fixer": "*",
+        "friendsofphp/php-cs-fixer": "^3.95",
         "phpstan/phpstan": "^2.0",
         "phpunit/phpunit": "^10.0 || ^11.0",
-        "rector/rector": "*",
+        "rector/rector": "^2.4",
         "symfony/framework-bundle": "^6.0 || ^7.0 || ^8.0",
-        "vincentlanglet/twig-cs-fixer": "*"
+        "vincentlanglet/twig-cs-fixer": "^3.14"
     },
     "suggest": {
         "rector/rector": "For automated code refactoring",
