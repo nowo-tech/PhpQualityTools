@@ -31,7 +31,7 @@ The package **automatically detects** your framework and installs the appropriat
 
 | Version | PHP | Symfony | Laravel | Composer |
 |---------|-----|---------|---------|----------|
-| **1.0.x** (1.0.0 – 1.0.10) | >= 8.1 | 6.0 - 7.4 | 9.0 - 11.0 | >= 2.0 |
+| **1.0.x** (1.0.0 – 1.0.11) | >= 8.1 | 6.0 - 7.4 | 9.0 - 11.0 | >= 2.0 |
 
 ### PHP Versions
 

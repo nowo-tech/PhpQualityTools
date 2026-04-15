@@ -12,6 +12,7 @@ This guide helps you upgrade between versions of PHP Quality Tools.
   - [4. Check for Missing Dependencies](#4-check-for-missing-dependencies)
   - [5. Review Changelog](#5-review-changelog)
 - [Version-Specific Upgrade Notes](#version-specific-upgrade-notes)
+  - [Upgrading to 1.0.11](#upgrading-to-1011)
   - [Upgrading to 1.0.10](#upgrading-to-1010)
   - [Upgrading to 1.0.9](#upgrading-to-109)
   - [Upgrading to 1.0.8](#upgrading-to-108)
@@ -123,6 +124,8 @@ Always check [CHANGELOG.md](CHANGELOG.md) for:
 - The plugin **does not overwrite** existing `scripts` entries in your `composer.json`. If you still have old commands pointing to `*.dist.php`, update them to the filenames above, or remove those keys and let the plugin add the defaults on the next run (only for keys that are missing).
 
 **No change** to config file names or to `*.custom.php` customization workflow.
+
+**Contributors / CI only:** Tests were reorganized into `tests/Unit` and `tests/Integration` and PHP coverage was raised to 100%; this does not change how the Composer plugin behaves in your project. The root package `composer test` script was corrected so `composer test` runs PHPUnit (not a stray `color=always` path).
 
 ### Upgrading to 1.0.10
 

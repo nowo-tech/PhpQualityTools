@@ -6,9 +6,13 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
-- [[1.0.10] - 2025-03-06](#1010-2025-03-06)
+- [[1.0.11] - 2026-04-15](#1011-2026-04-15)
   - [Fixed](#fixed)
   - [Improved](#improved)
+  - [Documentation](#documentation)
+- [[1.0.10] - 2025-03-06](#1010-2025-03-06)
+  - [Fixed](#fixed-1)
+  - [Improved](#improved-1)
 - [[1.0.9] - 2024-12-19](#109-2024-12-19)
   - [Changed](#changed)
   - [Fixed](#fixed)
@@ -46,14 +50,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.11] - 2026-04-15
+
 ### Fixed
 
+- **Composer `test` script** (this package): `composer test` now runs `phpunit --colors=always` instead of passing `color=always` as a bogus test path (which broke the test command).
 - **Composer plugin scripts**: Generated `composer.json` scripts now use `--config=` / `-c` pointing to **`.php-cs-fixer.php`**, **`.rector.php`**, and **`.twig-cs-fixer.php`** (and Blade scripts use `--config=.php-cs-fixer.php` with the same env flags as `fix`), matching the files installed by the plugin. Previously, commands referenced `*.dist.php` filenames that were never installed, breaking `composer fix` / `composer rector` / Twig scripts on a default setup.
+
+### Improved
+
+- **Tests and coverage**: PHPUnit suite reorganized under `tests/Unit` and `tests/Integration`; line/branch coverage for PHP source brought to **100%** (PCOV), with README badge and “Tests and coverage” section updated accordingly.
+- **Tooling**: Makefile and CI workflows aligned with the test layout and quality checks where applicable.
 
 ### Documentation
 
 - **README**: “Updating” section corrected — missing config files are created on **both** `install` and `update`; removed the incorrect claim that new configs are only created on install. **Manual scripts** JSON updated to use the same config filenames as the plugin.
-- **UPGRADING.md**: New **Upgrading to 1.0.11** section; historical 1.0.7 script notes clarified vs installed filenames.
+- **UPGRADING.md**: **Upgrading to 1.0.11** section for script/config filename alignment; historical 1.0.7 script notes clarified vs installed filenames.
 
 ## [1.0.10] - 2025-03-06
 
