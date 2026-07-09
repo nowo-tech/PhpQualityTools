@@ -4,6 +4,8 @@
 .PHONY: help ensure-up up down build shell install assets test test-coverage cs-check cs-fix rector rector-dry phpstan qa release-check composer-sync clean update validate setup-hooks
 
 COMPOSER_BIN := /usr/bin/composer
+COMPOSE := docker-compose
+SERVICE_PHP := php
 
 # Default target
 help:
