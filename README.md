@@ -1,6 +1,6 @@
 # PHP Quality Tools
 
-[![CI](https://github.com/nowo-tech/PhpQualityTools/actions/workflows/ci.yml/badge.svg)](https://github.com/nowo-tech/PhpQualityTools/actions/workflows/ci.yml) [![Packagist Version](https://img.shields.io/packagist/v/nowo-tech/php-quality-tools.svg?style=flat)](https://packagist.org/packages/nowo-tech/php-quality-tools) [![Packagist Downloads](https://img.shields.io/packagist/dt/nowo-tech/php-quality-tools.svg)](https://packagist.org/packages/nowo-tech/php-quality-tools) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![PHP](https://img.shields.io/badge/PHP-8.1%2B-777BB4?logo=php)](https://php.net) [![Symfony](https://img.shields.io/badge/Symfony-6%20%7C%207%20%7C%208-000000?logo=symfony)](https://symfony.com) [![GitHub stars](https://img.shields.io/github/stars/nowo-tech/php-quality-tools.svg?style=social&label=Star)](https://github.com/nowo-tech/PhpQualityTools) [![Coverage](https://img.shields.io/badge/Coverage-100.00%25-brightgreen)](#tests-and-coverage)
+[![CI](https://github.com/nowo-tech/PhpQualityTools/actions/workflows/ci.yml/badge.svg)](https://github.com/nowo-tech/PhpQualityTools/actions/workflows/ci.yml) [![Packagist Version](https://img.shields.io/packagist/v/nowo-tech/php-quality-tools.svg?style=flat)](https://packagist.org/packages/nowo-tech/php-quality-tools) [![Packagist Downloads](https://img.shields.io/packagist/dt/nowo-tech/php-quality-tools.svg)](https://packagist.org/packages/nowo-tech/php-quality-tools) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![PHP](https://img.shields.io/badge/PHP-8.1%2B-777BB4?logo=php)](https://php.net) [![Symfony](https://img.shields.io/badge/Symfony-6.0%2B%20%7C%207.4%2B%20%7C%208.0%20%7C%208.1%2B-000000?logo=symfony)](https://symfony.com)
 
 > ⭐ **Found this useful?** Give it a star on GitHub! It helps us maintain and improve the project.
 
@@ -31,7 +31,7 @@ The package **automatically detects** your framework and installs the appropriat
 
 | Version | PHP | Symfony | Laravel | Composer |
 |---------|-----|---------|---------|----------|
-| **1.0.x** (1.0.0 – 1.0.11) | >= 8.1 | 6.0 - 7.4 | 9.0 - 11.0 | >= 2.0 |
+| **1.0.x** (1.0.0 – 1.0.12) | >= 8.1 | 6.0 - 8.1 | 9.0 - 11.0 | >= 2.0 |
 
 ### PHP Versions
 
@@ -45,6 +45,7 @@ The package **automatically detects** your framework and installs the appropriat
 
 - **Symfony 6.0 - 6.4**: ✅ Supported
 - **Symfony 7.0 - 7.4**: ✅ Supported
+- **Symfony 8.0 - 8.1**: ✅ Supported
 
 ### Laravel Versions
 
@@ -212,9 +213,21 @@ Laravel Blade templates (`.blade.php` files) are PHP files with special syntax a
 
 ## Composer Scripts
 
-**✨ Automatic Installation**: The plugin automatically adds Composer scripts to your `composer.json` during installation. You don't need to add them manually!
+**Opt-in installation**: By default, the plugin **does not** modify your `composer.json`. To have quality scripts added automatically (only missing keys; existing scripts are never overwritten), enable:
 
-The following scripts are automatically added (if they don't already exist):
+```json
+{
+  "extra": {
+    "php-quality-tools": {
+      "auto_add_scripts": true
+    }
+  }
+}
+```
+
+Then run `composer update nowo-tech/php-quality-tools` or `composer install`. You will see a confirmation when scripts are added.
+
+The following scripts can be added (if they don't already exist):
 
 **All frameworks:**
 - `fix:check` - Check code style with PHP-CS-Fixer (dry-run)
@@ -232,7 +245,7 @@ The following scripts are automatically added (if they don't already exist):
 - `blade-check` - Check Blade templates (dry-run)
 - `blade-fix` - Fix Blade templates
 
-**Note**: Existing scripts in your `composer.json` are never overwritten. The plugin only adds missing scripts.
+**Note**: Existing scripts in your `composer.json` are never overwritten. The plugin only adds missing scripts when `auto_add_scripts` is `true`.
 
 **Note**: The plugin preserves your `composer.json` formatting (2 spaces, 4 spaces, or tabs) when adding scripts. Your original indentation style is maintained.
 
@@ -260,7 +273,7 @@ If you prefer different script names or commands, you can manually add them to y
 
 ### Using the Scripts
 
-After installation, you can run the automatically installed scripts:
+After enabling `auto_add_scripts` (or adding scripts manually), you can run:
 
 ```bash
 # PHP-CS-Fixer (automatically installed)
@@ -285,7 +298,7 @@ composer blade-fix  # Fix Blade templates
 composer test     # Run PHPUnit tests
 ```
 
-**Note**: The scripts above are automatically added by the plugin. If you prefer different script names or commands, you can manually add them to your `composer.json` (see "Manual Scripts" section above).
+**Note**: Enable `auto_add_scripts` or add scripts manually (see sections above). If you rely on the plugin defaults, set `extra.php-quality-tools.auto_add_scripts` to `true`.
 
 ## Customization
 
@@ -647,7 +660,8 @@ If you use the custom rules without this dependency, you'll see an informative m
 - [Release](docs/RELEASE.md)
 - [Security](docs/SECURITY.md)
 - [Engram](docs/ENGRAM.md)
-
+- [Spec-driven development](docs/SPEC-DRIVEN-DEVELOPMENT.md)
+- [GitHub Spec Kit](docs/SPEC-KIT.md)
 ### Additional documentation
 
 - [Branching](docs/BRANCHING.md)

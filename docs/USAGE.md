@@ -2,7 +2,7 @@
 
 ## Run quality tools
 
-Use Composer scripts from your project:
+Use Composer scripts from your project (after enabling `extra.php-quality-tools.auto_add_scripts` or adding scripts manually — see [Configuration](CONFIGURATION.md)):
 
 ```bash
 composer fix:check
