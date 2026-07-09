@@ -566,13 +566,13 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             return;
         }
 
-        if (!$this->isAutoAddScriptsEnabled()) {
-            $io->write('<comment>php-quality-tools: Skipping composer.json script injection (set extra.php-quality-tools.auto_add_scripts to true to enable)</comment>');
+        if (!is_readable($composerJsonPath)) {
+            $io->writeError('<error>php-quality-tools: Failed to read composer.json</error>');
 
             return;
         }
 
-        // Read original file content to detect indentation
+        // Read and parse once so read/parse errors are reported before opt-in checks.
         $originalContent = file_get_contents($composerJsonPath);
         // @codeCoverageIgnoreStart
         if ($originalContent === false) {
@@ -582,15 +582,21 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         }
         // @codeCoverageIgnoreEnd
 
-        // Detect original indentation (2 or 4 spaces, or tabs)
-        $indent = $this->detectJsonIndentation($originalContent);
-
         $composerJson = json_decode($originalContent, true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($composerJson)) {
             $io->writeError('<error>php-quality-tools: Failed to parse composer.json</error>');
 
             return;
         }
+
+        if (!$this->isAutoAddScriptsEnabled($composerJson)) {
+            $io->write('<comment>php-quality-tools: Skipping composer.json script injection (set extra.php-quality-tools.auto_add_scripts to true to enable)</comment>');
+
+            return;
+        }
+
+        // Detect original indentation (2 or 4 spaces, or tabs)
+        $indent = $this->detectJsonIndentation($originalContent);
 
         // Initialize scripts array if it doesn't exist
         if (!isset($composerJson['scripts'])) {
@@ -796,30 +802,11 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     }
 
     /**
-     * @return array<string, mixed>
+     * @param array<string, mixed> $composerJson
      */
-    private function readProjectComposerJson(): array
+    private function isAutoAddScriptsEnabled(array $composerJson): bool
     {
-        $vendorDir = $this->composer->getConfig()->get('vendor-dir');
-        $composerJsonPath = dirname((string) $vendorDir) . '/composer.json';
-
-        if (!file_exists($composerJsonPath)) {
-            return [];
-        }
-
-        $content = file_get_contents($composerJsonPath);
-        if ($content === false) {
-            return [];
-        }
-
-        $decoded = json_decode($content, true);
-
-        return is_array($decoded) ? $decoded : [];
-    }
-
-    private function isAutoAddScriptsEnabled(): bool
-    {
-        $extra = $this->readProjectComposerJson()['extra'] ?? [];
+        $extra = $composerJson['extra'] ?? [];
 
         return (bool) ($extra['php-quality-tools']['auto_add_scripts'] ?? false);
     }
