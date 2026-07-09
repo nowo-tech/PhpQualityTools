@@ -26,6 +26,9 @@ jobs:
             symfony: '8.0'
           - php: '8.3'
             symfony: '8.1'
+          # Symfony 8.1 requires PHP >= 8.4.1; avoid edge cases on PHP 8.4.0 platform resolution
+          - php: '8.4'
+            symfony: '8.1'
 
     steps:
       - name: Checkout code
@@ -57,7 +60,9 @@ jobs:
 
       - name: Install dependencies with Symfony ${{ matrix.symfony }}
         run: |
-          composer config platform.php ${{ matrix.php }}
+          PHP_VERSION="$(php -r 'echo PHP_VERSION;')"
+          echo "Using platform PHP ${PHP_VERSION} (runtime) for dependency resolution"
+          composer config platform.php "${PHP_VERSION}"
           composer require symfony/framework-bundle:^${{ matrix.symfony }} --dev --no-interaction --no-update
           composer update symfony/* --with-all-dependencies --no-interaction --prefer-dist --no-progress
 
