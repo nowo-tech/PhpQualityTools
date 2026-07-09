@@ -566,14 +566,14 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             return;
         }
 
-        if (!is_readable($composerJsonPath)) {
+        if (!is_file($composerJsonPath)) {
             $io->writeError('<error>php-quality-tools: Failed to read composer.json</error>');
 
             return;
         }
 
         // Read and parse once so read/parse errors are reported before opt-in checks.
-        $originalContent = file_get_contents($composerJsonPath);
+        $originalContent = @file_get_contents($composerJsonPath);
         // @codeCoverageIgnoreStart
         if ($originalContent === false) {
             $io->writeError('<error>php-quality-tools: Failed to read composer.json</error>');

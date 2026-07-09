@@ -432,9 +432,9 @@ class PluginInstallationTest extends TestCase
         $badDir = sys_get_temp_dir() . '/phpqt-bad-' . uniqid();
         mkdir($badDir, 0o777, true);
         mkdir($badDir . '/vendor', 0o777, true);
-        $composerJsonPath = $badDir . '/composer.json';
-        file_put_contents($composerJsonPath, '{"extra":{"php-quality-tools":{"auto_add_scripts":true}}}');
-        chmod($composerJsonPath, 0o000);
+        // composer.json as a directory simulates an unreadable project manifest across CI environments
+        // (chmod 000 on a file is still readable for root in some containers).
+        mkdir($badDir . '/composer.json', 0o777, true);
 
         $plugin = new Plugin();
         $config = $this->createMock(Config::class);
@@ -448,8 +448,7 @@ class PluginInstallationTest extends TestCase
 
         $this->invokePrivateMethod($plugin, 'installComposerScripts', [$io]);
 
-        chmod($composerJsonPath, 0o644);
-        unlink($composerJsonPath);
+        rmdir($badDir . '/composer.json');
         rmdir($badDir . '/vendor');
         rmdir($badDir);
     }
