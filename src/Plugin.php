@@ -566,6 +566,12 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             return;
         }
 
+        if (!$this->isAutoAddScriptsEnabled()) {
+            $io->write('<comment>php-quality-tools: Skipping composer.json script injection (set extra.php-quality-tools.auto_add_scripts to true to enable)</comment>');
+
+            return;
+        }
+
         // Read original file content to detect indentation
         $originalContent = file_get_contents($composerJsonPath);
         // @codeCoverageIgnoreStart
@@ -787,5 +793,34 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         }
 
         return $scripts;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function readProjectComposerJson(): array
+    {
+        $vendorDir = $this->composer->getConfig()->get('vendor-dir');
+        $composerJsonPath = dirname((string) $vendorDir) . '/composer.json';
+
+        if (!file_exists($composerJsonPath)) {
+            return [];
+        }
+
+        $content = file_get_contents($composerJsonPath);
+        if ($content === false) {
+            return [];
+        }
+
+        $decoded = json_decode($content, true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    private function isAutoAddScriptsEnabled(): bool
+    {
+        $extra = $this->readProjectComposerJson()['extra'] ?? [];
+
+        return (bool) ($extra['php-quality-tools']['auto_add_scripts'] ?? false);
     }
 }

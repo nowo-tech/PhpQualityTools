@@ -18,6 +18,7 @@ The Composer plugin:
 1. Detects the framework (Symfony/Laravel/Generic).
 2. Copies base configuration files when they do not exist.
 3. Optionally installs suggested tooling dependencies in interactive mode.
+4. Optionally adds Composer quality scripts when `extra.php-quality-tools.auto_add_scripts` is `true` (see [Configuration](CONFIGURATION.md)).
 
 ## Verify installation
 

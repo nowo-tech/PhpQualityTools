@@ -22,7 +22,19 @@ Custom files are never overwritten by the plugin.
 
 ## Composer scripts
 
-The plugin can add quality scripts (if missing), such as:
+Script injection is **opt-in**. Add to your project `composer.json`:
+
+```json
+{
+  "extra": {
+    "php-quality-tools": {
+      "auto_add_scripts": true
+    }
+  }
+}
+```
+
+When enabled, the plugin can add quality scripts (if missing), such as:
 
 - `fix`, `fix:check`
 - `rector`, `rector:check`

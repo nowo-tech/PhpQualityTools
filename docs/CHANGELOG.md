@@ -6,6 +6,11 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.0.12] - 2026-07-09](#1012-2026-07-09)
+  - [Changed](#changed)
+  - [Added](#added)
+  - [Improved](#improved)
+  - [Documentation](#documentation)
 - [[1.0.11] - 2026-04-15](#1011-2026-04-15)
   - [Fixed](#fixed)
   - [Improved](#improved)
@@ -49,6 +54,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [1.0.12] - 2026-07-09
+
+### Changed
+
+- **Composer script injection is opt-in**: The plugin no longer adds quality scripts to `composer.json` by default. Set `"extra": { "php-quality-tools": { "auto_add_scripts": true } }` in your project to restore automatic script installation (`fix`, `rector`, `twig:*`, etc.).
+
+### Added
+
+- **Symfony 8 support**: CI validates PHP 8.2–8.5 against Symfony 7.4, 8.0, and 8.1; README compatibility table and badges updated accordingly.
+- **Repository maintenance**: `.cursorignore`, Scrutinizer CI config, Dependabot dependency groups, PR title lint, stale issue/PR automation, and CodeRabbit workflow.
+- **Spec-driven development docs**: `docs/SPEC-DRIVEN-DEVELOPMENT.md` and `docs/SPEC-KIT.md` with baseline inventory under `specs/001-baseline/`.
+
+### Improved
+
+- **CI matrix**: Replaced single PHP-only matrix with PHP × Symfony combinations aligned to supported Symfony minors.
+- **Dev dependency constraints**: Pinned `friendsofphp/php-cs-fixer` (^3.95), `rector/rector` (^2.4), and `vincentlanglet/twig-cs-fixer` (^3.14) in this package’s `composer.json`.
+- **Makefile**: Added `update-deps` target via shared Nowo bundle script include.
+
+### Documentation
+
+- **README**: Composer Scripts section documents opt-in `auto_add_scripts`; Symfony 8 compatibility reflected in badges and table.
+- **CONFIGURATION.md** / **INSTALLATION.md**: Composer script opt-in documented.
+- **CONTRIBUTING.md**: Corrected clone URL to `nowo-tech/PhpQualityTools`.
+- **ENGRAM.md**: Cross-link to spec-driven development guide.
 
 ## [1.0.11] - 2026-04-15
 

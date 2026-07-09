@@ -191,6 +191,11 @@ class PluginInstallationTest extends TestCase
             'name' => 'test/project',
             'require' => [],
             'scripts' => [],
+            'extra' => [
+                'php-quality-tools' => [
+                    'auto_add_scripts' => true,
+                ],
+            ],
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
         $this->assertNotFalse($composerJson);
         $composerJson = str_replace('    ', '  ', $composerJson);
@@ -212,7 +217,7 @@ class PluginInstallationTest extends TestCase
 
     public function testInstallComposerScriptsInitializesScriptsWhenMissing(): void
     {
-        $composerJson = '{"name":"test/project","require":{}}';
+        $composerJson = '{"name":"test/project","require":{},"extra":{"php-quality-tools":{"auto_add_scripts":true}}}';
         file_put_contents($this->tempDir . '/composer.json', $composerJson);
 
         $plugin = $this->createPluginWithComposer($composerJson);
@@ -236,6 +241,11 @@ class PluginInstallationTest extends TestCase
                 'fix:check' => 'php-cs-fixer fix --dry-run',
                 'rector' => 'rector process',
                 'rector:check' => 'rector process --dry-run',
+            ],
+            'extra' => [
+                'php-quality-tools' => [
+                    'auto_add_scripts' => true,
+                ],
             ],
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
         $this->assertNotFalse($composerJson);
@@ -422,7 +432,9 @@ class PluginInstallationTest extends TestCase
         $badDir = sys_get_temp_dir() . '/phpqt-bad-' . uniqid();
         mkdir($badDir, 0o777, true);
         mkdir($badDir . '/vendor', 0o777, true);
-        mkdir($badDir . '/composer.json', 0o777, true);
+        $composerJsonPath = $badDir . '/composer.json';
+        file_put_contents($composerJsonPath, '{"extra":{"php-quality-tools":{"auto_add_scripts":true}}}');
+        chmod($composerJsonPath, 0o000);
 
         $plugin = new Plugin();
         $config = $this->createMock(Config::class);
@@ -432,14 +444,12 @@ class PluginInstallationTest extends TestCase
         $plugin->activate($composer, $this->createMock(IOInterface::class));
 
         $io = $this->createMock(IOInterface::class);
-        $io->expects($this->once())->method('writeError')->with($this->logicalOr(
-            $this->stringContains('Failed to read'),
-            $this->stringContains('Failed to parse')
-        ));
+        $io->expects($this->once())->method('writeError')->with($this->stringContains('Failed to read'));
 
         $this->invokePrivateMethod($plugin, 'installComposerScripts', [$io]);
 
-        rmdir($badDir . '/composer.json');
+        chmod($composerJsonPath, 0o644);
+        unlink($composerJsonPath);
         rmdir($badDir . '/vendor');
         rmdir($badDir);
     }
