@@ -43,7 +43,7 @@
         "phpunit/phpunit": "^10.0 || ^11.0",
         "rector/rector": "^2.4",
         "symfony/framework-bundle": "^6.0 || ^7.0 || ^8.0",
-        "vincentlanglet/twig-cs-fixer": "^3.14"
+        "vincentlanglet/twig-cs-fixer": "^4.0"
     },
     "suggest": {
         "rector/rector": "For automated code refactoring",

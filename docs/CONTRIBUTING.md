@@ -31,7 +31,7 @@ This project is maintained by [Héctor Franco Aceituno](https://github.com/HecFr
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/nowo-tech/php-quality-tools.git
+   git clone https://github.com/nowo-tech/PhpQualityTools.git
    cd php-quality-tools
    ```
 
@@ -54,7 +54,7 @@ This project is maintained by [Héctor Franco Aceituno](https://github.com/HecFr
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/nowo-tech/php-quality-tools.git
+   git clone https://github.com/nowo-tech/PhpQualityTools.git
    cd php-quality-tools
    ```
 
