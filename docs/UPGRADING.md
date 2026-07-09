@@ -290,13 +290,10 @@ If you're upgrading from a version that used `.php-cs-fixer.dist.php`:
    - Run Rector second
    - Run template formatters last
 
-4. **Automatic Composer Scripts**: The plugin now automatically adds Composer scripts to your `composer.json` during installation
-   - Scripts are added automatically: `cs-check`, `cs-fix`, `rector`, `rector:fix`
-   - Twig scripts (`twig-check`, `twig-fix`) are added if Twig is installed
-   - Laravel Blade scripts (`blade-check`, `blade-fix`) are added for Laravel projects
-   - Test script (`test`) is added if PHPUnit is installed
+4. **Composer Scripts** (historical — see **Upgrading to 1.0.12** for current behavior): From 1.0.2 through 1.0.11, the plugin added quality scripts automatically when missing. Since **1.0.12**, script injection is **opt-in** via `extra.php-quality-tools.auto_add_scripts`.
+   - Legacy script names evolved over time (`cs-check`/`cs-fix` → `fix:check`/`fix`, etc.)
+   - Twig, Blade, and `test` scripts follow the same opt-in rule since 1.0.12
    - Existing scripts are never overwritten
-   - You can now use `composer cs-fix`, `composer rector:fix`, etc. immediately after installation
 
 ### Upgrading to 1.0.0
 
