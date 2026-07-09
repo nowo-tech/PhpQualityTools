@@ -4,6 +4,8 @@
 .PHONY: help ensure-up up down build shell install assets test test-coverage cs-check cs-fix rector rector-dry phpstan qa release-check composer-sync clean update validate setup-hooks
 
 COMPOSER_BIN := /usr/bin/composer
+COMPOSE := docker-compose
+SERVICE_PHP := php
 
 # Default target
 help:
@@ -139,3 +141,7 @@ setup-hooks:
 	chmod +x .githooks/pre-commit
 	git config core.hooksPath .githooks
 	@echo "Git hooks installed"
+
+# REQ-MAKE-008: update-deps (REQ-MAKE-008)
+BUNDLE_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+include $(BUNDLE_ROOT)/../.scripts/Makefile.update-deps.mk

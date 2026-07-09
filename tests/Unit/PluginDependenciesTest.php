@@ -197,7 +197,7 @@ class PluginDependenciesTest extends TestCase
         $tempDir = sys_get_temp_dir() . '/phpqt-' . uniqid();
         mkdir($tempDir, 0o777, true);
         mkdir($tempDir . '/vendor', 0o777, true);
-        file_put_contents($tempDir . '/composer.json', 'invalid json {');
+        file_put_contents($tempDir . '/composer.json', '{"extra":{"php-quality-tools":{"auto_add_scripts":true}},"invalid json {');
 
         $plugin = new Plugin();
         $config = $this->createMock(Config::class);

@@ -566,8 +566,14 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             return;
         }
 
-        // Read original file content to detect indentation
-        $originalContent = file_get_contents($composerJsonPath);
+        if (!is_file($composerJsonPath)) {
+            $io->writeError('<error>php-quality-tools: Failed to read composer.json</error>');
+
+            return;
+        }
+
+        // Read and parse once so read/parse errors are reported before opt-in checks.
+        $originalContent = @file_get_contents($composerJsonPath);
         // @codeCoverageIgnoreStart
         if ($originalContent === false) {
             $io->writeError('<error>php-quality-tools: Failed to read composer.json</error>');
@@ -576,15 +582,21 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         }
         // @codeCoverageIgnoreEnd
 
-        // Detect original indentation (2 or 4 spaces, or tabs)
-        $indent = $this->detectJsonIndentation($originalContent);
-
         $composerJson = json_decode($originalContent, true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($composerJson)) {
             $io->writeError('<error>php-quality-tools: Failed to parse composer.json</error>');
 
             return;
         }
+
+        if (!$this->isAutoAddScriptsEnabled($composerJson)) {
+            $io->write('<comment>php-quality-tools: Skipping composer.json script injection (set extra.php-quality-tools.auto_add_scripts to true to enable)</comment>');
+
+            return;
+        }
+
+        // Detect original indentation (2 or 4 spaces, or tabs)
+        $indent = $this->detectJsonIndentation($originalContent);
 
         // Initialize scripts array if it doesn't exist
         if (!isset($composerJson['scripts'])) {
@@ -787,5 +799,15 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         }
 
         return $scripts;
+    }
+
+    /**
+     * @param array<string, mixed> $composerJson
+     */
+    private function isAutoAddScriptsEnabled(array $composerJson): bool
+    {
+        $extra = $composerJson['extra'] ?? [];
+
+        return (bool) ($extra['php-quality-tools']['auto_add_scripts'] ?? false);
     }
 }

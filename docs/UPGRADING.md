@@ -12,6 +12,7 @@ This guide helps you upgrade between versions of PHP Quality Tools.
   - [4. Check for Missing Dependencies](#4-check-for-missing-dependencies)
   - [5. Review Changelog](#5-review-changelog)
 - [Version-Specific Upgrade Notes](#version-specific-upgrade-notes)
+  - [Upgrading to 1.0.12](#upgrading-to-1012)
   - [Upgrading to 1.0.11](#upgrading-to-1011)
   - [Upgrading to 1.0.10](#upgrading-to-1010)
   - [Upgrading to 1.0.9](#upgrading-to-109)
@@ -113,6 +114,33 @@ Always check [CHANGELOG.md](CHANGELOG.md) for:
 - Deprecations
 
 ## Version-Specific Upgrade Notes
+
+### Upgrading to 1.0.12
+
+**Composer script injection (opt-in):**
+- Starting in 1.0.12, the plugin **does not** add quality scripts to `composer.json` unless you opt in.
+- Previously (1.0.0–1.0.11), missing scripts were added automatically on install/update.
+
+**Action required (only if you want automatic scripts):**
+- Add the following to your project `composer.json`, then run `composer update nowo-tech/php-quality-tools` (or `composer install`):
+
+```json
+{
+  "extra": {
+    "php-quality-tools": {
+      "auto_add_scripts": true
+    }
+  }
+}
+```
+
+- Existing scripts are still never overwritten. If you already have the scripts from an earlier version, **no action is required**.
+- If you prefer manual control, copy the script definitions from [README.md](../README.md#manual-scripts-optional) instead of enabling `auto_add_scripts`.
+
+**Symfony 8:**
+- Symfony **8.0** and **8.1** are supported alongside 6.x and 7.x. No config changes are required for Symfony projects.
+
+**No change** to config file names, `*.custom.php` customization workflow, or non-destructive file installation behavior.
 
 ### Upgrading to 1.0.11
 
@@ -262,13 +290,10 @@ If you're upgrading from a version that used `.php-cs-fixer.dist.php`:
    - Run Rector second
    - Run template formatters last
 
-4. **Automatic Composer Scripts**: The plugin now automatically adds Composer scripts to your `composer.json` during installation
-   - Scripts are added automatically: `cs-check`, `cs-fix`, `rector`, `rector:fix`
-   - Twig scripts (`twig-check`, `twig-fix`) are added if Twig is installed
-   - Laravel Blade scripts (`blade-check`, `blade-fix`) are added for Laravel projects
-   - Test script (`test`) is added if PHPUnit is installed
+4. **Composer Scripts** (historical — see **Upgrading to 1.0.12** for current behavior): From 1.0.2 through 1.0.11, the plugin added quality scripts automatically when missing. Since **1.0.12**, script injection is **opt-in** via `extra.php-quality-tools.auto_add_scripts`.
+   - Legacy script names evolved over time (`cs-check`/`cs-fix` → `fix:check`/`fix`, etc.)
+   - Twig, Blade, and `test` scripts follow the same opt-in rule since 1.0.12
    - Existing scripts are never overwritten
-   - You can now use `composer cs-fix`, `composer rector:fix`, etc. immediately after installation
 
 ### Upgrading to 1.0.0
 
@@ -298,7 +323,7 @@ This is the initial release. If you're upgrading from a pre-release version:
 
 ### Symfony Projects
 
-- **Symfony 6.0 - 7.4** are supported
+- **Symfony 6.0 - 8.1** are supported
 - Ensure your Symfony version is compatible
 - Twig-CS-Fixer is included for Symfony projects
 
