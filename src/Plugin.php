@@ -259,15 +259,15 @@ class Plugin implements PluginInterface, EventSubscriberInterface
                 // Skip optional Rector packages if Rector 2.x is installed
                 // These packages (rector-symfony, rector-doctrine, rector-phpunit)
                 // are not compatible with Rector 2.x yet
-            // @codeCoverageIgnoreStart
-            if ($rectorVersion >= 2 && in_array($package, [
-                    'rector/rector-symfony',
-                    'rector/rector-doctrine',
-                    'rector/rector-phpunit',
-                ], true)) {
+                // @codeCoverageIgnoreStart
+                if ($rectorVersion >= 2 && in_array($package, [
+                        'rector/rector-symfony',
+                        'rector/rector-doctrine',
+                        'rector/rector-phpunit',
+                    ], true)) {
                     continue; // Skip these packages for Rector 2.x
                 }
-            // @codeCoverageIgnoreEnd
+                // @codeCoverageIgnoreEnd
                 // @codeCoverageIgnoreStart
                 $missingPackages[$package] = $description;
                 // @codeCoverageIgnoreEnd
