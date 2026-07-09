@@ -20,10 +20,10 @@ use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
-use PhpParser\Node\Scalar\LNumber;
 use PhpParser\Node\Param;
 use PhpParser\Node\Scalar\Float_;
 use PhpParser\Node\Scalar\Int_;
+use PhpParser\Node\Scalar\LNumber;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\GroupUse;
@@ -54,7 +54,6 @@ final class RectorRulesCoverageTest extends TestCase
     {
         $reflectionProvider = $this->createMock('\\PHPStan\\Reflection\\ReflectionProvider');
         /** @var \PHPStan\Reflection\ReflectionProvider $reflectionProvider */
-
         $nodeNameResolver = new NodeNameResolver(
             new ClassNaming(),
             new CallAnalyzer($reflectionProvider),
@@ -114,7 +113,7 @@ final class RectorRulesCoverageTest extends TestCase
         $this->assertContains(ClassMethod::class, $addReturnType->getNodeTypes());
         $this->assertContains(ClassMethod::class, $constructorRule->getNodeTypes());
         $this->assertContains(Use_::class, $groupedImports->getNodeTypes());
-        $this->assertContains(\PhpParser\Node\Expr\StaticCall::class, $methodCallRule->getNodeTypes());
+        $this->assertContains(StaticCall::class, $methodCallRule->getNodeTypes());
         $this->assertContains(Use_::class, $removeUnused->getNodeTypes());
     }
 
@@ -269,7 +268,7 @@ final class RectorRulesCoverageTest extends TestCase
             new UseUse(new Name('App\\Domain\\Third')),
         ]);
         $converted = $groupedImports->refactor($convertibleUse);
-        $this->assertInstanceOf(\PhpParser\Node\Stmt\GroupUse::class, $converted);
+        $this->assertInstanceOf(GroupUse::class, $converted);
 
         $nonConvertibleUse = new Use_([
             new UseUse(new Name('App\\Domain\\First')),
@@ -334,7 +333,7 @@ final class RectorRulesCoverageTest extends TestCase
 
         $noReturnStmt = new ClassMethod(new Identifier('process'), [
             'flags' => Modifiers::PUBLIC,
-            'stmts' => [new \PhpParser\Node\Stmt\Expression(new Int_(1))],
+            'stmts' => [new Node\Stmt\Expression(new Int_(1))],
         ]);
         $this->assertSame('void', $this->invokePrivate($addReturnType, 'inferReturnType', $noReturnStmt));
         $this->assertNull($this->invokePrivate($addReturnType, 'getTypeFromExpression', new Variable('unknown')));
@@ -355,7 +354,7 @@ final class RectorRulesCoverageTest extends TestCase
         $publicParam->flags = Modifiers::PUBLIC;
         $privateParam = new Param(new Variable('dep2'));
         $privateParam->flags = Modifiers::PRIVATE;
-        $privateParam->type = new \PhpParser\Node\NullableType(new Name('Very\\Long\\Dependency\\TypeName'));
+        $privateParam->type = new Node\NullableType(new Name('Very\\Long\\Dependency\\TypeName'));
         $calcMethod = new ClassMethod(new Identifier('__construct'), ['params' => [$publicParam, $protectedParam, $privateParam]]);
         $this->assertGreaterThan(0, $this->invokePrivate($constructorRule, 'calculateConstructorLength', $calcMethod));
 
@@ -374,4 +373,3 @@ final class RectorRulesCoverageTest extends TestCase
         $this->assertNull($result);
     }
 }
-

@@ -348,14 +348,14 @@ class PhpCsFixerFixersTest extends TestCase
     {
         $fixer = new ConsistentDocblockFixer();
         $formatted = $this->invokePrivate($fixer, 'formatDocblock', "/**\n * Summary\n */");
-        $this->assertStringContainsString(" */", $formatted);
+        $this->assertStringContainsString(' */', $formatted);
     }
 
     public function testConsistentDocblockFixerCoversEmptyLineAndClosingBranches(): void
     {
         $fixer = new ConsistentDocblockFixer();
         $formatted = $this->invokePrivate($fixer, 'formatDocblock', "/**\n\n */\n");
-        $this->assertStringContainsString(" */", $formatted);
+        $this->assertStringContainsString(' */', $formatted);
     }
 
     public function testMultilineArrayFixerFindArrayEndReturnsNullForUnsupportedStartToken(): void
