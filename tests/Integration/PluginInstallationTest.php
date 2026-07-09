@@ -191,6 +191,11 @@ class PluginInstallationTest extends TestCase
             'name' => 'test/project',
             'require' => [],
             'scripts' => [],
+            'extra' => [
+                'php-quality-tools' => [
+                    'auto_add_scripts' => true,
+                ],
+            ],
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
         $this->assertNotFalse($composerJson);
         $composerJson = str_replace('    ', '  ', $composerJson);
@@ -212,7 +217,7 @@ class PluginInstallationTest extends TestCase
 
     public function testInstallComposerScriptsInitializesScriptsWhenMissing(): void
     {
-        $composerJson = '{"name":"test/project","require":{}}';
+        $composerJson = '{"name":"test/project","require":{},"extra":{"php-quality-tools":{"auto_add_scripts":true}}}';
         file_put_contents($this->tempDir . '/composer.json', $composerJson);
 
         $plugin = $this->createPluginWithComposer($composerJson);
@@ -236,6 +241,11 @@ class PluginInstallationTest extends TestCase
                 'fix:check' => 'php-cs-fixer fix --dry-run',
                 'rector' => 'rector process',
                 'rector:check' => 'rector process --dry-run',
+            ],
+            'extra' => [
+                'php-quality-tools' => [
+                    'auto_add_scripts' => true,
+                ],
             ],
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
         $this->assertNotFalse($composerJson);
@@ -422,6 +432,8 @@ class PluginInstallationTest extends TestCase
         $badDir = sys_get_temp_dir() . '/phpqt-bad-' . uniqid();
         mkdir($badDir, 0o777, true);
         mkdir($badDir . '/vendor', 0o777, true);
+        // composer.json as a directory simulates an unreadable project manifest across CI environments
+        // (chmod 000 on a file is still readable for root in some containers).
         mkdir($badDir . '/composer.json', 0o777, true);
 
         $plugin = new Plugin();
@@ -432,10 +444,7 @@ class PluginInstallationTest extends TestCase
         $plugin->activate($composer, $this->createMock(IOInterface::class));
 
         $io = $this->createMock(IOInterface::class);
-        $io->expects($this->once())->method('writeError')->with($this->logicalOr(
-            $this->stringContains('Failed to read'),
-            $this->stringContains('Failed to parse')
-        ));
+        $io->expects($this->once())->method('writeError')->with($this->stringContains('Failed to read'));
 
         $this->invokePrivateMethod($plugin, 'installComposerScripts', [$io]);
 
