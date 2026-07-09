@@ -57,7 +57,8 @@ jobs:
 
       - name: Install dependencies with Symfony ${{ matrix.symfony }}
         run: |
-          composer require symfony/framework-bundle:^${{ matrix.symfony }} --no-interaction --no-update
+          composer config platform.php ${{ matrix.php }}
+          composer require symfony/framework-bundle:^${{ matrix.symfony }} --dev --no-interaction --no-update
           composer update symfony/* --with-all-dependencies --no-interaction --prefer-dist --no-progress
 
       - name: Run tests
