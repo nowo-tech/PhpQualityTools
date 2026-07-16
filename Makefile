@@ -1,7 +1,7 @@
 # Makefile for PHP Quality Tools
 # Simplifies Docker commands for development
 
-.PHONY: help ensure-up up down build shell install assets test test-coverage cs-check cs-fix rector rector-dry phpstan qa release-check composer-sync clean update validate setup-hooks
+.PHONY: help ensure-up up down build shell install assets test test-coverage cs-check cs-fix rector rector-dry phpstan qa release-check composer-sync clean update validate setup-hooks check-no-cursor-coauthor strip-cursor-coauthor-from-history
 
 COMPOSER_BIN := /usr/bin/composer
 COMPOSE := docker-compose
@@ -110,7 +110,7 @@ composer-sync: ensure-up
 	docker-compose exec -T php $(COMPOSER_BIN) update --lock --no-interaction --no-install
 
 # Full pre-release chain
-release-check:
+release-check: check-no-cursor-coauthor
 	@$(MAKE) ensure-up
 	@$(MAKE) composer-sync
 	@$(MAKE) cs-fix
@@ -137,11 +137,20 @@ clean:
 	rm -f .php-cs-fixer.cache
 
 # Setup git hooks for pre-commit checks
+check-no-cursor-coauthor:
+	@chmod +x .scripts/check-no-cursor-coauthor.sh
+	@./.scripts/check-no-cursor-coauthor.sh HEAD
+
 setup-hooks:
-	chmod +x .githooks/pre-commit
-	git config core.hooksPath .githooks
-	@echo "Git hooks installed"
+	@chmod +x .githooks/pre-commit 2>/dev/null || true
+	@chmod +x .githooks/commit-msg 2>/dev/null || true
+	@git config core.hooksPath .githooks
+	@echo "✅ Git hooks installed (.githooks — includes commit-msg for REQ-GIT-001)."
 
 # REQ-MAKE-008: update-deps (REQ-MAKE-008)
 BUNDLE_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 include $(BUNDLE_ROOT)/../.scripts/Makefile.update-deps.mk
+
+strip-cursor-coauthor-from-history:
+	@chmod +x .scripts/strip-cursor-coauthor-from-history.sh
+	@./.scripts/strip-cursor-coauthor-from-history.sh main

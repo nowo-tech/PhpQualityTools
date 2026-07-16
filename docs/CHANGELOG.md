@@ -6,11 +6,16 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
-- [[1.0.12] - 2026-07-09](#1012-2026-07-09)
-  - [Changed](#changed)
+- [[1.0.13] - 2026-07-16](#1013-2026-07-16)
+  - [Fixed](#fixed)
   - [Added](#added)
   - [Improved](#improved)
   - [Documentation](#documentation)
+- [[1.0.12] - 2026-07-09](#1012-2026-07-09)
+  - [Changed](#changed)
+  - [Added](#added-1)
+  - [Improved](#improved-1)
+  - [Documentation](#documentation-1)
 - [[1.0.11] - 2026-04-15](#1011-2026-04-15)
   - [Fixed](#fixed)
   - [Improved](#improved)
@@ -54,6 +59,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [1.0.13] - 2026-07-16
+
+### Fixed
+
+- **Composer script opt-in flow**: `installComposerScripts()` now reads and parses `composer.json` once before evaluating `auto_add_scripts`, so unreadable or invalid manifests report `Failed to read` / `Failed to parse` instead of being treated as opt-in disabled.
+- **Non-file `composer.json`**: Paths that exist but are not regular files (e.g. a directory named `composer.json`) are rejected with a clear error; tests no longer rely on `chmod 000` (unreliable under root in CI/containers).
+- **CI Symfony matrix**: Override `platform.php` with the runner’s real PHP version and require `symfony/framework-bundle` with `--dev`, so Symfony 7.4+ / 8.x resolve correctly despite `config.platform.php` = `8.1.99` in this package.
+
+### Added
+
+- **REQ-GIT-001**: Scripts and hooks to keep Cursor `Co-authored-by` trailers out of git history (`check-no-cursor-coauthor`, `commit-msg` hook, CI `git-hygiene` job).
+- **Code of Conduct**: Contributor Covenant at repository root; linked from README and CONTRIBUTING.
+- **docs/GITHUB_CI.md**: Operator reference for GitHub Actions / REQ-GIT-001.
+
+### Improved
+
+- **Dev dependencies**: `rector/rector` raised to `^2.5`; Twig-CS-Fixer / Composer / PHPStan bumps via Dependabot and lock refresh.
+- **Makefile**: `release-check` depends on `check-no-cursor-coauthor`; `setup-hooks` installs `commit-msg`.
+- **Code style**: PHP CS Fixer cleanups in `Plugin.php` and coverage tests.
+
+### Documentation
+
+- **UPGRADING.md**: Section for 1.0.13; historical pre-release script notes clarified vs opt-in since 1.0.12.
+- **README**: Links to GitHub CI requirements and Code of Conduct; compatibility table through 1.0.13.
+- **RELEASE.md**: Reminder to re-run Cursor co-author check after the release commit.
 
 ## [1.0.12] - 2026-07-09
 

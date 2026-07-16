@@ -12,6 +12,7 @@ This guide helps you upgrade between versions of PHP Quality Tools.
   - [4. Check for Missing Dependencies](#4-check-for-missing-dependencies)
   - [5. Review Changelog](#5-review-changelog)
 - [Version-Specific Upgrade Notes](#version-specific-upgrade-notes)
+  - [Upgrading to 1.0.13](#upgrading-to-1013)
   - [Upgrading to 1.0.12](#upgrading-to-1012)
   - [Upgrading to 1.0.11](#upgrading-to-1011)
   - [Upgrading to 1.0.10](#upgrading-to-1010)
@@ -114,6 +115,14 @@ Always check [CHANGELOG.md](CHANGELOG.md) for:
 - Deprecations
 
 ## Version-Specific Upgrade Notes
+
+### Upgrading to 1.0.13
+
+**Plugin robustness (composer scripts opt-in):**
+- Invalid or unreadable `composer.json` now yields an explicit error when the plugin tries to inject scripts (with `auto_add_scripts` enabled), instead of silently skipping.
+- No change to the opt-in contract introduced in 1.0.12: set `extra.php-quality-tools.auto_add_scripts` to `true` only if you want automatic script keys.
+
+**No action required** for typical consumers — existing configs and scripts are unchanged. Contributors should run `make setup-hooks` once per clone (REQ-GIT-001).
 
 ### Upgrading to 1.0.12
 

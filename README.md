@@ -31,7 +31,7 @@ The package **automatically detects** your framework and installs the appropriat
 
 | Version | PHP | Symfony | Laravel | Composer |
 |---------|-----|---------|---------|----------|
-| **1.0.x** (1.0.0 – 1.0.12) | >= 8.1 | 6.0 - 8.1 | 9.0 - 11.0 | >= 2.0 |
+| **1.0.x** (1.0.0 – 1.0.13) | >= 8.1 | 6.0 - 8.1 | 9.0 - 11.0 | >= 2.0 |
 
 ### PHP Versions
 
@@ -651,10 +651,13 @@ If you use the custom rules without this dependency, you'll see an informative m
 
 ## Documentation
 
+
+- [GitHub Actions CI requirements](docs/GITHUB_CI.md)
 - [Installation](docs/INSTALLATION.md)
 - [Configuration](docs/CONFIGURATION.md)
 - [Usage](docs/USAGE.md)
 - [Contributing](docs/CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Changelog](docs/CHANGELOG.md)
 - [Upgrading](docs/UPGRADING.md)
 - [Release](docs/RELEASE.md)
