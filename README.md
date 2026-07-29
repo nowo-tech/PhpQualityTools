@@ -4,58 +4,14 @@
 
 > ⭐ **Found this useful?** Give it a star on GitHub! It helps us maintain and improve the project.
 
-![FrankenPHP Friendly Worker Mode](docs/images/frankenphp-friendly.png)
-
-This package is **FrankenPHP worker mode friendly**.
-
 Pre-configured quality tools for PHP projects. Includes ready-to-use configurations for:
-
 - **Rector** - Automated code refactoring
 - **PHP-CS-Fixer** - Code style fixing (PSR-12 + Symfony)
 - **Twig-CS-Fixer** - Twig template style fixing
 
-## Automatic Framework Detection
+![FrankenPHP Friendly Worker Mode](docs/images/frankenphp-friendly.png)
 
-The package **automatically detects** your framework and installs the appropriate configuration:
-
-| Framework | Detection | Rector | PHP-CS-Fixer | Template Engine | Template Formatter |
-|-----------|-----------|--------|--------------|----------------|-------------------|
-| **Symfony** | `symfony/framework-bundle` | ✅ Symfony-specific | ✅ | Twig (default) | ✅ Twig-CS-Fixer (if `twig/twig` installed) |
-| **Laravel** | `laravel/framework` | ✅ Laravel-specific | ✅ (includes Blade) | Blade (default), Twig (optional) | ✅ PHP-CS-Fixer for Blade |
-| **Yii** | `yiisoft/yii2` | ✅ Generic | ✅ | PHP native views, Twig (optional) | ✅ Twig-CS-Fixer (if `twig/twig` installed) |
-| **CakePHP** | `cakephp/cakephp` | ✅ Generic | ✅ | PHP native (.ctp files), Twig (optional) | ✅ Twig-CS-Fixer (if `twig/twig` installed) |
-| **Laminas** | `laminas/laminas-mvc` | ✅ Generic | ✅ | PHP native, Twig (optional), Smarty (optional) | ✅ Twig-CS-Fixer (if `twig/twig` installed) |
-| **CodeIgniter** | `codeigniter4/framework` | ✅ Generic | ✅ | PHP native views | ❌ No formatter available |
-| **Slim** | `slim/slim` | ✅ Generic | ✅ | PHP native, Twig (optional) | ✅ Twig-CS-Fixer (if `twig/twig` installed) |
-| **Other** | - | ✅ Generic | ✅ | Varies (Twig, PHP native, etc.) | ✅ Twig-CS-Fixer (if `twig/twig` installed) |
-
-**Note**: Template formatter configurations are only installed if the corresponding template engine is detected in your dependencies. For example, Twig-CS-Fixer config is only installed if `twig/twig` is present in your `composer.json`.
-
-## Compatibility
-
-| Version | PHP | Symfony | Laravel | Composer |
-|---------|-----|---------|---------|----------|
-| **1.0.x** (1.0.0 – 1.0.13) | >= 8.1 | 6.0 - 8.1 | 9.0 - 11.0 | >= 2.0 |
-
-### PHP Versions
-
-- **PHP 8.1**: ✅ Fully supported
-- **PHP 8.2**: ✅ Fully supported
-- **PHP 8.3**: ✅ Fully supported
-- **PHP 8.4**: ✅ Fully supported
-- **PHP 8.5**: ✅ Fully supported
-
-### Symfony Versions
-
-- **Symfony 6.0 - 6.4**: ✅ Supported
-- **Symfony 7.0 - 7.4**: ✅ Supported
-- **Symfony 8.0 - 8.1**: ✅ Supported
-
-### Laravel Versions
-
-- **Laravel 9.0**: ✅ Supported
-- **Laravel 10.0**: ✅ Supported
-- **Laravel 11.0**: ✅ Supported
+This bundle is **FrankenPHP worker mode friendly**.
 
 ## Features
 
@@ -166,7 +122,6 @@ After installation, the following files are created in your project root:
 - **CakePHP Templates (.ctp)**: No dedicated formatter available yet
 
 ## Quick Start
-
 ### Rector
 
 ```bash
@@ -214,6 +169,49 @@ Laravel Blade templates (`.blade.php` files) are PHP files with special syntax a
 ```
 
 **Note**: Some Blade-specific directives (like `@if`, `@foreach`, etc.) may need manual review after formatting, as PHP-CS-Fixer treats them as PHP code.
+
+## Automatic Framework Detection
+
+The package **automatically detects** your framework and installs the appropriate configuration:
+
+| Framework | Detection | Rector | PHP-CS-Fixer | Template Engine | Template Formatter |
+|-----------|-----------|--------|--------------|----------------|-------------------|
+| **Symfony** | `symfony/framework-bundle` | ✅ Symfony-specific | ✅ | Twig (default) | ✅ Twig-CS-Fixer (if `twig/twig` installed) |
+| **Laravel** | `laravel/framework` | ✅ Laravel-specific | ✅ (includes Blade) | Blade (default), Twig (optional) | ✅ PHP-CS-Fixer for Blade |
+| **Yii** | `yiisoft/yii2` | ✅ Generic | ✅ | PHP native views, Twig (optional) | ✅ Twig-CS-Fixer (if `twig/twig` installed) |
+| **CakePHP** | `cakephp/cakephp` | ✅ Generic | ✅ | PHP native (.ctp files), Twig (optional) | ✅ Twig-CS-Fixer (if `twig/twig` installed) |
+| **Laminas** | `laminas/laminas-mvc` | ✅ Generic | ✅ | PHP native, Twig (optional), Smarty (optional) | ✅ Twig-CS-Fixer (if `twig/twig` installed) |
+| **CodeIgniter** | `codeigniter4/framework` | ✅ Generic | ✅ | PHP native views | ❌ No formatter available |
+| **Slim** | `slim/slim` | ✅ Generic | ✅ | PHP native, Twig (optional) | ✅ Twig-CS-Fixer (if `twig/twig` installed) |
+| **Other** | - | ✅ Generic | ✅ | Varies (Twig, PHP native, etc.) | ✅ Twig-CS-Fixer (if `twig/twig` installed) |
+
+**Note**: Template formatter configurations are only installed if the corresponding template engine is detected in your dependencies. For example, Twig-CS-Fixer config is only installed if `twig/twig` is present in your `composer.json`.
+
+## Compatibility
+
+| Version | PHP | Symfony | Laravel | Composer |
+|---------|-----|---------|---------|----------|
+| **1.0.x** (1.0.0 – 1.0.13) | >= 8.1 | 6.0 - 8.1 | 9.0 - 11.0 | >= 2.0 |
+
+### PHP Versions
+
+- **PHP 8.1**: ✅ Fully supported
+- **PHP 8.2**: ✅ Fully supported
+- **PHP 8.3**: ✅ Fully supported
+- **PHP 8.4**: ✅ Fully supported
+- **PHP 8.5**: ✅ Fully supported
+
+### Symfony Versions
+
+- **Symfony 6.0 - 6.4**: ✅ Supported
+- **Symfony 7.0 - 7.4**: ✅ Supported
+- **Symfony 8.0 - 8.1**: ✅ Supported
+
+### Laravel Versions
+
+- **Laravel 9.0**: ✅ Supported
+- **Laravel 10.0**: ✅ Supported
+- **Laravel 11.0**: ✅ Supported
 
 ## Composer Scripts
 
@@ -491,7 +489,6 @@ lint: cs rector twig-lint
 ```
 
 ## CI Integration
-
 ### GitHub Actions
 
 ```yaml
@@ -539,32 +536,6 @@ composer install
 ```
 
 For detailed upgrade instructions, breaking changes, and version-specific notes, see the [UPGRADE Guide](docs/UPGRADING.md).
-
-## Development
-
-### Using Docker (Recommended)
-
-```bash
-# Start the container
-make up
-
-# Install dependencies
-make install
-
-# Run tests
-make test
-
-# Run all QA checks
-make qa
-```
-
-### Without Docker
-
-```bash
-composer install
-composer test
-composer qa
-```
 
 ## Template Engines by Framework
 
@@ -653,8 +624,36 @@ composer require --dev symplify/rule-doc-generator-contracts
 
 If you use the custom rules without this dependency, you'll see an informative message indicating what's missing.
 
-## Documentation
+## Upgrade Guide
 
+For upgrade instructions, breaking changes, and troubleshooting, see [docs/UPGRADING.md](docs/UPGRADING.md).
+
+## Development
+### Using Docker (Recommended)
+
+```bash
+# Start the container
+make up
+
+# Install dependencies
+make install
+
+# Run tests
+make test
+
+# Run all QA checks
+make qa
+```
+
+### Without Docker
+
+```bash
+composer install
+composer test
+composer qa
+```
+
+## Documentation
 
 - [GitHub Actions CI requirements](docs/GITHUB_CI.md)
 - [Installation](docs/INSTALLATION.md)
@@ -674,24 +673,6 @@ If you use the custom rules without this dependency, you'll see an informative m
 - [Branching](docs/BRANCHING.md)
 - [Custom Rules](docs/CUSTOM_RULES.md)
 
-## Contributing
-
-Please see [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for details.
-
-For branching strategy, see [docs/BRANCHING.md](docs/BRANCHING.md).
-
-## Changelog
-
-Please see [docs/CHANGELOG.md](docs/CHANGELOG.md) for version history and compatibility information.
-
-## Upgrade Guide
-
-For upgrade instructions, breaking changes, and troubleshooting, see [docs/UPGRADING.md](docs/UPGRADING.md).
-
-## Author
-
-Created by [Héctor Franco Aceituno](https://github.com/HecFranco) at [Nowo.tech](https://nowo.tech)
-
 ## Tests and coverage
 
 - Tests: PHPUnit (PHP)
@@ -702,3 +683,17 @@ Created by [Héctor Franco Aceituno](https://github.com/HecFranco) at [Nowo.tech
 ## License
 
 The MIT License (MIT). Please see [LICENSE](LICENSE) for more information.
+## Contributing
+
+Please see [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for details.
+
+For branching strategy, see [docs/BRANCHING.md](docs/BRANCHING.md).
+
+## Changelog
+
+Please see [docs/CHANGELOG.md](docs/CHANGELOG.md) for version history and compatibility information.
+
+## Author
+
+Created by [Héctor Franco Aceituno](https://github.com/HecFranco) at [Nowo.tech](https://nowo.tech)
+
