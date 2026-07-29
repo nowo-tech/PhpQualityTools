@@ -11,7 +11,6 @@ use Composer\Plugin\PluginInterface;
 use Composer\Script\ScriptEvents;
 use NowoTech\PhpQualityTools\Plugin;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 
 /**
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
@@ -41,7 +40,7 @@ class PluginTest extends TestCase
         $plugin->activate($composer, $io);
 
         // Verify that Composer and IO are stored using reflection
-        $reflection = new ReflectionClass($plugin);
+        $reflection = new \ReflectionClass($plugin);
 
         $composerProperty = $reflection->getProperty('composer');
         $this->assertSame($composer, $composerProperty->getValue($plugin));

@@ -6,6 +6,10 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.0.14] - 2026-07-29](#1014-2026-07-29)
+  - [Added](#added)
+  - [Changed](#changed)
+  - [Documentation](#documentation)
 - [[1.0.13] - 2026-07-16](#1013-2026-07-16)
   - [Fixed](#fixed)
   - [Added](#added)
@@ -59,6 +63,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [1.0.14] - 2026-07-29
+
+### Added
+
+- FrankenPHP Friendly Worker Mode banner in README (REQ-DOCS-017).
+- `make down-dev` (REQ-MAKE-007).
+- PHPStan step in CI `code-style` job (REQ-CS-006).
+- Packagist keyword `composer-plugin` (REQ-PKG-004).
+- **REQ-CS-005:** `nowo-tech/phpstan-frankenphp` in `require-dev` with classic + worker rulesets in `phpstan.neon.dist`.
+
+### Changed
+
+- `Plugin` is `final` (REQ-PHP-001).
+- PHPStan: `ignoreErrors: []`, baseline removed; fixed CustomRulesSet / coverage-test findings (REQ-CS-006).
+- `docs/CUSTOM_RULES.md` translated to English (REQ-DOCS-016).
+
+### Documentation
+
+- [UPGRADING.md](UPGRADING.md), [RELEASE.md](RELEASE.md) updated for 1.0.14.
 
 ## [1.0.13] - 2026-07-16
 

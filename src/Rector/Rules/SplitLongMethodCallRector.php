@@ -47,10 +47,7 @@ final class SplitLongMethodCallRector extends AbstractRector
         // @codeCoverageIgnoreStart
         // Check if required dependency is available
         if (!class_exists(RuleDefinition::class)) {
-            throw new \RuntimeException(
-                'Missing dependency: symplify/rule-doc-generator-contracts. ' .
-                'Install it with: composer require --dev symplify/rule-doc-generator-contracts'
-            );
+            throw new \RuntimeException('Missing dependency: symplify/rule-doc-generator-contracts. Install it with: composer require --dev symplify/rule-doc-generator-contracts');
         }
         // @codeCoverageIgnoreEnd
 
@@ -119,7 +116,7 @@ final class SplitLongMethodCallRector extends AbstractRector
         if ($node instanceof MethodCall) {
             $var = $node->var;
             while ($var instanceof MethodCall || $var instanceof StaticCall) {
-                $count++;
+                ++$count;
                 $var = $var instanceof MethodCall ? $var->var : ($var->class ?? null);
             }
         }
@@ -138,8 +135,8 @@ final class SplitLongMethodCallRector extends AbstractRector
         while ($current instanceof MethodCall || $current instanceof StaticCall) {
             // Add length for method name
             $methodName = $this->getName($current->name);
-            if ($methodName !== null) {
-                $length += strlen($methodName);
+            if (null !== $methodName) {
+                $length += \strlen($methodName);
             }
 
             // Add length for arguments
@@ -166,7 +163,7 @@ final class SplitLongMethodCallRector extends AbstractRector
      */
     private function calculateArgumentsLength(array $args): int
     {
-        if ($args === []) {
+        if ([] === $args) {
             return 2; // ()
         }
 
@@ -175,6 +172,6 @@ final class SplitLongMethodCallRector extends AbstractRector
             $length += 10; // Estimate for each argument
         } // Commas and spaces
 
-        return $length + (count($args) - 1) * 2;
+        return $length + (\count($args) - 1) * 2;
     }
 }

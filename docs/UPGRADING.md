@@ -12,6 +12,7 @@ This guide helps you upgrade between versions of PHP Quality Tools.
   - [4. Check for Missing Dependencies](#4-check-for-missing-dependencies)
   - [5. Review Changelog](#5-review-changelog)
 - [Version-Specific Upgrade Notes](#version-specific-upgrade-notes)
+  - [Upgrading to 1.0.14](#upgrading-to-1014)
   - [Upgrading to 1.0.13](#upgrading-to-1013)
   - [Upgrading to 1.0.12](#upgrading-to-1012)
   - [Upgrading to 1.0.11](#upgrading-to-1011)
@@ -115,6 +116,12 @@ Always check [CHANGELOG.md](CHANGELOG.md) for:
 - Deprecations
 
 ## Version-Specific Upgrade Notes
+
+### Upgrading to 1.0.14
+
+**No action required** for typical consumers — configs, scripts, and the `auto_add_scripts` opt-in contract are unchanged. Continue requiring `nowo-tech/php-quality-tools: ^1.0`.
+
+**Contributors:** PHPStan now loads FrankenPHP classic + worker rulesets (`composer install` so `vendor/nowo-tech/phpstan-frankenphp` is present). `make down-dev` stops root compose. CI runs PHPStan in the `code-style` job.
 
 ### Upgrading to 1.0.13
 

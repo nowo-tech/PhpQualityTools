@@ -30,7 +30,7 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
 {
     /**
      * Maximum line length for grouped imports before formatting multiline.
-     * Default: 120 characters
+     * Default: 120 characters.
      */
     private const MAX_LINE_LENGTH = 120;
 
@@ -42,13 +42,13 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
         return new FixerDefinition(
             'Format long grouped imports with multiline format when they exceed ' . self::MAX_LINE_LENGTH . ' characters or have 3+ items.',
             [
-            new CodeSample(
-                <<<'PHP'
-                    use App\Entity\Chat\{Conversation, UserConversation};
-                    use App\Service\Chat\{ChatManagement, ChatQuery};
-                    PHP
-            ),
-      ]
+                new CodeSample(
+                    <<<'PHP'
+                        use App\Entity\Chat\{Conversation, UserConversation};
+                        use App\Service\Chat\{ChatManagement, ChatQuery};
+                        PHP
+                ),
+            ]
         );
     }
 
@@ -63,11 +63,11 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
     /**
      * Check if the fixer is a candidate for a given token.
      *
-     * @param Tokens<Token> $tokens
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     public function isCandidate(Tokens $tokens): bool
     {
-        return $tokens->isTokenKindFound(T_USE);
+        return $tokens->isTokenKindFound(\T_USE);
     }
 
     /**
@@ -82,19 +82,19 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
     /**
      * Apply the fix.
      *
-     * @param Tokens<Token> $tokens
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     protected function applyFix(\SplFileInfo $file, Tokens $tokens): void
     {
         for ($index = $tokens->count() - 1; $index > 0; --$index) {
-            if (!$tokens[$index]->isGivenKind(T_USE)) {
+            if (!$tokens[$index]->isGivenKind(\T_USE)) {
                 continue;
             }
 
             $useStartIndex = $index;
             $useEndIndex = $this->findUseEndIndex($tokens, $useStartIndex);
 
-            if ($useEndIndex === null) {
+            if (null === $useEndIndex) {
                 continue;
             }
 
@@ -103,16 +103,16 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
             $groupEndIndex = null;
 
             for ($i = $useStartIndex; $i < $useEndIndex; ++$i) {
-                if ($tokens[$i]->getContent() === '{') {
+                if ('{' === $tokens[$i]->getContent()) {
                     $groupStartIndex = $i;
                     // Find matching closing brace
                     $braceDepth = 1;
                     for ($j = $i + 1; $j < $useEndIndex; ++$j) {
-                        if ($tokens[$j]->getContent() === '{') {
+                        if ('{' === $tokens[$j]->getContent()) {
                             ++$braceDepth;
-                        } elseif ($tokens[$j]->getContent() === '}') {
+                        } elseif ('}' === $tokens[$j]->getContent()) {
                             --$braceDepth;
-                            if ($braceDepth === 0) {
+                            if (0 === $braceDepth) {
                                 $groupEndIndex = $j;
                                 break;
                             }
@@ -122,7 +122,7 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
                 }
             }
 
-            if ($groupStartIndex === null || $groupEndIndex === null) {
+            if (null === $groupStartIndex || null === $groupEndIndex) {
                 continue;
             }
 
@@ -140,7 +140,7 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
     /**
      * Find the end index of a use statement.
      *
-     * @param Tokens<Token> $tokens
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     private function findUseEndIndex(Tokens $tokens, int $startIndex): ?int
     {
@@ -150,13 +150,13 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
         while ($index < $tokens->count()) {
             $token = $tokens[$index];
 
-            if ($token->getContent() === '{') {
+            if ('{' === $token->getContent()) {
                 ++$depth;
-            } elseif ($token->getContent() === '}') {
+            } elseif ('}' === $token->getContent()) {
                 --$depth;
             }
 
-            if ($token->getContent() === ';' && $depth === 0) {
+            if (';' === $token->getContent() && 0 === $depth) {
                 return $index;
             }
 
@@ -169,7 +169,7 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
     /**
      * Calculate the length of a use statement line.
      *
-     * @param Tokens<Token> $tokens
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     private function calculateLineLength(Tokens $tokens, int $startIndex, int $endIndex): int
     {
@@ -189,7 +189,7 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
     /**
      * Count the number of items in a grouped import.
      *
-     * @param Tokens<Token> $tokens
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     private function countItemsInGroup(Tokens $tokens, int $groupStartIndex, int $groupEndIndex): int
     {
@@ -210,7 +210,7 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
     /**
      * Format a grouped import with multiline format.
      *
-     * @param Tokens<Token> $tokens
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     private function formatMultiline(Tokens $tokens, int $groupStartIndex, int $groupEndIndex): void
     {
@@ -225,10 +225,10 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
         // Insert newline and indent after opening brace
         $indent = '    ';
         if ($groupStartIndex + 1 < $tokens->count() && !$tokens[$groupStartIndex + 1]->isWhitespace()) {
-            $tokens->insertAt($groupStartIndex + 1, new Token([T_WHITESPACE, "\n" . $indent]));
+            $tokens->insertAt($groupStartIndex + 1, new Token([\T_WHITESPACE, "\n" . $indent]));
         } elseif ($groupStartIndex + 1 < $tokens->count()) {
             // Replace existing whitespace
-            $tokens[$groupStartIndex + 1] = new Token([T_WHITESPACE, "\n" . $indent]);
+            $tokens[$groupStartIndex + 1] = new Token([\T_WHITESPACE, "\n" . $indent]);
         }
 
         // Format each comma-separated item
@@ -248,10 +248,10 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
                 $nextToken = $tokens[$nextIndex];
                 if ($nextToken->isWhitespace() && str_contains($nextToken->getContent(), "\n")) {
                     // Replace with properly indented newline
-                    $tokens[$nextIndex] = new Token([T_WHITESPACE, "\n" . $indent]);
+                    $tokens[$nextIndex] = new Token([\T_WHITESPACE, "\n" . $indent]);
                 } elseif (!$nextToken->isWhitespace()) {
                     // Insert newline and indent
-                    $tokens->insertAt($nextIndex, new Token([T_WHITESPACE, "\n" . $indent]));
+                    $tokens->insertAt($nextIndex, new Token([\T_WHITESPACE, "\n" . $indent]));
                 }
             }
         }
@@ -260,9 +260,9 @@ final class MultilineGroupedImportsFixer extends AbstractFixer
         if ($groupEndIndex > 0) {
             $prevIndex = $groupEndIndex - 1;
             if (!$tokens[$prevIndex]->isWhitespace()) {
-                $tokens->insertAt($groupEndIndex, new Token([T_WHITESPACE, "\n"]));
+                $tokens->insertAt($groupEndIndex, new Token([\T_WHITESPACE, "\n"]));
             } elseif ($tokens[$prevIndex]->isWhitespace() && !str_contains($tokens[$prevIndex]->getContent(), "\n")) {
-                $tokens[$prevIndex] = new Token([T_WHITESPACE, "\n"]);
+                $tokens[$prevIndex] = new Token([\T_WHITESPACE, "\n"]);
             }
         }
     }

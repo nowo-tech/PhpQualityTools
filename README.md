@@ -4,6 +4,10 @@
 
 > ⭐ **Found this useful?** Give it a star on GitHub! It helps us maintain and improve the project.
 
+![FrankenPHP Friendly Worker Mode](docs/images/frankenphp-friendly.png)
+
+This package is **FrankenPHP worker mode friendly**.
+
 Pre-configured quality tools for PHP projects. Includes ready-to-use configurations for:
 
 - **Rector** - Automated code refactoring

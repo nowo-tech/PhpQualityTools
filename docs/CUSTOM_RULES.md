@@ -1,66 +1,67 @@
 # Custom Rules
 
-PHP Quality Tools permite añadir reglas custom tanto para Rector como para PHP-CS-Fixer.
+PHP Quality Tools lets you add custom rules for both Rector and PHP-CS-Fixer.
 
 
 ## Table of contents
 
-- [Estructura](#estructura)
-- [Reglas Custom de Rector](#reglas-custom-de-rector)
-  - [Ubicación](#ubicación)
-  - [Estructura de una Regla](#estructura-de-una-regla)
-  - [Ejemplo de Regla Custom](#ejemplo-de-regla-custom)
-  - [Uso de Reglas Custom](#uso-de-reglas-custom)
-- [Fixers Custom de PHP-CS-Fixer](#fixers-custom-de-php-cs-fixer)
-  - [Ubicación](#ubicación)
-  - [Estructura de un Fixer](#estructura-de-un-fixer)
-  - [Ejemplo de Fixer Custom](#ejemplo-de-fixer-custom)
-  - [Uso de Fixers Custom](#uso-de-fixers-custom)
-- [Dependencias Requeridas](#dependencias-requeridas)
-  - [Para Reglas Custom de Rector](#para-reglas-custom-de-rector)
-  - [Para Fixers Custom de PHP-CS-Fixer](#para-fixers-custom-de-php-cs-fixer)
-- [Reglas Custom Incluidas](#reglas-custom-incluidas)
+- [Layout](#layout)
+- [Custom Rector rules](#custom-rector-rules)
+  - [Location](#location)
+  - [Rule structure](#rule-structure)
+  - [Custom rule example](#custom-rule-example)
+  - [Using custom rules](#using-custom-rules)
+- [Custom PHP-CS-Fixer fixers](#custom-php-cs-fixer-fixers)
+  - [Location](#location-1)
+  - [Fixer structure](#fixer-structure)
+  - [Custom fixer example](#custom-fixer-example)
+  - [Using custom fixers](#using-custom-fixers)
+- [Required dependencies](#required-dependencies)
+  - [For custom Rector rules](#for-custom-rector-rules)
+  - [For custom PHP-CS-Fixer fixers](#for-custom-php-cs-fixer-fixers)
+- [Bundled custom rules](#bundled-custom-rules)
   - [Rector](#rector)
   - [PHP-CS-Fixer](#php-cs-fixer)
-- [Añadir Nuevas Reglas](#añadir-nuevas-reglas)
+- [Adding new rules](#adding-new-rules)
 - [Testing](#testing)
-- [Uso de las Reglas Incluidas](#uso-de-las-reglas-incluidas)
-  - [Activar Reglas Custom de Rector](#activar-reglas-custom-de-rector)
-  - [Activar Fixers Custom de PHP-CS-Fixer](#activar-fixers-custom-de-php-cs-fixer)
-- [Recursos](#recursos)
+- [Using the bundled rules](#using-the-bundled-rules)
+  - [Enable custom Rector rules](#enable-custom-rector-rules)
+  - [Enable custom PHP-CS-Fixer fixers](#enable-custom-php-cs-fixer-fixers)
+- [Resources](#resources)
 
-## Estructura
+## Layout
 
-Las reglas custom se organizan en los siguientes directorios:
+Custom rules live under these directories:
 
 ```
 src/
   Rector/
-    Rules/          # Reglas custom de Rector
-    Set/            # Helpers para cargar reglas
+    Rules/          # Custom Rector rules
+    Set/            # Helpers to load rules
   PhpCsFixer/
-    Rules/          # Fixers custom de PHP-CS-Fixer
-    Set/            # Helpers para cargar fixers
+    Rules/          # Custom PHP-CS-Fixer fixers
+    Set/            # Helpers to load fixers
 ```
 
-## Reglas Custom de Rector
+## Custom Rector rules
 
-### Ubicación
+### Location
 
-Las reglas custom de Rector deben ubicarse en `src/Rector/Rules/`.
+Place custom Rector rules in `src/Rector/Rules/`.
 
-### Estructura de una Regla
+### Rule structure
 
-Cada regla debe:
-- Extender `Rector\Rector\AbstractRector` (Rector 2.x) o `Rector\Core\Rector\AbstractRector` (Rector 1.x)
-- Implementar los métodos requeridos: `getRuleDefinition()` y `getNodeTypes()`
-- Implementar el método `refactor()` que realiza la transformación
-- Seguir los estándares PSR-12
-- Incluir documentación PHPDoc completa
+Each rule must:
 
-**Importante**: En Rector 2.x, el método correcto es `getRuleDefinition()` que retorna un `RuleDefinition`, NO `getDescription()`.
+- Extend `Rector\Rector\AbstractRector` (Rector 2.x) or `Rector\Core\Rector\AbstractRector` (Rector 1.x)
+- Implement the required methods: `getRuleDefinition()` and `getNodeTypes()`
+- Implement `refactor()` to perform the transformation
+- Follow PSR-12
+- Include complete PHPDoc documentation
 
-### Ejemplo de Regla Custom
+**Important:** In Rector 2.x, the correct method is `getRuleDefinition()` returning a `RuleDefinition`, **not** `getDescription()`.
+
+### Custom rule example
 
 ```php
 <?php
@@ -80,11 +81,11 @@ final class ExampleCustomRule extends AbstractRector
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition(
-            'Descripción de lo que hace esta regla',
+            'Description of what this rule does',
             [
                 new CodeSample(
-                    'código antes',
-                    'código después'
+                    'code before',
+                    'code after'
                 ),
             ]
         );
@@ -103,15 +104,15 @@ final class ExampleCustomRule extends AbstractRector
      */
     public function refactor(Node $node): ?Node
     {
-        // Implementación de la regla
+        // Rule implementation
         return $node;
     }
 }
 ```
 
-### Uso de Reglas Custom
+### Using custom rules
 
-#### Opción 1: Usar el Set Helper
+#### Option 1: Use the set helper
 
 ```php
 use NowoTech\PhpQualityTools\Rector\Set\CustomRulesSet;
@@ -121,7 +122,7 @@ return [
 ];
 ```
 
-#### Opción 2: Añadir manualmente en .rector.custom.php
+#### Option 2: Add manually in `.rector.custom.php`
 
 ```php
 use NowoTech\PhpQualityTools\Rector\Rules\ExampleCustomRule;
@@ -133,7 +134,7 @@ return [
 ];
 ```
 
-#### Opción 3: Añadir directamente en .rector.php
+#### Option 3: Add directly in `.rector.php`
 
 ```php
 use Rector\Config\RectorConfig;
@@ -145,21 +146,22 @@ return RectorConfig::configure()
     ]);
 ```
 
-## Fixers Custom de PHP-CS-Fixer
+## Custom PHP-CS-Fixer fixers
 
-### Ubicación
+### Location
 
-Los fixers custom de PHP-CS-Fixer deben ubicarse en `src/PhpCsFixer/Rules/`.
+Place custom PHP-CS-Fixer fixers in `src/PhpCsFixer/Rules/`.
 
-### Estructura de un Fixer
+### Fixer structure
 
-Cada fixer debe:
-- Extender `PhpCsFixer\Fixer\AbstractFixer` o implementar `PhpCsFixer\Fixer\FixerInterface`
-- Implementar los métodos requeridos: `getName()`, `getPriority()`, `supports()`, `isCandidate()`, y `fix()`
-- Seguir los estándares PSR-12
-- Incluir documentación PHPDoc completa
+Each fixer must:
 
-### Ejemplo de Fixer Custom
+- Extend `PhpCsFixer\Fixer\AbstractFixer` or implement `PhpCsFixer\Fixer\FixerInterface`
+- Implement the required methods: `getName()`, `getPriority()`, `supports()`, `isCandidate()`, and `fix()`
+- Follow PSR-12
+- Include complete PHPDoc documentation
+
+### Custom fixer example
 
 ```php
 <?php
@@ -184,7 +186,7 @@ final class ExampleCustomFixer extends AbstractFixer
     public function getDefinition(): FixerDefinitionInterface
     {
         return new FixerDefinition(
-            'Descripción de lo que hace este fixer.',
+            'Description of what this fixer does.',
             [
                 new CodeSample('<?php $a = 1;'),
             ]
@@ -208,14 +210,14 @@ final class ExampleCustomFixer extends AbstractFixer
 
     protected function applyFix(\SplFileInfo $file, Tokens $tokens): void
     {
-        // Implementación del fixer
+        // Fixer implementation
     }
 }
 ```
 
-### Uso de Fixers Custom
+### Using custom fixers
 
-#### Opción 1: Usar el Set Helper
+#### Option 1: Use the set helper
 
 ```php
 use NowoTech\PhpQualityTools\PhpCsFixer\Set\CustomFixersSet;
@@ -224,11 +226,11 @@ $config = (new Config())
     ->registerCustomFixers(CustomFixersSet::getFixers())
     ->setRules(array_merge([
         '@PSR12' => true,
-        // ... otras reglas
+        // ... other rules
     ], CustomFixersSet::getRules()));
 ```
 
-#### Opción 2: Añadir manualmente en .php-cs-fixer.custom.php
+#### Option 2: Add manually in `.php-cs-fixer.custom.php`
 
 ```php
 use NowoTech\PhpQualityTools\PhpCsFixer\Rules\ExampleCustomFixer;
@@ -240,7 +242,7 @@ return [
 ];
 ```
 
-#### Opción 3: Añadir directamente en .php-cs-fixer.php
+#### Option 3: Add directly in `.php-cs-fixer.php`
 
 ```php
 use PhpCsFixer\Config;
@@ -253,136 +255,137 @@ $config = (new Config())
     ->setRules([
         '@PSR12' => true,
         'NowoTech/example_custom_fixer' => true,
-        // ... otras reglas
+        // ... other rules
     ]);
 ```
 
-## Dependencias Requeridas
+## Required dependencies
 
-### Para Reglas Custom de Rector
+### For custom Rector rules
 
-Las reglas custom de Rector requieren la siguiente dependencia adicional:
+Custom Rector rules need this extra dependency:
 
-- **symplify/rule-doc-generator-contracts**: Requerida para la documentación de las reglas (`RuleDefinition`, `CodeSample`)
+- **symplify/rule-doc-generator-contracts**: Required for rule documentation (`RuleDefinition`, `CodeSample`)
 
-**Instalación:**
+**Install:**
+
 ```bash
 composer require --dev symplify/rule-doc-generator-contracts
 ```
 
-**Nota**: Si intentas usar las reglas custom sin esta dependencia, verás un mensaje informativo indicando qué paquete falta y cómo instalarlo.
+**Note:** If you use custom rules without this dependency, you will see an informative message listing the missing package and how to install it.
 
-### Para Fixers Custom de PHP-CS-Fixer
+### For custom PHP-CS-Fixer fixers
 
-Los fixers custom de PHP-CS-Fixer no requieren dependencias adicionales, ya que usan las clases de `friendsofphp/php-cs-fixer` que ya está en las dependencias sugeridas.
+Custom PHP-CS-Fixer fixers need no extra dependencies; they use classes from `friendsofphp/php-cs-fixer`, which is already in the suggested dependencies.
 
-## Reglas Custom Incluidas
+## Bundled custom rules
 
 ### Rector
 
-El paquete incluye las siguientes reglas custom de Rector:
+The package ships these custom Rector rules:
 
-1. **SplitLongGroupedImportsRector**: Formatea imports agrupados largos en formato multilínea cuando exceden 120 caracteres o tienen 3+ items.
+1. **SplitLongGroupedImportsRector**: Formats long grouped imports as multiline when they exceed 120 characters or have 3+ items.
 
-2. **SplitLongConstructorParametersRector**: Divide listas de parámetros de constructor largas en múltiples líneas cuando exceden 120 caracteres.
+2. **SplitLongConstructorParametersRector**: Splits long constructor parameter lists across multiple lines when they exceed 120 characters.
 
-3. **AddMissingReturnTypeRector**: Añade tipos de retorno faltantes a métodos públicos y protegidos basándose en el análisis del cuerpo del método.
+3. **AddMissingReturnTypeRector**: Adds missing return types to public and protected methods based on method-body analysis.
 
-4. **SplitLongMethodCallRector**: Identifica cadenas de llamadas a métodos largas (3+ llamadas encadenadas o >120 caracteres) y las marca para formato multilínea.
+4. **SplitLongMethodCallRector**: Identifies long method-call chains (3+ chained calls or >120 characters) and marks them for multiline formatting.
 
-**Dependencia requerida**: `symplify/rule-doc-generator-contracts`
+**Required dependency:** `symplify/rule-doc-generator-contracts`
 
-Estas reglas están automáticamente disponibles cuando usas `CustomRulesSet::getRules()`. Si falta la dependencia, se mostrará un mensaje informativo.
+These rules are available automatically when you use `CustomRulesSet::getRules()`. If the dependency is missing, an informative message is shown.
 
 ### PHP-CS-Fixer
 
-El paquete incluye los siguientes fixers custom:
+The package ships these custom fixers:
 
-1. **MultilineGroupedImportsFixer**: Formatea imports agrupados largos en formato multilínea cuando exceden 120 caracteres o tienen 3+ items.
+1. **MultilineGroupedImportsFixer**: Formats long grouped imports as multiline when they exceed 120 characters or have 3+ items.
 
-2. **MultilineArrayFixer**: Formatea arrays largos en formato multilínea cuando exceden 120 caracteres o tienen 3+ elementos.
+2. **MultilineArrayFixer**: Formats long arrays as multiline when they exceed 120 characters or have 3+ elements.
 
-3. **ConsistentDocblockFixer**: Asegura formato consistente en docblocks con alineación y espaciado adecuados.
+3. **ConsistentDocblockFixer**: Keeps consistent docblock formatting with proper alignment and spacing.
 
-Estos fixers están automáticamente disponibles cuando usas `CustomFixersSet::getFixers()` y `CustomFixersSet::getRules()`.
+These fixers are available automatically when you use `CustomFixersSet::getFixers()` and `CustomFixersSet::getRules()`.
 
-## Añadir Nuevas Reglas
+## Adding new rules
 
-Para añadir una nueva regla custom:
+To add a new custom rule:
 
-1. **Crear la clase de la regla** en el directorio apropiado:
+1. **Create the rule class** in the right directory:
    - Rector: `src/Rector/Rules/YourCustomRule.php`
    - PHP-CS-Fixer: `src/PhpCsFixer/Rules/YourCustomFixer.php`
 
-2. **Actualizar el Set Helper** correspondiente:
-   - Rector: Añadir la clase a `CustomRulesSet::getRules()` en `src/Rector/Set/CustomRulesSet.php`
-   - PHP-CS-Fixer: Añadir la instancia a `CustomFixersSet::getFixers()` y la configuración a `CustomFixersSet::getRules()` en `src/PhpCsFixer/Set/CustomFixersSet.php`
+2. **Update the matching set helper**:
+   - Rector: add the class to `CustomRulesSet::getRules()` in `src/Rector/Set/CustomRulesSet.php`
+   - PHP-CS-Fixer: add the instance to `CustomFixersSet::getFixers()` and the config to `CustomFixersSet::getRules()` in `src/PhpCsFixer/Set/CustomFixersSet.php`
 
-3. **Añadir tests** para la nueva regla en `tests/`
+3. **Add tests** for the new rule under `tests/`
 
-4. **Actualizar la documentación** si es necesario
+4. **Update documentation** if needed
 
 ## Testing
 
-Cada regla custom debe tener tests asociados:
+Each custom rule should have associated tests:
 
-- **Rector**: Tests en `tests/Rector/Rules/`
-- **PHP-CS-Fixer**: Tests en `tests/PhpCsFixer/Rules/`
+- **Rector**: tests in `tests/Rector/Rules/`
+- **PHP-CS-Fixer**: tests in `tests/PhpCsFixer/Rules/`
 
-Ejecuta los tests con:
+Run tests with:
 
 ```bash
 composer test
 ```
 
-## Uso de las Reglas Incluidas
+## Using the bundled rules
 
-### Activar Reglas Custom de Rector
+### Enable custom Rector rules
 
-**Antes de usar las reglas**, asegúrate de tener instalada la dependencia requerida:
+**Before using the rules**, install the required dependency:
 
 ```bash
 composer require --dev symplify/rule-doc-generator-contracts
 ```
 
-Las reglas custom están disponibles automáticamente cuando usas el `CustomRulesSet`:
+Custom rules are available automatically via `CustomRulesSet`:
 
 ```php
-// En .rector.php o .rector.custom.php
+// In .rector.php or .rector.custom.php
 use NowoTech\PhpQualityTools\Rector\Set\CustomRulesSet;
 
 return [
-    'rules' => CustomRulesSet::getRules(), // Verifica dependencias automáticamente
-    // ... otras configuraciones
+    'rules' => CustomRulesSet::getRules(), // Checks dependencies automatically
+    // ... other configuration
 ];
 ```
 
-**Validación automática**: `CustomRulesSet::getRules()` verifica automáticamente si las dependencias están instaladas. Si faltan, mostrará un mensaje informativo en STDERR (CLI) o como warning (web).
+**Automatic validation:** `CustomRulesSet::getRules()` checks whether dependencies are installed. If any are missing, it prints an informative message to STDERR (CLI) or raises a warning (web).
 
-Si prefieres desactivar la verificación (por ejemplo, para usar las reglas condicionalmente):
+To disable the check (for example when enabling rules conditionally):
 
 ```php
-// Desactivar verificación de dependencias
+// Disable dependency checks
 $rules = CustomRulesSet::getRules(checkDependencies: false);
 ```
 
-**Verificación manual de dependencias**:
+**Manual dependency check:**
 
 ```php
 use NowoTech\PhpQualityTools\Rector\Set\CustomRulesSet;
 
-// Verificar si todas las dependencias están instaladas
+// Check whether all dependencies are installed
 if (!CustomRulesSet::hasAllDependencies()) {
     $missing = CustomRulesSet::getMissingDependencies();
-    echo "Faltan dependencias: " . implode(', ', $missing) . "\n";
-    echo "Instálalas con: composer require --dev " . implode(' ', $missing) . "\n";
+    echo 'Missing dependencies: ' . implode(', ', $missing) . "\n";
+    echo 'Install with: composer require --dev ' . implode(' ', $missing) . "\n";
 }
 
-// Obtener lista de dependencias faltantes
+// List missing dependency package names
 $missingPackages = CustomRulesSet::getMissingDependencies();
 ```
 
-O añadirlas manualmente:
+Or register them manually:
 
 ```php
 use NowoTech\PhpQualityTools\Rector\Rules\SplitLongGroupedImportsRector;
@@ -396,29 +399,28 @@ return [
 ];
 ```
 
-**Nota importante**: `SplitLongConstructorParametersRector` identifica constructores que necesitan formato multilínea, pero el formato real debe aplicarse con PHP-CS-Fixer usando la regla `method_argument_space` con `ensure_fully_multiline`.
+**Important note:** `SplitLongConstructorParametersRector` identifies constructors that need multiline formatting, but the actual formatting should be applied with PHP-CS-Fixer using the `method_argument_space` rule with `ensure_fully_multiline`.
 
-### Activar Fixers Custom de PHP-CS-Fixer
+### Enable custom PHP-CS-Fixer fixers
 
-Los fixers custom están disponibles automáticamente cuando usas el `CustomFixersSet`:
+Custom fixers are available automatically via `CustomFixersSet`:
 
 ```php
-// En .php-cs-fixer.php o .php-cs-fixer.custom.php
+// In .php-cs-fixer.php or .php-cs-fixer.custom.php
 use NowoTech\PhpQualityTools\PhpCsFixer\Set\CustomFixersSet;
 
 $config = (new Config())
     ->registerCustomFixers(CustomFixersSet::getFixers())
     ->setRules(array_merge([
         '@PSR12' => true,
-        'method_argument_space' => ['ensure_fully_multiline' => true], // Para SplitLongConstructorParametersRector
-        // ... otras reglas
+        'method_argument_space' => ['ensure_fully_multiline' => true], // For SplitLongConstructorParametersRector
+        // ... other rules
     ], CustomFixersSet::getRules()));
 ```
 
-## Recursos
+## Resources
 
-- [Documentación de Rector](https://getrector.com/documentation)
-- [Documentación de PHP-CS-Fixer](https://cs.symfony.com/)
-- [Guía de creación de reglas Rector](https://getrector.com/documentation/how-it-works)
-- [Guía de creación de fixers PHP-CS-Fixer](https://cs.symfony.com/doc/custom_fixers.html)
-
+- [Rector documentation](https://getrector.com/documentation)
+- [PHP-CS-Fixer documentation](https://cs.symfony.com/)
+- [Creating Rector rules](https://getrector.com/documentation/how-it-works)
+- [Creating PHP-CS-Fixer fixers](https://cs.symfony.com/doc/custom_fixers.html)

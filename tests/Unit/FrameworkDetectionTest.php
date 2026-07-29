@@ -16,7 +16,7 @@ use PHPUnit\Framework\TestCase;
 class FrameworkDetectionTest extends TestCase
 {
     /**
-     * Test that framework detection constants are defined
+     * Test that framework detection constants are defined.
      */
     public function testFrameworkPackagesConstantExists(): void
     {
@@ -25,7 +25,7 @@ class FrameworkDetectionTest extends TestCase
     }
 
     /**
-     * Test that all expected frameworks are in the detection list
+     * Test that all expected frameworks are in the detection list.
      */
     public function testFrameworkPackagesContainsExpectedFrameworks(): void
     {
@@ -49,7 +49,7 @@ class FrameworkDetectionTest extends TestCase
     }
 
     /**
-     * Test that framework detection returns valid framework names
+     * Test that framework detection returns valid framework names.
      */
     public function testFrameworkDetectionReturnsValidFramework(): void
     {

@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace NowoTech\PhpQualityTools\Tests;
 
+use NowoTech\PhpQualityTools\Rector\Rules\AddMissingReturnTypeRector;
+use NowoTech\PhpQualityTools\Rector\Rules\SplitLongConstructorParametersRector;
+use NowoTech\PhpQualityTools\Rector\Rules\SplitLongGroupedImportsRector;
+use NowoTech\PhpQualityTools\Rector\Rules\SplitLongMethodCallRector;
 use NowoTech\PhpQualityTools\Rector\Set\CustomRulesSet;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 
 /**
  * Tests for CustomRulesSet.
@@ -24,10 +27,10 @@ class CustomRulesSetTest extends TestCase
 
         $this->assertIsArray($rules); // @phpstan-ignore method.alreadyNarrowedType
         $this->assertNotEmpty($rules);
-        $this->assertContains(\NowoTech\PhpQualityTools\Rector\Rules\SplitLongGroupedImportsRector::class, $rules);
-        $this->assertContains(\NowoTech\PhpQualityTools\Rector\Rules\SplitLongConstructorParametersRector::class, $rules);
-        $this->assertContains(\NowoTech\PhpQualityTools\Rector\Rules\AddMissingReturnTypeRector::class, $rules);
-        $this->assertContains(\NowoTech\PhpQualityTools\Rector\Rules\SplitLongMethodCallRector::class, $rules);
+        $this->assertContains(SplitLongGroupedImportsRector::class, $rules);
+        $this->assertContains(SplitLongConstructorParametersRector::class, $rules);
+        $this->assertContains(AddMissingReturnTypeRector::class, $rules);
+        $this->assertContains(SplitLongMethodCallRector::class, $rules);
     }
 
     public function testGetRulesWithCheckDependencies(): void
@@ -66,7 +69,7 @@ class CustomRulesSetTest extends TestCase
 
     public function testReportMissingDependenciesWritesToStderrWhenCli(): void
     {
-        $reflection = new ReflectionClass(CustomRulesSet::class);
+        $reflection = new \ReflectionClass(CustomRulesSet::class);
         $method = $reflection->getMethod('reportMissingDependencies');
 
         $missing = [

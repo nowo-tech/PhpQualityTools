@@ -12,7 +12,6 @@ use Composer\Repository\InstalledRepositoryInterface;
 use Composer\Repository\RepositoryManager;
 use NowoTech\PhpQualityTools\Plugin;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 
 /**
  * Tests for Plugin dependency checking and script registration.
@@ -49,7 +48,7 @@ class PluginDependenciesTest extends TestCase
      */
     private function invokePrivateMethod(Plugin $plugin, string $methodName, array $args = []): mixed
     {
-        $reflection = new ReflectionClass($plugin);
+        $reflection = new \ReflectionClass($plugin);
         $method = $reflection->getMethod($methodName);
 
         return $method->invoke($plugin, ...$args);
@@ -108,7 +107,7 @@ class PluginDependenciesTest extends TestCase
     public function testGetScriptsForFrameworkWithTwigAddsTwigScripts(): void
     {
         $localRepo = $this->createMock(InstalledRepositoryInterface::class);
-        $localRepo->method('findPackage')->willReturnCallback(fn (string $name): ?\Composer\Package\Package => $name === 'twig/twig' ? new Package('twig/twig', '3.0.0', '3.0.0') : null);
+        $localRepo->method('findPackage')->willReturnCallback(static fn (string $name): ?\Composer\Package\Package => 'twig/twig' === $name ? new Package('twig/twig', '3.0.0', '3.0.0') : null);
 
         $plugin = new Plugin();
         $plugin->activate($this->createComposerMock($localRepo), $this->createMock(IOInterface::class));
@@ -121,7 +120,7 @@ class PluginDependenciesTest extends TestCase
     public function testGetScriptsForFrameworkWithPhpunitAddsTestScript(): void
     {
         $localRepo = $this->createMock(InstalledRepositoryInterface::class);
-        $localRepo->method('findPackage')->willReturnCallback(fn (string $name): ?\Composer\Package\Package => $name === 'phpunit/phpunit' ? new Package('phpunit/phpunit', '11.0.0', '11.0.0') : null);
+        $localRepo->method('findPackage')->willReturnCallback(static fn (string $name): ?\Composer\Package\Package => 'phpunit/phpunit' === $name ? new Package('phpunit/phpunit', '11.0.0', '11.0.0') : null);
 
         $plugin = new Plugin();
         $plugin->activate($this->createComposerMock($localRepo), $this->createMock(IOInterface::class));
@@ -262,7 +261,7 @@ class PluginDependenciesTest extends TestCase
     public function testCheckAndInstallDependenciesSkipsOptionalRectorPackagesWhenRector2(): void
     {
         $localRepo = $this->createMock(InstalledRepositoryInterface::class);
-        $localRepo->method('findPackage')->willReturnCallback(fn (string $name): ?\Composer\Package\Package => $name === 'rector/rector' ? new Package('rector/rector', '2.2.14', '2.2.14') : null);
+        $localRepo->method('findPackage')->willReturnCallback(static fn (string $name): ?\Composer\Package\Package => 'rector/rector' === $name ? new Package('rector/rector', '2.2.14', '2.2.14') : null);
         $io = $this->createMock(IOInterface::class);
         $io->method('isInteractive')->willReturn(false);
 
@@ -303,11 +302,11 @@ class PluginDependenciesTest extends TestCase
         file_put_contents($tempDir . '/composer.json', json_encode([
             'name' => 'test/project',
             'require' => ['symfony/framework-bundle' => '^6.0'],
-        ], JSON_THROW_ON_ERROR));
+        ], \JSON_THROW_ON_ERROR));
 
         $localRepo = $this->createMock(InstalledRepositoryInterface::class);
         $localRepo->method('findPackage')->willReturnCallback(
-            static fn (string $name): ?\Composer\Package\Package => $name === 'rector/rector'
+            static fn (string $name): ?\Composer\Package\Package => 'rector/rector' === $name
                 ? new Package('rector/rector', '1.2.10', '1.2.10')
                 : null
         );
@@ -315,9 +314,9 @@ class PluginDependenciesTest extends TestCase
         $composer = $this->createMock(Composer::class);
         $config = $this->createMock(Config::class);
         $config->method('get')->willReturnCallback(
-            static fn (string $key): ?string => $key === 'vendor-dir'
+            static fn (string $key): ?string => 'vendor-dir' === $key
                 ? $tempDir . '/vendor'
-                : ($key === 'bin-dir' ? '/tmp/vendor/bin' : null)
+                : ('bin-dir' === $key ? '/tmp/vendor/bin' : null)
         );
         $composer->method('getConfig')->willReturn($config);
         $repoManager = $this->createMock(RepositoryManager::class);
@@ -347,7 +346,7 @@ class PluginDependenciesTest extends TestCase
         file_put_contents($tempDir . '/composer.json', json_encode([
             'name' => 'test/project',
             'require' => ['symfony/framework-bundle' => '^6.0'],
-        ], JSON_THROW_ON_ERROR));
+        ], \JSON_THROW_ON_ERROR));
 
         $localRepo = $this->createMock(InstalledRepositoryInterface::class);
         $localRepo->method('findPackage')->willReturn(null);
@@ -386,7 +385,7 @@ class PluginDependenciesTest extends TestCase
         file_put_contents($tempDir . '/composer.json', json_encode([
             'name' => 'test/project',
             'require' => ['symfony/framework-bundle' => '^6.0'],
-        ], JSON_THROW_ON_ERROR));
+        ], \JSON_THROW_ON_ERROR));
 
         $localRepo = $this->createMock(InstalledRepositoryInterface::class);
         $localRepo->method('findPackage')->willReturn(null);
@@ -431,11 +430,11 @@ class PluginDependenciesTest extends TestCase
         file_put_contents($tempDir . '/composer.json', json_encode([
             'name' => 'test/project',
             'require' => ['symfony/framework-bundle' => '^6.0'],
-        ], JSON_THROW_ON_ERROR));
+        ], \JSON_THROW_ON_ERROR));
 
         $localRepo = $this->createMock(InstalledRepositoryInterface::class);
         $localRepo->method('findPackage')->willReturnCallback(
-            static fn (string $name): ?\Composer\Package\Package => $name === 'rector/rector'
+            static fn (string $name): ?\Composer\Package\Package => 'rector/rector' === $name
                 ? new Package('rector/rector', '2.2.14', '2.2.14')
                 : null
         );

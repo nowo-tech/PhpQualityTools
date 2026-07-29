@@ -30,11 +30,11 @@ use PhpParser\Node\Stmt\GroupUse;
 use PhpParser\Node\Stmt\Return_;
 use PhpParser\Node\Stmt\Use_;
 use PhpParser\Node\Stmt\UseUse;
+use PHPStan\Reflection\ReflectionProvider;
 use PHPUnit\Framework\TestCase;
 use Rector\CodingStyle\Naming\ClassNaming;
 use Rector\NodeAnalyzer\CallAnalyzer;
 use Rector\NodeNameResolver\NodeNameResolver;
-use ReflectionClass;
 
 /**
  * Coverage-oriented tests for custom Rector rules internals.
@@ -43,30 +43,28 @@ final class RectorRulesCoverageTest extends TestCase
 {
     private function invokePrivate(object $object, string $method, mixed ...$args): mixed
     {
-        $reflection = new ReflectionClass($object);
+        $reflection = new \ReflectionClass($object);
         $privateMethod = $reflection->getMethod($method);
-        $privateMethod->setAccessible(true);
 
         return $privateMethod->invoke($object, ...$args);
     }
 
     private function initializeNodeNameResolver(object $rector): void
     {
-        $reflectionProvider = $this->createMock('\\PHPStan\\Reflection\\ReflectionProvider');
-        /** @var \PHPStan\Reflection\ReflectionProvider $reflectionProvider */
+        /** @var ReflectionProvider&\PHPUnit\Framework\MockObject\MockObject $reflectionProvider */
+        $reflectionProvider = $this->createMock(ReflectionProvider::class);
         $nodeNameResolver = new NodeNameResolver(
             new ClassNaming(),
             new CallAnalyzer($reflectionProvider),
             []
         );
 
-        $reflection = new ReflectionClass($rector);
-        while (!$reflection->hasProperty('nodeNameResolver') && $reflection->getParentClass() !== false) {
+        $reflection = new \ReflectionClass($rector);
+        while (!$reflection->hasProperty('nodeNameResolver') && false !== $reflection->getParentClass()) {
             $reflection = $reflection->getParentClass();
         }
 
         $property = $reflection->getProperty('nodeNameResolver');
-        $property->setAccessible(true);
         $property->setValue($rector, $nodeNameResolver);
     }
 
@@ -93,7 +91,7 @@ final class RectorRulesCoverageTest extends TestCase
 
         // No-op method just to mark branch executed.
         $this->invokePrivate($rule, 'makeMultiline');
-        $this->assertTrue(true);
+        $this->addToAssertionCount(1);
     }
 
     public function testRuleDefinitionsAndNodeTypesAreAvailable(): void
@@ -146,7 +144,7 @@ final class RectorRulesCoverageTest extends TestCase
         $emptyMethod = new ClassMethod(new Identifier('run'), ['stmts' => []]);
         $this->assertSame('void', $this->invokePrivate($rule, 'inferReturnType', $emptyMethod));
 
-        $voidReturn = new ClassMethod(new Identifier('run'), ['stmts' => [new Return_(null)]]);
+        $voidReturn = new ClassMethod(new Identifier('run'), ['stmts' => [new Return_()]]);
         $this->assertSame('void', $this->invokePrivate($rule, 'inferReturnType', $voidReturn));
 
         $intReturn = new ClassMethod(new Identifier('count'), ['stmts' => [new Return_(new Int_(5))]]);
@@ -176,7 +174,7 @@ final class RectorRulesCoverageTest extends TestCase
 
         // Methods for Use_ branches rely on Rector container services (getName).
         // Those branches are covered at integration level in Rector execution.
-        $this->assertTrue(true);
+        $this->addToAssertionCount(1);
     }
 
     public function testMethodCallRulePrivateHelpers(): void

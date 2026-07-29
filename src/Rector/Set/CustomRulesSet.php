@@ -4,8 +4,14 @@ declare(strict_types=1);
 
 namespace NowoTech\PhpQualityTools\Rector\Set;
 
+use NowoTech\PhpQualityTools\Rector\Rules\AddMissingReturnTypeRector;
+use NowoTech\PhpQualityTools\Rector\Rules\SplitLongConstructorParametersRector;
+use NowoTech\PhpQualityTools\Rector\Rules\SplitLongGroupedImportsRector;
+use NowoTech\PhpQualityTools\Rector\Rules\SplitLongMethodCallRector;
+use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
+
 /**
- * Custom Rector Rules Set
+ * Custom Rector Rules Set.
  *
  * This class provides a convenient way to include all custom Rector rules
  * from PHP Quality Tools in your Rector configuration.
@@ -26,7 +32,7 @@ final class CustomRulesSet
      * Required dependencies for custom Rector rules.
      */
     private const REQUIRED_DEPENDENCIES = [
-        \Symplify\RuleDocGenerator\ValueObject\RuleDefinition::class => [
+        RuleDefinition::class => [
             'package' => 'symplify/rule-doc-generator-contracts',
             'description' => 'Required for custom Rector rules documentation',
         ],
@@ -44,7 +50,7 @@ final class CustomRulesSet
         if ($checkDependencies) {
             $missing = self::checkDependencies();
             // @codeCoverageIgnoreStart
-            if ($missing !== []) {
+            if ([] !== $missing) {
                 self::reportMissingDependencies($missing);
             }
             // @codeCoverageIgnoreEnd
@@ -53,10 +59,10 @@ final class CustomRulesSet
         $rules = [];
 
         // Add custom rules here as they are created
-        $rules[] = \NowoTech\PhpQualityTools\Rector\Rules\SplitLongGroupedImportsRector::class;
-        $rules[] = \NowoTech\PhpQualityTools\Rector\Rules\SplitLongConstructorParametersRector::class;
-        $rules[] = \NowoTech\PhpQualityTools\Rector\Rules\AddMissingReturnTypeRector::class;
-        $rules[] = \NowoTech\PhpQualityTools\Rector\Rules\SplitLongMethodCallRector::class;
+        $rules[] = SplitLongGroupedImportsRector::class;
+        $rules[] = SplitLongConstructorParametersRector::class;
+        $rules[] = AddMissingReturnTypeRector::class;
+        $rules[] = SplitLongMethodCallRector::class;
         // Note: RemoveUnusedUseStatementsRector is commented out as Rector already has
         // built-in functionality for this via removeUnusedImports configuration
         // $rules[] = \NowoTech\PhpQualityTools\Rector\Rules\RemoveUnusedUseStatementsRector::class;
@@ -75,7 +81,8 @@ final class CustomRulesSet
 
         foreach (self::REQUIRED_DEPENDENCIES as $class => $info) {
             // @codeCoverageIgnoreStart
-            if (!class_exists($class) && !interface_exists($class)) {
+            // RuleDefinition is a class (not an interface); class_exists is enough.
+            if (!class_exists($class)) {
                 $missing[$class] = $info;
             }
             // @codeCoverageIgnoreEnd
@@ -97,22 +104,22 @@ final class CustomRulesSet
 
         $packages = [];
         foreach ($missing as $info) {
-            $message .= sprintf("  - %s: %s\n", $info['package'], $info['description']);
+            $message .= \sprintf("  - %s: %s\n", $info['package'], $info['description']);
             $packages[] = $info['package'];
         }
 
         $message .= "\n";
         $message .= "To install missing dependencies, run:\n";
-        $message .= sprintf("  composer require --dev %s\n", implode(' ', array_unique($packages)));
+        $message .= \sprintf("  composer require --dev %s\n", implode(' ', array_unique($packages)));
         $message .= "\n";
         $message .= "Note: Custom Rector rules will not work correctly without these dependencies.\n";
 
         // Use error_log for CLI or trigger_error for web
-        if (php_sapi_name() === 'cli') {
-            fwrite(STDERR, $message);
+        if (\PHP_SAPI === 'cli') {
+            fwrite(\STDERR, $message);
         } else {
             // @codeCoverageIgnoreStart
-            trigger_error($message, E_USER_WARNING);
+            trigger_error($message, \E_USER_WARNING);
             // @codeCoverageIgnoreEnd
         }
     }
@@ -124,7 +131,7 @@ final class CustomRulesSet
      */
     public static function hasRules(): bool
     {
-        return count(self::getRules(checkDependencies: false)) > 0;
+        return \count(self::getRules(checkDependencies: false)) > 0;
     }
 
     /**
@@ -134,7 +141,7 @@ final class CustomRulesSet
      */
     public static function hasAllDependencies(): bool
     {
-        return self::checkDependencies() === [];
+        return [] === self::checkDependencies();
     }
 
     /**

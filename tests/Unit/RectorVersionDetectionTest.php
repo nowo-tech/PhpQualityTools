@@ -12,7 +12,6 @@ use Composer\Repository\InstalledRepositoryInterface;
 use Composer\Repository\RepositoryManager;
 use NowoTech\PhpQualityTools\Plugin;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 
 /**
  * Tests for Rector version detection functionality.
@@ -29,7 +28,7 @@ class RectorVersionDetectionTest extends TestCase
      */
     public function testGetRectorVersionMethodExists(): void
     {
-        $reflection = new ReflectionClass(Plugin::class);
+        $reflection = new \ReflectionClass(Plugin::class);
         $this->assertTrue($reflection->hasMethod('getRectorVersion'));
 
         $method = $reflection->getMethod('getRectorVersion');
@@ -71,7 +70,7 @@ class RectorVersionDetectionTest extends TestCase
 
         $plugin->activate($composer, $io);
 
-        $reflection = new ReflectionClass($plugin);
+        $reflection = new \ReflectionClass($plugin);
         $method = $reflection->getMethod('getRectorVersion');
 
         $version = $method->invoke($plugin);
@@ -113,7 +112,7 @@ class RectorVersionDetectionTest extends TestCase
 
         $plugin->activate($composer, $io);
 
-        $reflection = new ReflectionClass($plugin);
+        $reflection = new \ReflectionClass($plugin);
         $method = $reflection->getMethod('getRectorVersion');
 
         $version = $method->invoke($plugin);
@@ -155,7 +154,7 @@ class RectorVersionDetectionTest extends TestCase
 
         $plugin->activate($composer, $io);
 
-        $reflection = new ReflectionClass($plugin);
+        $reflection = new \ReflectionClass($plugin);
         $method = $reflection->getMethod('getRectorVersion');
 
         $version = $method->invoke($plugin);
@@ -197,7 +196,7 @@ class RectorVersionDetectionTest extends TestCase
 
         $plugin->activate($composer, $io);
 
-        $reflection = new ReflectionClass($plugin);
+        $reflection = new \ReflectionClass($plugin);
         $method = $reflection->getMethod('getRectorVersion');
 
         $version = $method->invoke($plugin);

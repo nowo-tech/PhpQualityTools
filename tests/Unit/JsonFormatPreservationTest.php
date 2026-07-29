@@ -6,8 +6,6 @@ namespace NowoTech\PhpQualityTools\Tests;
 
 use NowoTech\PhpQualityTools\Plugin;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
-use ReflectionMethod;
 
 /**
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
@@ -18,13 +16,13 @@ use ReflectionMethod;
 class JsonFormatPreservationTest extends TestCase
 {
     private Plugin $plugin;
-    private ReflectionMethod $detectMethod;
-    private ReflectionMethod $encodeMethod;
+    private \ReflectionMethod $detectMethod;
+    private \ReflectionMethod $encodeMethod;
 
     protected function setUp(): void
     {
         $this->plugin = new Plugin();
-        $reflection = new ReflectionClass($this->plugin);
+        $reflection = new \ReflectionClass($this->plugin);
 
         $this->detectMethod = $reflection->getMethod('detectJsonIndentation');
 

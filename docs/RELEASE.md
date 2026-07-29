@@ -2,6 +2,8 @@
 
 Use this checklist when cutting a new version.
 
+> Current release target: **1.0.14** (`v1.0.14`).
+
 ## Before releasing
 
 - [ ] All tests pass: `make test`
@@ -11,25 +13,25 @@ Use this checklist when cutting a new version.
 - [ ] Update [docs/UPGRADING.md](UPGRADING.md): add an "Upgrading to X.Y.Z" section if needed
 - [ ] Update [README.md](../README.md) compatibility table if applicable
 
-## Releasing (e.g. 1.0.13)
+## Releasing (e.g. 1.0.14)
 
 ```bash
 # 1. Commit release prep (changelog, upgrading, readme)
 git add docs/CHANGELOG.md docs/UPGRADING.md README.md docs/CONFIGURATION.md docs/INSTALLATION.md
 git add -u   # optional: include all modified files (Plugin, CI, etc.)
-git commit -m "chore(release): prepare 1.0.13"
+git commit -m "chore(release): prepare 1.0.14"
 
 # 2. Create annotated tag (see BRANCHING.md)
-git tag -a v1.0.13 -m "Release v1.0.13 - Script opt-in robustness, CI platform PHP, REQ-GIT-001, PHP 8.1+, Symfony 6.0-8.1, Laravel 9-11"
+git tag -a v1.0.14 -m "Release v1.0.14 - FrankenPHP banner, PHPStan rulesets, final Plugin, PHP 8.1+, Symfony 6.0-8.1, Laravel 9-11"
 
 # 3. Push branch and tag
 git push origin main
-git push origin v1.0.13
+git push origin v1.0.14
 ```
 
 ## After pushing
 
-- [ ] Create a GitHub Release from tag `v1.0.13`
+- [ ] Create a GitHub Release from tag `v1.0.14` (or wait for `release.yml`)
 - [ ] Copy the relevant CHANGELOG section into the release notes
 - [ ] Publish the release
 
@@ -37,7 +39,7 @@ git push origin v1.0.13
 
 Include compatibility in the tag message, for example:
 
-- `Release v1.0.13 - Script opt-in robustness, CI platform PHP, REQ-GIT-001, PHP 8.1+, Symfony 6.0-8.1, Laravel 9-11`
+- `Release v1.0.14 - FrankenPHP banner, PHPStan rulesets, final Plugin, PHP 8.1+, Symfony 6.0-8.1, Laravel 9-11`
 
 See [BRANCHING.md](BRANCHING.md) for branch and tag workflow.
 

@@ -49,30 +49,27 @@ final class SplitLongGroupedImportsRector extends AbstractRector
         // @codeCoverageIgnoreStart
         // Check if required dependency is available
         if (!class_exists(RuleDefinition::class)) {
-            throw new \RuntimeException(
-                'Missing dependency: symplify/rule-doc-generator-contracts. ' .
-        'Install it with: composer require --dev symplify/rule-doc-generator-contracts'
-            );
+            throw new \RuntimeException('Missing dependency: symplify/rule-doc-generator-contracts. Install it with: composer require --dev symplify/rule-doc-generator-contracts');
         }
         // @codeCoverageIgnoreEnd
 
         return new RuleDefinition(
             'Format long grouped imports with multiline format when they exceed ' . self::MAX_LINE_LENGTH . ' characters',
             [
-            new CodeSample(
-                <<<'PHP'
-                    use App\Entity\Chat\{Conversation, UserConversation, ChatMessage, ChatParticipant};
-                    PHP,
-                <<<'PHP'
-                    use App\Entity\Chat\{
-                        Conversation,
-                        UserConversation,
-                        ChatMessage,
-                        ChatParticipant
-                    };
-                    PHP
-            ),
-      ]
+                new CodeSample(
+                    <<<'PHP'
+                        use App\Entity\Chat\{Conversation, UserConversation, ChatMessage, ChatParticipant};
+                        PHP,
+                    <<<'PHP'
+                        use App\Entity\Chat\{
+                            Conversation,
+                            UserConversation,
+                            ChatMessage,
+                            ChatParticipant
+                        };
+                        PHP
+                ),
+            ]
         );
     }
 
@@ -94,7 +91,7 @@ final class SplitLongGroupedImportsRector extends AbstractRector
         // Process GroupUse nodes (grouped imports like use App\Entity\{Class1, Class2};)
         if ($node instanceof GroupUse) {
             // Check if this grouped import has multiple uses
-            if (count($node->uses) <= 1) {
+            if (\count($node->uses) <= 1) {
                 return null;
             }
 
@@ -103,7 +100,7 @@ final class SplitLongGroupedImportsRector extends AbstractRector
 
             // Format imports that exceed MAX_LINE_LENGTH OR have 3+ items
             // This ensures readability even for shorter imports with many items
-            if ($groupedImportLength > self::MAX_LINE_LENGTH || count($node->uses) >= 3) {
+            if ($groupedImportLength > self::MAX_LINE_LENGTH || \count($node->uses) >= 3) {
                 // Return the node as-is - the formatter will handle multiline formatting
                 // We're just marking it for formatting
                 return $node;
@@ -115,7 +112,7 @@ final class SplitLongGroupedImportsRector extends AbstractRector
         // Process Use_ nodes with multiple uses (less common, but possible)
         if ($node instanceof Use_) {
             // Check if this is a grouped import (has multiple uses in one statement)
-            if (count($node->uses) <= 1) {
+            if (\count($node->uses) <= 1) {
                 return null;
             }
 
@@ -124,7 +121,7 @@ final class SplitLongGroupedImportsRector extends AbstractRector
 
             // Format imports that exceed MAX_LINE_LENGTH OR have 3+ items
             // This ensures readability even for shorter imports with many items
-            if ($groupedImportLength > self::MAX_LINE_LENGTH || count($node->uses) >= 3) {
+            if ($groupedImportLength > self::MAX_LINE_LENGTH || \count($node->uses) >= 3) {
                 // Try to convert to GroupUse if there's a common prefix
                 $formatted = $this->formatGroupedImportFromUseMultiline($node);
                 if ($formatted instanceof GroupUse) {
@@ -153,18 +150,18 @@ final class SplitLongGroupedImportsRector extends AbstractRector
 
         // Add length for the namespace prefix (before the curly braces)
         $prefix = $node->prefix->toString();
-        $length += strlen($prefix);
+        $length += \strlen($prefix);
         $length += 2; // For the { }
 
         // Add length for each use item
         foreach ($node->uses as $use) {
             $name = $use->name->toString();
-            $length += strlen($name);
+            $length += \strlen($name);
             $length += 2; // For comma and space
 
             // Add length for alias if present
-            if ($use->alias !== null) {
-                $length += strlen($use->alias->name) + 4; // " as " + alias name
+            if (null !== $use->alias) {
+                $length += \strlen($use->alias->name) + 4; // " as " + alias name
             }
         }
 
@@ -187,28 +184,28 @@ final class SplitLongGroupedImportsRector extends AbstractRector
         // Get the common namespace prefix (if all uses share the same prefix)
         $prefix = $this->getCommonPrefix($node->uses);
 
-        if ($prefix !== '') {
-            $length += strlen($prefix);
+        if ('' !== $prefix) {
+            $length += \strlen($prefix);
             $length += 2; // For the { }
         }
 
         // Add length for each use item
         foreach ($node->uses as $use) {
             $name = $this->getName($use);
-            if ($name !== null) {
+            if (null !== $name) {
                 // If there's a prefix, only count the part after the prefix
-                if ($prefix !== '' && str_starts_with($name, $prefix)) {
-                    $suffix = substr($name, strlen($prefix));
-                    $length += strlen($suffix);
+                if ('' !== $prefix && str_starts_with($name, $prefix)) {
+                    $suffix = substr($name, \strlen($prefix));
+                    $length += \strlen($suffix);
                 } else {
-                    $length += strlen($name);
+                    $length += \strlen($name);
                 }
                 $length += 2; // For comma and space
             }
 
             // Add length for alias if present
-            if ($use->alias !== null) {
-                $length += strlen($use->alias->name) + 4; // " as " + alias name
+            if (null !== $use->alias) {
+                $length += \strlen($use->alias->name) + 4; // " as " + alias name
             }
         }
 
@@ -225,20 +222,20 @@ final class SplitLongGroupedImportsRector extends AbstractRector
      */
     private function getCommonPrefix(array $uses): string
     {
-        if ($uses === []) {
+        if ([] === $uses) {
             return '';
         }
 
         $names = [];
         foreach ($uses as $use) {
             $name = $this->getName($use);
-            if ($name !== null) {
+            if (null !== $name) {
                 $names[] = $name;
             }
         }
 
         // @codeCoverageIgnoreStart
-        if ($names === []) {
+        if ([] === $names) {
             return '';
         }
         // @codeCoverageIgnoreEnd
@@ -249,8 +246,8 @@ final class SplitLongGroupedImportsRector extends AbstractRector
 
         // Find the last namespace separator that all names share
         $parts = explode('\\', $first);
-        for ($i = 0; $i < count($parts) - 1; $i++) {
-            $testPrefix = implode('\\', array_slice($parts, 0, $i + 1)) . '\\';
+        for ($i = 0; $i < \count($parts) - 1; ++$i) {
+            $testPrefix = implode('\\', \array_slice($parts, 0, $i + 1)) . '\\';
             $allMatch = true;
 
             foreach ($names as $name) {
@@ -280,7 +277,7 @@ final class SplitLongGroupedImportsRector extends AbstractRector
         // Get the common prefix
         $prefix = $this->getCommonPrefix($node->uses);
 
-        if ($prefix === '') {
+        if ('' === $prefix) {
             // Can't convert to GroupUse without a common prefix
             return null;
         }
@@ -295,13 +292,13 @@ final class SplitLongGroupedImportsRector extends AbstractRector
         foreach ($node->uses as $use) {
             $name = $this->getName($use);
             // @codeCoverageIgnoreStart
-            if ($name === null) {
+            if (null === $name) {
                 continue;
             }
             // @codeCoverageIgnoreEnd
 
             // Remove the prefix from the name
-            $suffix = substr($name, strlen($prefix) + 1);
+            $suffix = substr($name, \strlen($prefix) + 1);
             $suffixParts = explode('\\', $suffix);
             $suffixNode = new Name($suffixParts);
 

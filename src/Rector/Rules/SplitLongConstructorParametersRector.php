@@ -51,33 +51,30 @@ final class SplitLongConstructorParametersRector extends AbstractRector
         // @codeCoverageIgnoreStart
         // Check if required dependency is available
         if (!class_exists(RuleDefinition::class)) {
-            throw new \RuntimeException(
-                'Missing dependency: symplify/rule-doc-generator-contracts. ' .
-        'Install it with: composer require --dev symplify/rule-doc-generator-contracts'
-            );
+            throw new \RuntimeException('Missing dependency: symplify/rule-doc-generator-contracts. Install it with: composer require --dev symplify/rule-doc-generator-contracts');
         }
         // @codeCoverageIgnoreEnd
 
         return new RuleDefinition(
             'Split long constructor parameter lists into multiple lines when they exceed ' . self::MAX_LINE_LENGTH . ' characters',
             [
-            new CodeSample(
-                <<<'PHP'
-                    public function __construct(protected ContainerInterface $_container, private readonly HubInterface $hub, private readonly ParameterBagInterface $parameterBag, private readonly ParamFetcherInterface $paramFetcher)
-                    {
-                    }
-                    PHP,
-                <<<'PHP'
-                    public function __construct(
-                        protected ContainerInterface $_container,
-                        private readonly HubInterface $hub,
-                        private readonly ParameterBagInterface $parameterBag,
-                        private readonly ParamFetcherInterface $paramFetcher
-                    ) {
-                    }
-                    PHP
-            ),
-      ]
+                new CodeSample(
+                    <<<'PHP'
+                        public function __construct(protected ContainerInterface $_container, private readonly HubInterface $hub, private readonly ParameterBagInterface $parameterBag, private readonly ParamFetcherInterface $paramFetcher)
+                        {
+                        }
+                        PHP,
+                    <<<'PHP'
+                        public function __construct(
+                            protected ContainerInterface $_container,
+                            private readonly HubInterface $hub,
+                            private readonly ParameterBagInterface $parameterBag,
+                            private readonly ParamFetcherInterface $paramFetcher
+                        ) {
+                        }
+                        PHP
+                ),
+            ]
         );
     }
 
@@ -106,7 +103,7 @@ final class SplitLongConstructorParametersRector extends AbstractRector
         }
 
         // Skip if no parameters
-        if (count($node->params) === 0) {
+        if (0 === \count($node->params)) {
             return null;
         }
 
@@ -135,7 +132,7 @@ final class SplitLongConstructorParametersRector extends AbstractRector
     private function isAlreadyMultiline(ClassMethod $node): bool
     {
         $startLine = $node->getStartLine();
-        $endLine = $node->params[count($node->params) - 1]->getEndLine();
+        $endLine = $node->params[\count($node->params) - 1]->getEndLine();
 
         // If parameters span multiple lines, it's already multiline
         return $endLine > $startLine;
@@ -150,14 +147,14 @@ final class SplitLongConstructorParametersRector extends AbstractRector
 
         // Add length for visibility and "function __construct("
         $visibility = $node->isPublic() ? 'public' : ($node->isProtected() ? 'protected' : 'private');
-        $length += strlen($visibility) + 1; // "public " or "protected " or "private "
+        $length += \strlen($visibility) + 1; // "public " or "protected " or "private "
         $length += 9; // "function "
         $length += 11; // "__construct("
 
         // Add length for each parameter
         foreach ($node->params as $param) {
             // Add length for parameter modifiers (readonly, public, protected, private)
-            if ($param->flags !== 0) {
+            if (0 !== $param->flags) {
                 if (($param->flags & Node\Stmt\Class_::MODIFIER_PUBLIC) !== 0) {
                     $length += 7; // "public "
                 } elseif (($param->flags & Node\Stmt\Class_::MODIFIER_PROTECTED) !== 0) {
@@ -172,27 +169,27 @@ final class SplitLongConstructorParametersRector extends AbstractRector
             }
 
             // Add length for type hint
-            if ($param->type !== null) {
+            if (null !== $param->type) {
                 $typeName = $this->getName($param->type);
-                if ($typeName !== null) {
-                    $length += strlen($typeName);
+                if (null !== $typeName) {
+                    $length += \strlen($typeName);
                 } else {
                     // For complex types, estimate
                     $length += 20; // Estimate for complex types
                 }
-                $length += 1; // Space after type
+                ++$length; // Space after type
             }
 
             // Add length for variable name
             if ($param->var instanceof Node\Expr\Variable) {
                 $varName = $param->var->name;
-                if (is_string($varName)) {
-                    $length += strlen($varName);
+                if (\is_string($varName)) {
+                    $length += \strlen($varName);
                 }
             }
 
             // Add length for default value if present
-            if ($param->default !== null) {
+            if (null !== $param->default) {
                 $length += 5; // " = ..." (estimate)
             }
 
@@ -203,7 +200,7 @@ final class SplitLongConstructorParametersRector extends AbstractRector
         }
 
         // Add length for closing parenthesis
-        $length += 1; // ")"
+        ++$length; // ")"
 
         return $length;
     }

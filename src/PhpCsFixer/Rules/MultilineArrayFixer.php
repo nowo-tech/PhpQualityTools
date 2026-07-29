@@ -76,11 +76,11 @@ final class MultilineArrayFixer extends AbstractFixer
     /**
      * Check if the fixer is a candidate for a given token.
      *
-     * @param Tokens<Token> $tokens
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     public function isCandidate(Tokens $tokens): bool
     {
-        return $tokens->isTokenKindFound(CT::T_ARRAY_SQUARE_BRACE_OPEN) || $tokens->isTokenKindFound(T_ARRAY);
+        return $tokens->isTokenKindFound(CT::T_ARRAY_SQUARE_BRACE_OPEN) || $tokens->isTokenKindFound(\T_ARRAY);
     }
 
     /**
@@ -94,7 +94,7 @@ final class MultilineArrayFixer extends AbstractFixer
     /**
      * Apply the fix.
      *
-     * @param Tokens<Token> $tokens
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     protected function applyFix(\SplFileInfo $file, Tokens $tokens): void
     {
@@ -105,17 +105,17 @@ final class MultilineArrayFixer extends AbstractFixer
             $arrayStartIndex = null;
             if ($token->isGivenKind(CT::T_ARRAY_SQUARE_BRACE_OPEN)) {
                 $arrayStartIndex = $index;
-            } elseif ($token->isGivenKind(T_ARRAY) && $tokens[$index + 1]->equals('(')) {
+            } elseif ($token->isGivenKind(\T_ARRAY) && $tokens[$index + 1]->equals('(')) {
                 $arrayStartIndex = $index;
             }
 
-            if ($arrayStartIndex === null) {
+            if (null === $arrayStartIndex) {
                 continue;
             }
 
             $arrayEndIndex = $this->findArrayEnd($tokens, $arrayStartIndex);
 
-            if ($arrayEndIndex === null) {
+            if (null === $arrayEndIndex) {
                 continue;
             }
 
@@ -140,7 +140,7 @@ final class MultilineArrayFixer extends AbstractFixer
     /**
      * Find the end of an array.
      *
-     * @param Tokens<Token> $tokens
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     private function findArrayEnd(Tokens $tokens, int $startIndex): ?int
     {
@@ -153,30 +153,30 @@ final class MultilineArrayFixer extends AbstractFixer
             while ($index < $tokens->count()) {
                 $token = $tokens[$index];
                 if ($token->isGivenKind(CT::T_ARRAY_SQUARE_BRACE_OPEN)) {
-                    $depth++;
+                    ++$depth;
                 } elseif ($token->isGivenKind(CT::T_ARRAY_SQUARE_BRACE_CLOSE)) {
-                    $depth--;
-                    if ($depth === 0) {
+                    --$depth;
+                    if (0 === $depth) {
                         return $index;
                     }
                 }
-                $index++;
+                ++$index;
             }
         }
         // Handle long syntax array()
-        elseif ($token->isGivenKind(T_ARRAY) && $tokens[$startIndex + 1]->equals('(')) {
+        elseif ($token->isGivenKind(\T_ARRAY) && $tokens[$startIndex + 1]->equals('(')) {
             $index = $startIndex + 1; // Start after 'array'
             while ($index < $tokens->count()) {
                 $token = $tokens[$index];
                 if ($token->equals('(')) {
-                    $depth++;
+                    ++$depth;
                 } elseif ($token->equals(')')) {
-                    $depth--;
-                    if ($depth === 0) {
+                    --$depth;
+                    if (0 === $depth) {
                         return $index;
                     }
                 }
-                $index++;
+                ++$index;
             }
         }
 
@@ -186,7 +186,7 @@ final class MultilineArrayFixer extends AbstractFixer
     /**
      * Check if array is already multiline.
      *
-     * @param Tokens<Token> $tokens
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     private function isAlreadyMultiline(Tokens $tokens, int $startIndex, int $endIndex): bool
     {
@@ -202,7 +202,7 @@ final class MultilineArrayFixer extends AbstractFixer
     /**
      * Count array elements.
      *
-     * @param Tokens<Token> $tokens
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     private function countArrayElements(Tokens $tokens, int $startIndex, int $endIndex): int
     {
@@ -212,19 +212,19 @@ final class MultilineArrayFixer extends AbstractFixer
 
         // Skip opening bracket/parenthesis
         $i = $startIndex + 1;
-        if ($startToken->isGivenKind(T_ARRAY) && $tokens[$i]->equals('(')) {
-            $i++; // Skip '('
+        if ($startToken->isGivenKind(\T_ARRAY) && $tokens[$i]->equals('(')) {
+            ++$i; // Skip '('
         }
 
-        for (; $i < $endIndex; $i++) {
+        for (; $i < $endIndex; ++$i) {
             $token = $tokens[$i];
 
-            if ($token->isGivenKind([T_ARRAY, CT::T_ARRAY_SQUARE_BRACE_OPEN]) || $token->equals('(')) {
-                $depth++;
+            if ($token->isGivenKind([\T_ARRAY, CT::T_ARRAY_SQUARE_BRACE_OPEN]) || $token->equals('(')) {
+                ++$depth;
             } elseif ($token->isGivenKind([CT::T_ARRAY_SQUARE_BRACE_CLOSE]) || $token->equals(')')) {
-                $depth--;
-            } elseif ($depth === 0 && $token->equals(',')) {
-                $count++;
+                --$depth;
+            } elseif (0 === $depth && $token->equals(',')) {
+                ++$count;
             }
         }
 
@@ -234,15 +234,15 @@ final class MultilineArrayFixer extends AbstractFixer
     /**
      * Calculate array length.
      *
-     * @param Tokens<Token> $tokens
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     private function calculateArrayLength(Tokens $tokens, int $startIndex, int $endIndex): int
     {
         $length = 0;
 
-        for ($i = $startIndex; $i <= $endIndex; $i++) {
+        for ($i = $startIndex; $i <= $endIndex; ++$i) {
             $token = $tokens[$i];
-            $length += strlen($token->getContent());
+            $length += \strlen($token->getContent());
         }
 
         return $length;
@@ -251,36 +251,36 @@ final class MultilineArrayFixer extends AbstractFixer
     /**
      * Format array as multiline.
      *
-     * @param Tokens<Token> $tokens
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     private function formatMultiline(Tokens $tokens, int $startIndex, int $endIndex): void
     {
         // Insert newline after opening bracket
-        $tokens->insertAt($startIndex + 1, new Token([T_WHITESPACE, "\n    "]));
+        $tokens->insertAt($startIndex + 1, new Token([\T_WHITESPACE, "\n    "]));
 
         // Format each element on a new line
         $depth = 0;
-        for ($i = $startIndex + 2; $i < $endIndex; $i++) {
+        for ($i = $startIndex + 2; $i < $endIndex; ++$i) {
             $token = $tokens[$i];
 
-            if ($token->isGivenKind([T_ARRAY, CT::T_ARRAY_SQUARE_BRACE_OPEN])) {
-                $depth++;
+            if ($token->isGivenKind([\T_ARRAY, CT::T_ARRAY_SQUARE_BRACE_OPEN])) {
+                ++$depth;
             } elseif ($token->isGivenKind([CT::T_ARRAY_SQUARE_BRACE_CLOSE])) {
-                $depth--;
-            } elseif ($depth === 0 && $token->equals(',')) {
+                --$depth;
+            } elseif (0 === $depth && $token->equals(',')) {
                 // Insert newline after comma
                 $nextIndex = $i + 1;
                 if ($nextIndex < $tokens->count() && !$tokens[$nextIndex]->isWhitespace()) {
-                    $tokens->insertAt($nextIndex, new Token([T_WHITESPACE, "\n    "]));
+                    $tokens->insertAt($nextIndex, new Token([\T_WHITESPACE, "\n    "]));
                 } elseif ($nextIndex < $tokens->count()) {
-                    $tokens[$nextIndex] = new Token([T_WHITESPACE, "\n    "]);
+                    $tokens[$nextIndex] = new Token([\T_WHITESPACE, "\n    "]);
                 }
             }
         }
 
         // Insert newline before closing bracket
         if ($endIndex > 0 && !$tokens[$endIndex - 1]->isWhitespace()) {
-            $tokens->insertAt($endIndex, new Token([T_WHITESPACE, "\n"]));
+            $tokens->insertAt($endIndex, new Token([\T_WHITESPACE, "\n"]));
         }
     }
 }

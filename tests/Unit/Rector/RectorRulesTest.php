@@ -9,8 +9,10 @@ use NowoTech\PhpQualityTools\Rector\Rules\RemoveUnusedUseStatementsRector;
 use NowoTech\PhpQualityTools\Rector\Rules\SplitLongConstructorParametersRector;
 use NowoTech\PhpQualityTools\Rector\Rules\SplitLongGroupedImportsRector;
 use NowoTech\PhpQualityTools\Rector\Rules\SplitLongMethodCallRector;
+use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\StaticCall;
+use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
 use PhpParser\Node\Stmt\ClassMethod;
@@ -18,6 +20,7 @@ use PhpParser\Node\Stmt\GroupUse;
 use PhpParser\Node\Stmt\Use_;
 use PhpParser\Node\Stmt\UseUse;
 use PHPUnit\Framework\TestCase;
+use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 /**
  * Tests for custom Rector rules (definition and node types).
@@ -33,7 +36,7 @@ class RectorRulesTest extends TestCase
     {
         $rector = new SplitLongGroupedImportsRector();
         $definition = $rector->getRuleDefinition();
-        $this->assertInstanceOf(\Symplify\RuleDocGenerator\ValueObject\RuleDefinition::class, $definition);
+        $this->assertInstanceOf(RuleDefinition::class, $definition);
         $this->assertSame([Use_::class, GroupUse::class], $rector->getNodeTypes());
     }
 
@@ -41,7 +44,7 @@ class RectorRulesTest extends TestCase
     {
         $rector = new SplitLongConstructorParametersRector();
         $definition = $rector->getRuleDefinition();
-        $this->assertInstanceOf(\Symplify\RuleDocGenerator\ValueObject\RuleDefinition::class, $definition);
+        $this->assertInstanceOf(RuleDefinition::class, $definition);
         $this->assertSame([ClassMethod::class], $rector->getNodeTypes());
     }
 
@@ -49,7 +52,7 @@ class RectorRulesTest extends TestCase
     {
         $rector = new AddMissingReturnTypeRector();
         $definition = $rector->getRuleDefinition();
-        $this->assertInstanceOf(\Symplify\RuleDocGenerator\ValueObject\RuleDefinition::class, $definition);
+        $this->assertInstanceOf(RuleDefinition::class, $definition);
         $this->assertSame([ClassMethod::class], $rector->getNodeTypes());
     }
 
@@ -57,7 +60,7 @@ class RectorRulesTest extends TestCase
     {
         $rector = new SplitLongMethodCallRector();
         $definition = $rector->getRuleDefinition();
-        $this->assertInstanceOf(\Symplify\RuleDocGenerator\ValueObject\RuleDefinition::class, $definition);
+        $this->assertInstanceOf(RuleDefinition::class, $definition);
         $this->assertSame([MethodCall::class, StaticCall::class], $rector->getNodeTypes());
     }
 
@@ -65,7 +68,7 @@ class RectorRulesTest extends TestCase
     {
         $rector = new RemoveUnusedUseStatementsRector();
         $definition = $rector->getRuleDefinition();
-        $this->assertInstanceOf(\Symplify\RuleDocGenerator\ValueObject\RuleDefinition::class, $definition);
+        $this->assertInstanceOf(RuleDefinition::class, $definition);
         $this->assertSame([Use_::class], $rector->getNodeTypes());
     }
 
@@ -129,7 +132,7 @@ class RectorRulesTest extends TestCase
     public function testSplitLongMethodCallRectorRefactorReturnsNullForShortChain(): void
     {
         $rector = new SplitLongMethodCallRector();
-        $var = new \PhpParser\Node\Expr\Variable('this');
+        $var = new Variable('this');
         $methodCall = new MethodCall($var, new Identifier('foo'));
         $result = $rector->refactor($methodCall);
         $this->assertNull($result);
@@ -140,6 +143,6 @@ class RectorRulesTest extends TestCase
         $rector = new RemoveUnusedUseStatementsRector();
         $use = new Use_([new UseUse(new Name('Foo')), new UseUse(new Name('Bar'))]);
         $result = $rector->refactor($use);
-        $this->assertTrue(!$result instanceof \PhpParser\Node || $result instanceof Use_);
+        $this->assertTrue(!$result instanceof Node || $result instanceof Use_);
     }
 }

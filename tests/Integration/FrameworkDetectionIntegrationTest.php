@@ -9,7 +9,6 @@ use Composer\Config;
 use Composer\IO\IOInterface;
 use NowoTech\PhpQualityTools\Plugin;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 
 /**
  * Integration tests for framework detection functionality.
@@ -120,7 +119,7 @@ class FrameworkDetectionIntegrationTest extends TestCase
             'require' => $require,
         ];
 
-        file_put_contents($this->tempComposerJson, json_encode($composerData, JSON_PRETTY_PRINT));
+        file_put_contents($this->tempComposerJson, json_encode($composerData, \JSON_PRETTY_PRINT));
     }
 
     /**
@@ -146,7 +145,7 @@ class FrameworkDetectionIntegrationTest extends TestCase
         $plugin->activate($composer, $io);
 
         // Use reflection to call the private detectFramework method
-        $reflection = new ReflectionClass($plugin);
+        $reflection = new \ReflectionClass($plugin);
         $method = $reflection->getMethod('detectFramework');
 
         return $method->invoke($plugin);

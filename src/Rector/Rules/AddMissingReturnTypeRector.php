@@ -30,10 +30,7 @@ final class AddMissingReturnTypeRector extends AbstractRector
         // @codeCoverageIgnoreStart
         // Check if required dependency is available
         if (!class_exists(RuleDefinition::class)) {
-            throw new \RuntimeException(
-                'Missing dependency: symplify/rule-doc-generator-contracts. ' .
-                'Install it with: composer require --dev symplify/rule-doc-generator-contracts'
-            );
+            throw new \RuntimeException('Missing dependency: symplify/rule-doc-generator-contracts. Install it with: composer require --dev symplify/rule-doc-generator-contracts');
         }
         // @codeCoverageIgnoreEnd
 
@@ -110,13 +107,13 @@ final class AddMissingReturnTypeRector extends AbstractRector
 
         // Try to infer return type from method body
         $returnType = $this->inferReturnType($node);
-        if ($returnType === null) {
+        if (null === $returnType) {
             return null;
         }
 
         // Add return type - only for simple types to avoid errors
         // Complex type inference would require more sophisticated analysis
-        if (in_array(strtolower($returnType), ['string', 'int', 'float', 'bool', 'array', 'void'])) {
+        if (\in_array(strtolower($returnType), ['string', 'int', 'float', 'bool', 'array', 'void'])) {
             $node->returnType = new Node\Name($returnType);
 
             return $node;
@@ -136,7 +133,7 @@ final class AddMissingReturnTypeRector extends AbstractRector
         // This is a basic implementation - more sophisticated analysis could be added
         $stmts = $node->stmts ?? [];
 
-        if ($stmts === []) {
+        if ([] === $stmts) {
             return 'void';
         }
 
@@ -147,20 +144,20 @@ final class AddMissingReturnTypeRector extends AbstractRector
                     $returnTypes[] = 'void';
                 } else {
                     $type = $this->getTypeFromExpression($stmt->expr);
-                    if ($type !== null) {
+                    if (null !== $type) {
                         $returnTypes[] = $type;
                     }
                 }
             }
         }
 
-        if ($returnTypes === []) {
+        if ([] === $returnTypes) {
             return 'void';
         }
 
         // Return the most common type, or mixed if inconsistent
         $uniqueTypes = array_unique($returnTypes);
-        if (count($uniqueTypes) === 1) {
+        if (1 === \count($uniqueTypes)) {
             return reset($uniqueTypes);
         }
 
@@ -175,7 +172,7 @@ final class AddMissingReturnTypeRector extends AbstractRector
     {
         if ($expr instanceof Node\Expr\ConstFetch) {
             $name = $this->getName($expr);
-            if (in_array(strtolower($name ?? ''), ['true', 'false', 'null'])) {
+            if (\in_array(strtolower($name ?? ''), ['true', 'false', 'null'])) {
                 return 'bool';
             }
         }

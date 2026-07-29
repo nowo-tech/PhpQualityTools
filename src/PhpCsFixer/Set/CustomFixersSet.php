@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace NowoTech\PhpQualityTools\PhpCsFixer\Set;
 
+use NowoTech\PhpQualityTools\PhpCsFixer\Rules\ConsistentDocblockFixer;
+use NowoTech\PhpQualityTools\PhpCsFixer\Rules\MultilineArrayFixer;
+use NowoTech\PhpQualityTools\PhpCsFixer\Rules\MultilineGroupedImportsFixer;
+use PhpCsFixer\Fixer\FixerInterface;
+
 /**
- * Custom PHP-CS-Fixer Fixers Set
+ * Custom PHP-CS-Fixer Fixers Set.
  *
  * This class provides a convenient way to include all custom PHP-CS-Fixer fixers
  * from PHP Quality Tools in your PHP-CS-Fixer configuration.
@@ -27,11 +32,11 @@ final class CustomFixersSet
     /**
      * Get all custom PHP-CS-Fixer fixer instances.
      *
-     * @return array<\PhpCsFixer\Fixer\FixerInterface> Array of fixer instances
+     * @return array<FixerInterface> Array of fixer instances
      */
     public static function getFixers(): array
     {
-        return [new \NowoTech\PhpQualityTools\PhpCsFixer\Rules\MultilineGroupedImportsFixer(), new \NowoTech\PhpQualityTools\PhpCsFixer\Rules\MultilineArrayFixer(), new \NowoTech\PhpQualityTools\PhpCsFixer\Rules\ConsistentDocblockFixer()];
+        return [new MultilineGroupedImportsFixer(), new MultilineArrayFixer(), new ConsistentDocblockFixer()];
     }
 
     /**
@@ -51,6 +56,6 @@ final class CustomFixersSet
      */
     public static function hasFixers(): bool
     {
-        return count(self::getFixers()) > 0;
+        return \count(self::getFixers()) > 0;
     }
 }

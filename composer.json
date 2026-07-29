@@ -13,6 +13,7 @@
         "symfony",
         "laravel",
         "php",
+        "composer-plugin",
         "psr-12"
     ],
     "homepage": "https://github.com/nowo-tech/PhpQualityTools",
@@ -22,7 +23,7 @@
     },
     "authors": [
         {
-            "name": "Héctor Franco Aceituno",
+            "name": "H\u00e9ctor Franco Aceituno",
             "email": "hectorfranco@nowo.com",
             "homepage": "https://github.com/HecFranco",
             "role": "Developer"
@@ -39,6 +40,7 @@
     "require-dev": {
         "composer/composer": "^2.0",
         "friendsofphp/php-cs-fixer": "^3.95",
+        "nowo-tech/phpstan-frankenphp": "^1.0",
         "phpstan/phpstan": "^2.0",
         "phpunit/phpunit": "^10.0 || ^11.0",
         "rector/rector": "^2.5",

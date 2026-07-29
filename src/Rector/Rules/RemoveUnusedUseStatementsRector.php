@@ -36,10 +36,7 @@ final class RemoveUnusedUseStatementsRector extends AbstractRector
         // @codeCoverageIgnoreStart
         // Check if required dependency is available
         if (!class_exists(RuleDefinition::class)) {
-            throw new \RuntimeException(
-                'Missing dependency: symplify/rule-doc-generator-contracts. ' .
-                'Install it with: composer require --dev symplify/rule-doc-generator-contracts'
-            );
+            throw new \RuntimeException('Missing dependency: symplify/rule-doc-generator-contracts. Install it with: composer require --dev symplify/rule-doc-generator-contracts');
         }
         // @codeCoverageIgnoreEnd
 
@@ -107,14 +104,14 @@ final class RemoveUnusedUseStatementsRector extends AbstractRector
         // Placeholder branches: isUseUsed() currently always returns true.
         // Kept for future custom logic and intentionally excluded from coverage.
         // If no uses are needed, remove the entire use statement
-        if ($usedUses === []) {
+        if ([] === $usedUses) {
             $this->removeNode($node); // @phpstan-ignore method.notFound
 
             return null;
         }
 
         // If some uses are needed, keep only those
-        if (count($usedUses) < count($node->uses)) {
+        if (\count($usedUses) < \count($node->uses)) {
             $node->uses = $usedUses;
 
             return $node;

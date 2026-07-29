@@ -16,14 +16,14 @@ use Composer\Script\ScriptEvents;
  * Automatically detects the framework and installs appropriate configs.
  * Files are only created on install (composer install), NOT on update (composer update).
  * Existing files are NEVER overwritten.
- * Optionally installs suggested dependencies (Rector, PHP-CS-Fixer, etc.)
+ * Optionally installs suggested dependencies (Rector, PHP-CS-Fixer, etc.).
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
  *
  * @see    https://github.com/HecFranco
  */
-class Plugin implements PluginInterface, EventSubscriberInterface
+final class Plugin implements PluginInterface, EventSubscriberInterface
 {
     /** @var Composer The Composer instance */
     private Composer $composer;
@@ -33,7 +33,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
     /**
      * Framework detection configuration
-     * package => framework name
+     * package => framework name.
      */
     private const FRAMEWORK_PACKAGES = [
         'symfony/framework-bundle' => 'symfony',
@@ -47,7 +47,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     ];
 
     /**
-     * Suggested dependencies by framework
+     * Suggested dependencies by framework.
      */
     private const SUGGESTED_PACKAGES = [
         'generic' => [
@@ -172,7 +172,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     private function detectFramework(): string
     {
         $vendorDir = $this->composer->getConfig()->get('vendor-dir');
-        $projectDir = dirname((string) $vendorDir);
+        $projectDir = \dirname((string) $vendorDir);
         $composerJsonPath = $projectDir . '/composer.json';
 
         if (!file_exists($composerJsonPath)) {
@@ -181,7 +181,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
         $composerJsonContent = file_get_contents($composerJsonPath);
         // @codeCoverageIgnoreStart
-        if ($composerJsonContent === false) {
+        if (false === $composerJsonContent) {
             return 'generic';
         }
         // @codeCoverageIgnoreEnd
@@ -212,7 +212,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         $this->composer->getRepositoryManager();
         $localRepository = $this->composer->getRepositoryManager()->getLocalRepository();
 
-        return $localRepository->findPackage($packageName, '*') !== null;
+        return null !== $localRepository->findPackage($packageName, '*');
     }
 
     /**
@@ -225,7 +225,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         $localRepository = $this->composer->getRepositoryManager()->getLocalRepository();
         $rectorPackage = $localRepository->findPackage('rector/rector', '*');
 
-        if ($rectorPackage === null) {
+        if (null === $rectorPackage) {
             // Default to version 1 if Rector is not installed
             return 1;
         }
@@ -260,11 +260,11 @@ class Plugin implements PluginInterface, EventSubscriberInterface
                 // These packages (rector-symfony, rector-doctrine, rector-phpunit)
                 // are not compatible with Rector 2.x yet
                 // @codeCoverageIgnoreStart
-                if ($rectorVersion >= 2 && in_array($package, [
-                        'rector/rector-symfony',
-                        'rector/rector-doctrine',
-                        'rector/rector-phpunit',
-                    ], true)) {
+                if ($rectorVersion >= 2 && \in_array($package, [
+                    'rector/rector-symfony',
+                    'rector/rector-doctrine',
+                    'rector/rector-phpunit',
+                ], true)) {
                     continue; // Skip these packages for Rector 2.x
                 }
                 // @codeCoverageIgnoreEnd
@@ -274,14 +274,14 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             }
         }
 
-        if ($missingPackages === []) {
+        if ([] === $missingPackages) {
             return;
         }
 
         $io->write('');
         $io->write('<comment>php-quality-tools: Missing suggested dependencies detected:</comment>');
         foreach ($missingPackages as $package => $description) {
-            $io->write(sprintf('  - <info>%s</info>: %s', $package, $description));
+            $io->write(\sprintf('  - <info>%s</info>: %s', $package, $description));
         }
 
         // Build command with correct versions for optional Rector packages
@@ -290,13 +290,13 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         $packagesForMessage = [];
         // @codeCoverageIgnoreStart
         foreach (array_keys($missingPackages) as $package) {
-            if ($package === 'rector/rector-doctrine') {
+            if ('rector/rector-doctrine' === $package) {
                 // rector/rector-doctrine max version is 0.16.0 (compatible with both Rector 1.x and 2.x)
                 $packagesForMessage[] = 'rector/rector-doctrine:^0.16';
-            } elseif ($package === 'rector/rector-symfony') {
+            } elseif ('rector/rector-symfony' === $package) {
                 // rector/rector-symfony max version is 1.1.0 (compatible with both Rector 1.x and 2.x)
                 $packagesForMessage[] = 'rector/rector-symfony:^1.0';
-            } elseif ($package === 'rector/rector-phpunit') {
+            } elseif ('rector/rector-phpunit' === $package) {
                 // rector/rector-phpunit max version is 1.1.0 (compatible with both Rector 1.x and 2.x)
                 $packagesForMessage[] = 'rector/rector-phpunit:^1.0';
             } else {
@@ -344,13 +344,13 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         // Latest versions: rector-symfony:^1.1, rector-doctrine:^0.16, rector-phpunit:^1.1
         $packagesWithVersions = [];
         foreach ($packages as $package) {
-            if ($package === 'rector/rector-doctrine') {
+            if ('rector/rector-doctrine' === $package) {
                 // rector/rector-doctrine max version is 0.16.0 (compatible with both Rector 1.x and 2.x)
                 $packagesWithVersions[] = 'rector/rector-doctrine:^0.16';
-            } elseif ($package === 'rector/rector-symfony') {
+            } elseif ('rector/rector-symfony' === $package) {
                 // rector/rector-symfony max version is 1.1.0 (compatible with both Rector 1.x and 2.x)
                 $packagesWithVersions[] = 'rector/rector-symfony:^1.0';
-            } elseif ($package === 'rector/rector-phpunit') {
+            } elseif ('rector/rector-phpunit' === $package) {
                 // rector/rector-phpunit max version is 1.1.0 (compatible with both Rector 1.x and 2.x)
                 $packagesWithVersions[] = 'rector/rector-phpunit:^1.0';
             } else {
@@ -358,7 +358,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             }
         }
 
-        $command = sprintf(
+        $command = \sprintf(
             '%s require --dev --no-interaction --with-all-dependencies %s',
             escapeshellarg($composerBin),
             implode(' ', array_map(escapeshellarg(...), $packagesWithVersions))
@@ -368,7 +368,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         $returnCode = 0;
         exec($command . ' 2>&1', $output, $returnCode);
 
-        if ($returnCode === 0) {
+        if (0 === $returnCode) {
             $io->write('<info>php-quality-tools: Dependencies installed successfully!</info>');
         } else {
             $io->writeError('<error>php-quality-tools: Failed to install dependencies</error>');
@@ -379,13 +379,13 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             // Latest versions: rector-symfony:^1.1, rector-doctrine:^0.16, rector-phpunit:^1.1
             $packagesWithVersions = [];
             foreach ($packages as $package) {
-                if ($package === 'rector/rector-doctrine') {
+                if ('rector/rector-doctrine' === $package) {
                     // rector/rector-doctrine max version is 0.16.0 (compatible with both Rector 1.x and 2.x)
                     $packagesWithVersions[] = 'rector/rector-doctrine:^0.16';
-                } elseif ($package === 'rector/rector-symfony') {
+                } elseif ('rector/rector-symfony' === $package) {
                     // rector/rector-symfony max version is 1.1.0 (compatible with both Rector 1.x and 2.x)
                     $packagesWithVersions[] = 'rector/rector-symfony:^1.0';
-                } elseif ($package === 'rector/rector-phpunit') {
+                } elseif ('rector/rector-phpunit' === $package) {
                     // rector/rector-phpunit max version is 1.1.0 (compatible with both Rector 1.x and 2.x)
                     $packagesWithVersions[] = 'rector/rector-phpunit:^1.0';
                 } else {
@@ -409,12 +409,12 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     private function installFiles(IOInterface $io): void
     {
         $vendorDir = $this->composer->getConfig()->get('vendor-dir');
-        $projectDir = dirname((string) $vendorDir);
+        $projectDir = \dirname((string) $vendorDir);
         $packageDir = __DIR__ . '/..';
 
         // Detect framework
         $framework = $this->detectFramework();
-        $io->write(sprintf('<info>php-quality-tools: Detected framework: %s</info>', $framework));
+        $io->write(\sprintf('<info>php-quality-tools: Detected framework: %s</info>', $framework));
 
         // Files to install based on framework
         // Priority: framework-specific > generic
@@ -436,22 +436,22 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
             // If file already exists, skip it (never overwrite)
             if (file_exists($destPath)) {
-                $skippedCount++;
+                ++$skippedCount;
                 continue;
             }
 
             // Create the file if it doesn't exist
-            $io->write(sprintf('<info>php-quality-tools: Installing %s</info>', $dest));
+            $io->write(\sprintf('<info>php-quality-tools: Installing %s</info>', $dest));
             copy($sourcePath, $destPath);
-            $installedCount++;
+            ++$installedCount;
         }
 
         if ($installedCount > 0) {
-            $io->write(sprintf('<info>php-quality-tools: Installed %d file(s) for %s</info>', $installedCount, $framework));
+            $io->write(\sprintf('<info>php-quality-tools: Installed %d file(s) for %s</info>', $installedCount, $framework));
         }
 
         if ($skippedCount > 0) {
-            $io->write(sprintf('<comment>php-quality-tools: %d file(s) already exist (not overwritten)</comment>', $skippedCount));
+            $io->write(\sprintf('<comment>php-quality-tools: %d file(s) already exist (not overwritten)</comment>', $skippedCount));
         }
     }
 
@@ -520,7 +520,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
             $files[$twigSource] = '.twig-cs-fixer.php';
             $files[$twigCustomSource] = '.twig-cs-fixer.custom.php';
-        } elseif ($io instanceof IOInterface && in_array($framework, ['symfony', 'generic'])) {
+        } elseif ($io instanceof IOInterface && \in_array($framework, ['symfony', 'generic'])) {
             // Only show message for frameworks that typically use Twig
             $io->write('<comment>php-quality-tools: Twig not detected, skipping Twig-CS-Fixer configuration</comment>');
         }
@@ -559,7 +559,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     private function installComposerScripts(IOInterface $io): void
     {
         $vendorDir = $this->composer->getConfig()->get('vendor-dir');
-        $projectDir = dirname((string) $vendorDir);
+        $projectDir = \dirname((string) $vendorDir);
         $composerJsonPath = $projectDir . '/composer.json';
 
         if (!file_exists($composerJsonPath)) {
@@ -575,7 +575,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         // Read and parse once so read/parse errors are reported before opt-in checks.
         $originalContent = @file_get_contents($composerJsonPath);
         // @codeCoverageIgnoreStart
-        if ($originalContent === false) {
+        if (false === $originalContent) {
             $io->writeError('<error>php-quality-tools: Failed to read composer.json</error>');
 
             return;
@@ -583,7 +583,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         // @codeCoverageIgnoreEnd
 
         $composerJson = json_decode($originalContent, true);
-        if (json_last_error() !== JSON_ERROR_NONE || !is_array($composerJson)) {
+        if (\JSON_ERROR_NONE !== json_last_error() || !\is_array($composerJson)) {
             $io->writeError('<error>php-quality-tools: Failed to parse composer.json</error>');
 
             return;
@@ -613,40 +613,40 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         // Collect new scripts that don't exist yet
         foreach ($scriptsToAdd as $scriptName => $scriptCommand) {
             // Skip if script already exists (use array_key_exists to catch null values too)
-            if (array_key_exists($scriptName, $composerJson['scripts'])) {
-                $existingCount++;
+            if (\array_key_exists($scriptName, $composerJson['scripts'])) {
+                ++$existingCount;
                 continue;
             }
 
             $newScripts[$scriptName] = $scriptCommand;
-            $addedCount++;
+            ++$addedCount;
         }
 
         // Only write if we added new scripts
-        if ($addedCount > 0 && $newScripts !== []) {
+        if ($addedCount > 0 && [] !== $newScripts) {
             // Final safety check: Remove any scripts that somehow already exist
             $finalNewScripts = [];
             foreach ($newScripts as $scriptName => $scriptCommand) {
                 // Double-check it doesn't exist (shouldn't happen, but safety first)
-                if (!array_key_exists($scriptName, $composerJson['scripts'])) {
+                if (!\array_key_exists($scriptName, $composerJson['scripts'])) {
                     $finalNewScripts[$scriptName] = $scriptCommand;
                 } else {
                     // @codeCoverageIgnoreStart
                     // Script already exists, skip it and adjust count
-                    $addedCount--;
+                    --$addedCount;
                     // @codeCoverageIgnoreEnd
                 }
             }
 
             // Only proceed if we still have scripts to add after all checks
-            if ($addedCount > 0 && $finalNewScripts !== []) {
+            if ($addedCount > 0 && [] !== $finalNewScripts) {
                 // Add new scripts at the beginning, preserving existing order
                 $composerJson['scripts'] = array_merge($finalNewScripts, $composerJson['scripts']);
 
                 // Encode JSON with detected indentation
                 $jsonContent = $this->encodeJsonWithIndentation($composerJson, $indent);
                 // @codeCoverageIgnoreStart
-                if ($jsonContent === false) {
+                if (false === $jsonContent) {
                     $io->writeError('<error>php-quality-tools: Failed to encode composer.json</error>');
 
                     return;
@@ -657,19 +657,19 @@ class Plugin implements PluginInterface, EventSubscriberInterface
                 $jsonContent .= "\n";
 
                 // @codeCoverageIgnoreStart
-                if (file_put_contents($composerJsonPath, $jsonContent) === false) {
+                if (false === file_put_contents($composerJsonPath, $jsonContent)) {
                     $io->writeError('<error>php-quality-tools: Failed to write composer.json</error>');
 
                     return;
                 }
                 // @codeCoverageIgnoreEnd
 
-                $io->write(sprintf('<info>php-quality-tools: Added %d script(s) to composer.json</info>', $addedCount));
+                $io->write(\sprintf('<info>php-quality-tools: Added %d script(s) to composer.json</info>', $addedCount));
             }
         }
 
         if ($existingCount > 0) {
-            $io->write(sprintf('<comment>php-quality-tools: %d script(s) already exist in composer.json (not overwritten)</comment>', $existingCount));
+            $io->write(\sprintf('<comment>php-quality-tools: %d script(s) already exist in composer.json (not overwritten)</comment>', $existingCount));
         }
     }
 
@@ -691,12 +691,12 @@ class Plugin implements PluginInterface, EventSubscriberInterface
                 return "\t";
             }
             // Count spaces
-            $spaceCount = strlen($firstIndent);
-            if ($spaceCount === 2) {
+            $spaceCount = \strlen($firstIndent);
+            if (2 === $spaceCount) {
                 return '  ';
             }
             // Default to 4 spaces, but also check for other common values
-            if ($spaceCount === 4) {
+            if (4 === $spaceCount) {
                 return '    ';
             }
 
@@ -719,13 +719,13 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     private function encodeJsonWithIndentation(array $data, string $indent): string|false
     {
         // First encode with standard pretty print (4 spaces)
-        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        if ($json === false) {
+        $json = json_encode($data, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE);
+        if (false === $json) {
             return false;
         }
 
         // If indent is already 4 spaces, we're done
-        if ($indent === '    ') {
+        if ('    ' === $indent) {
             return $json;
         }
 
@@ -741,12 +741,12 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             if (preg_match('/^(\s*)/', $line, $matches)) {
                 $originalIndent = $matches[1];
                 // Count how many 4-space increments we have
-                $level = (int) (strlen($originalIndent) / 4);
+                $level = (int) (\strlen($originalIndent) / 4);
             }
 
             // Rebuild line with new indentation
             $trimmedLine = ltrim($line);
-            if ($trimmedLine === '' || $trimmedLine === '0') {
+            if ('' === $trimmedLine || '0' === $trimmedLine) {
                 $result[] = '';
                 continue;
             }
@@ -786,7 +786,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         }
 
         // Framework-specific scripts
-        if ($framework === 'laravel') {
+        if ('laravel' === $framework) {
             // Laravel Blade is handled by PHP-CS-Fixer, but we can add specific scripts
             $scripts['blade-check'] = 'PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix resources/views --config=.php-cs-fixer.php --dry-run --diff --allow-risky=yes';
             $scripts['blade-fix'] = 'PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix resources/views --config=.php-cs-fixer.php --allow-risky=yes';
@@ -794,7 +794,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
         // Test script (if phpunit is available)
         // Only add if not already present
-        if ($this->isPackageInstalled('phpunit/phpunit') && !array_key_exists('test', $scripts)) { // @phpstan-ignore function.impossibleType
+        if ($this->isPackageInstalled('phpunit/phpunit') && !\array_key_exists('test', $scripts)) { // @phpstan-ignore function.impossibleType
             $scripts['test'] = 'phpunit';
         }
 

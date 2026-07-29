@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NowoTech\PhpQualityTools\Tests;
 
 use NowoTech\PhpQualityTools\PhpCsFixer\Set\CustomFixersSet;
+use PhpCsFixer\Fixer\FixerInterface;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -24,7 +25,7 @@ class CustomFixersSetTest extends TestCase
         $this->assertIsArray($fixers); // @phpstan-ignore method.alreadyNarrowedType
         $this->assertCount(3, $fixers);
         foreach ($fixers as $fixer) {
-            $this->assertInstanceOf(\PhpCsFixer\Fixer\FixerInterface::class, $fixer);
+            $this->assertInstanceOf(FixerInterface::class, $fixer);
         }
     }
 

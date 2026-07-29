@@ -7,10 +7,12 @@ namespace NowoTech\PhpQualityTools\Tests;
 use Composer\Composer;
 use Composer\Config;
 use Composer\IO\IOInterface;
+use Composer\Package\Package;
+use Composer\Repository\InstalledRepositoryInterface;
+use Composer\Repository\RepositoryManager;
 use Composer\Script\Event;
 use NowoTech\PhpQualityTools\Plugin;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 
 /**
  * Tests for Plugin file installation and Composer scripts.
@@ -45,7 +47,7 @@ class PluginInstallationTest extends TestCase
         }
         $items = scandir($dir);
         foreach ($items as $item) {
-            if ($item === '.' || $item === '..') {
+            if ('.' === $item || '..' === $item) {
                 continue;
             }
             $path = $dir . '/' . $item;
@@ -67,9 +69,9 @@ class PluginInstallationTest extends TestCase
         $composer = $this->createMock(Composer::class);
         $config = $this->createMock(Config::class);
         $io = $this->createMock(IOInterface::class);
-        $localRepo = $this->createMock(\Composer\Repository\InstalledRepositoryInterface::class);
+        $localRepo = $this->createMock(InstalledRepositoryInterface::class);
         $localRepo->method('findPackage')->willReturn(null);
-        $repoManager = $this->createMock(\Composer\Repository\RepositoryManager::class);
+        $repoManager = $this->createMock(RepositoryManager::class);
         $repoManager->method('getLocalRepository')->willReturn($localRepo);
 
         $config->method('get')->with('vendor-dir')->willReturn($this->vendorDir);
@@ -85,7 +87,7 @@ class PluginInstallationTest extends TestCase
      */
     private function invokePrivateMethod(Plugin $plugin, string $methodName, array $args = []): mixed
     {
-        $reflection = new ReflectionClass($plugin);
+        $reflection = new \ReflectionClass($plugin);
         $method = $reflection->getMethod($methodName);
 
         return $method->invoke($plugin, ...$args);
@@ -133,11 +135,11 @@ class PluginInstallationTest extends TestCase
         $composer = $this->createMock(Composer::class);
         $config = $this->createMock(Config::class);
         $io = $this->createMock(IOInterface::class);
-        $localRepo = $this->createMock(\Composer\Repository\InstalledRepositoryInterface::class);
-        $repoManager = $this->createMock(\Composer\Repository\RepositoryManager::class);
+        $localRepo = $this->createMock(InstalledRepositoryInterface::class);
+        $repoManager = $this->createMock(RepositoryManager::class);
 
         $localRepo->method('findPackage')
-            ->willReturnCallback(fn (string $name): ?\Composer\Package\Package => $name === 'twig/twig' ? new \Composer\Package\Package('twig/twig', '3.0.0', '3.0.0') : null);
+            ->willReturnCallback(static fn (string $name): ?\Composer\Package\Package => 'twig/twig' === $name ? new Package('twig/twig', '3.0.0', '3.0.0') : null);
         $repoManager->method('getLocalRepository')->willReturn($localRepo);
         $config->method('get')->with('vendor-dir')->willReturn($this->vendorDir);
         $composer->method('getConfig')->willReturn($config);
@@ -173,10 +175,10 @@ class PluginInstallationTest extends TestCase
         $config = $this->createMock(Config::class);
         $config->method('get')->with('vendor-dir')->willReturn($this->vendorDir);
         $composer->method('getConfig')->willReturn($config);
-        $localRepo = $this->createMock(\Composer\Repository\InstalledRepositoryInterface::class);
+        $localRepo = $this->createMock(InstalledRepositoryInterface::class);
         $localRepo->method('findPackage')
-            ->willReturnCallback(fn (string $name): ?\Composer\Package\Package => $name === 'twig/twig' ? new \Composer\Package\Package('twig/twig', '3.0.0', '3.0.0') : null);
-        $repoManager = $this->createMock(\Composer\Repository\RepositoryManager::class);
+            ->willReturnCallback(static fn (string $name): ?\Composer\Package\Package => 'twig/twig' === $name ? new Package('twig/twig', '3.0.0', '3.0.0') : null);
+        $repoManager = $this->createMock(RepositoryManager::class);
         $repoManager->method('getLocalRepository')->willReturn($localRepo);
         $composer->method('getRepositoryManager')->willReturn($repoManager);
         $plugin->activate($composer, $this->createMock(IOInterface::class));
@@ -196,7 +198,7 @@ class PluginInstallationTest extends TestCase
                     'auto_add_scripts' => true,
                 ],
             ],
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        ], \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES);
         $this->assertNotFalse($composerJson);
         $composerJson = str_replace('    ', '  ', $composerJson);
         file_put_contents($this->tempDir . '/composer.json', $composerJson);
@@ -247,7 +249,7 @@ class PluginInstallationTest extends TestCase
                     'auto_add_scripts' => true,
                 ],
             ],
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        ], \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES);
         $this->assertNotFalse($composerJson);
         file_put_contents($this->tempDir . '/composer.json', $composerJson);
 
@@ -302,9 +304,9 @@ class PluginInstallationTest extends TestCase
         $plugin = new Plugin();
         $composer = $this->createMock(Composer::class);
         $config = $this->createMock(Config::class);
-        $localRepo = $this->createMock(\Composer\Repository\InstalledRepositoryInterface::class);
+        $localRepo = $this->createMock(InstalledRepositoryInterface::class);
         $localRepo->method('findPackage')->willReturn(null);
-        $repoManager = $this->createMock(\Composer\Repository\RepositoryManager::class);
+        $repoManager = $this->createMock(RepositoryManager::class);
         $repoManager->method('getLocalRepository')->willReturn($localRepo);
         $config->method('get')->with('vendor-dir')->willReturn($this->vendorDir);
         $composer->method('getConfig')->willReturn($config);
@@ -330,9 +332,9 @@ class PluginInstallationTest extends TestCase
         $plugin = new Plugin();
         $composer = $this->createMock(Composer::class);
         $config = $this->createMock(Config::class);
-        $localRepo = $this->createMock(\Composer\Repository\InstalledRepositoryInterface::class);
+        $localRepo = $this->createMock(InstalledRepositoryInterface::class);
         $localRepo->method('findPackage')->willReturn(null);
-        $repoManager = $this->createMock(\Composer\Repository\RepositoryManager::class);
+        $repoManager = $this->createMock(RepositoryManager::class);
         $repoManager->method('getLocalRepository')->willReturn($localRepo);
         $config->method('get')->with('vendor-dir')->willReturn($this->vendorDir);
         $composer->method('getConfig')->willReturn($config);
@@ -350,7 +352,7 @@ class PluginInstallationTest extends TestCase
     public function testDetectJsonIndentationUnusualSpaces(): void
     {
         $plugin = new Plugin();
-        $reflection = new ReflectionClass($plugin);
+        $reflection = new \ReflectionClass($plugin);
         $method = $reflection->getMethod('detectJsonIndentation');
 
         $json = "{\n   \"name\": \"test\"\n}";
@@ -361,7 +363,7 @@ class PluginInstallationTest extends TestCase
     public function testDetectJsonIndentationTabs(): void
     {
         $plugin = new Plugin();
-        $reflection = new ReflectionClass($plugin);
+        $reflection = new \ReflectionClass($plugin);
         $method = $reflection->getMethod('detectJsonIndentation');
 
         $json = "{\n\t\"name\": \"test\"\n}";
@@ -372,7 +374,7 @@ class PluginInstallationTest extends TestCase
     public function testDetectJsonIndentationTwoSpaces(): void
     {
         $plugin = new Plugin();
-        $reflection = new ReflectionClass($plugin);
+        $reflection = new \ReflectionClass($plugin);
         $method = $reflection->getMethod('detectJsonIndentation');
 
         $json = "{\n  \"name\": \"test\"\n}";
@@ -383,7 +385,7 @@ class PluginInstallationTest extends TestCase
     public function testDetectJsonIndentationFourSpaces(): void
     {
         $plugin = new Plugin();
-        $reflection = new ReflectionClass($plugin);
+        $reflection = new \ReflectionClass($plugin);
         $method = $reflection->getMethod('detectJsonIndentation');
 
         $json = "{\n    \"name\": \"test\"\n}";
@@ -394,7 +396,7 @@ class PluginInstallationTest extends TestCase
     public function testDetectJsonIndentationFallbackWhenNoMatch(): void
     {
         $plugin = new Plugin();
-        $reflection = new ReflectionClass($plugin);
+        $reflection = new \ReflectionClass($plugin);
         $method = $reflection->getMethod('detectJsonIndentation');
 
         $json = '{}';
@@ -405,7 +407,7 @@ class PluginInstallationTest extends TestCase
     public function testEncodeJsonWithIndentationEmptyLineHandling(): void
     {
         $plugin = new Plugin();
-        $reflection = new ReflectionClass($plugin);
+        $reflection = new \ReflectionClass($plugin);
         $method = $reflection->getMethod('encodeJsonWithIndentation');
 
         $data = ['a' => 0, 'b' => 1];
@@ -417,7 +419,7 @@ class PluginInstallationTest extends TestCase
     public function testEncodeJsonWithIndentationFourSpacesReturnsAsIs(): void
     {
         $plugin = new Plugin();
-        $reflection = new ReflectionClass($plugin);
+        $reflection = new \ReflectionClass($plugin);
         $method = $reflection->getMethod('encodeJsonWithIndentation');
 
         $data = ['key' => 'value'];
@@ -456,10 +458,10 @@ class PluginInstallationTest extends TestCase
     public function testEncodeJsonWithIndentationReturnsFalseForInvalidData(): void
     {
         $plugin = new Plugin();
-        $reflection = new ReflectionClass($plugin);
+        $reflection = new \ReflectionClass($plugin);
         $method = $reflection->getMethod('encodeJsonWithIndentation');
 
-        $data = ['valid' => 'ok', 'invalid' => NAN];
+        $data = ['valid' => 'ok', 'invalid' => \NAN];
         $result = $method->invoke($plugin, $data, '  ');
         $this->assertFalse($result);
     }

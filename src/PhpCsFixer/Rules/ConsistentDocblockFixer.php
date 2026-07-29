@@ -75,11 +75,11 @@ final class ConsistentDocblockFixer extends AbstractFixer
     /**
      * Check if the fixer is a candidate for a given token.
      *
-     * @param Tokens<Token> $tokens
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     public function isCandidate(Tokens $tokens): bool
     {
-        return $tokens->isTokenKindFound(T_DOC_COMMENT);
+        return $tokens->isTokenKindFound(\T_DOC_COMMENT);
     }
 
     /**
@@ -93,14 +93,14 @@ final class ConsistentDocblockFixer extends AbstractFixer
     /**
      * Apply the fix.
      *
-     * @param Tokens<Token> $tokens
+     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
      */
     protected function applyFix(\SplFileInfo $file, Tokens $tokens): void
     {
         for ($index = $tokens->count() - 1; $index > 0; --$index) {
             $token = $tokens[$index];
 
-            if (!$token->isGivenKind(T_DOC_COMMENT)) {
+            if (!$token->isGivenKind(\T_DOC_COMMENT)) {
                 continue;
             }
 
@@ -108,7 +108,7 @@ final class ConsistentDocblockFixer extends AbstractFixer
             $formatted = $this->formatDocblock($content);
 
             if ($formatted !== $content) {
-                $tokens[$index] = new Token([T_DOC_COMMENT, $formatted]);
+                $tokens[$index] = new Token([\T_DOC_COMMENT, $formatted]);
             }
         }
     }
@@ -135,7 +135,7 @@ final class ConsistentDocblockFixer extends AbstractFixer
 
             // Skip empty lines at start/end
             // @codeCoverageIgnoreStart
-            if (($line === '' || $line === '0') && ($formatted === [] || end($formatted) === ' */')) {
+            if (('' === $line || '0' === $line) && ([] === $formatted || ' */' === end($formatted))) {
                 continue;
             }
             // @codeCoverageIgnoreEnd
@@ -148,7 +148,7 @@ final class ConsistentDocblockFixer extends AbstractFixer
             } elseif (str_starts_with($line, ' */')) {
                 // @codeCoverageIgnoreStart
                 $formatted[] = ' */';
-                // @codeCoverageIgnoreEnd
+            // @codeCoverageIgnoreEnd
             } else {
                 // Add * prefix if missing
                 $formatted[] = ' * ' . ltrim($line, ' *');
