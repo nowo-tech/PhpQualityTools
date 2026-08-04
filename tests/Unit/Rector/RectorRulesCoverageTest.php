@@ -31,6 +31,7 @@ use PhpParser\Node\Stmt\Return_;
 use PhpParser\Node\Stmt\Use_;
 use PhpParser\Node\Stmt\UseUse;
 use PHPStan\Reflection\ReflectionProvider;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Rector\CodingStyle\Naming\ClassNaming;
 use Rector\NodeAnalyzer\CallAnalyzer;
@@ -51,7 +52,7 @@ final class RectorRulesCoverageTest extends TestCase
 
     private function initializeNodeNameResolver(object $rector): void
     {
-        /** @var ReflectionProvider&\PHPUnit\Framework\MockObject\MockObject $reflectionProvider */
+        /** @var ReflectionProvider&MockObject $reflectionProvider */
         $reflectionProvider = $this->createMock(ReflectionProvider::class);
         $nodeNameResolver = new NodeNameResolver(
             new ClassNaming(),

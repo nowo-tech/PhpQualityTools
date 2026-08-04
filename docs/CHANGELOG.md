@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.0.15] - 2026-08-04](#1015-2026-08-04)
 - [[1.0.14] - 2026-07-29](#1014-2026-07-29)
   - [Added](#added)
   - [Changed](#changed)
@@ -63,6 +64,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [1.0.15] - 2026-08-04
+
+### Fixed
+- **CI:** apply php-cs-fixer 3.95 style on PhpCsFixer rules + Rector coverage test; skip `AddParamTypeSplFixedArrayRector` (conflicts with `fully_qualified_strict_types`).
+
+[1.0.15]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.0.15
 
 ## [1.0.14] - 2026-07-29
 

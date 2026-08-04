@@ -12,6 +12,7 @@ This guide helps you upgrade between versions of PHP Quality Tools.
   - [4. Check for Missing Dependencies](#4-check-for-missing-dependencies)
   - [5. Review Changelog](#5-review-changelog)
 - [Version-Specific Upgrade Notes](#version-specific-upgrade-notes)
+  - [Upgrading to 1.0.15](#upgrading-to-1015)
   - [Upgrading to 1.0.14](#upgrading-to-1014)
   - [Upgrading to 1.0.13](#upgrading-to-1013)
   - [Upgrading to 1.0.12](#upgrading-to-1012)
@@ -116,6 +117,14 @@ Always check [CHANGELOG.md](CHANGELOG.md) for:
 - Deprecations
 
 ## Version-Specific Upgrade Notes
+
+### Upgrading to 1.0.15
+
+**No action required** for typical consumers — CS-only fixes on PhpCsFixer custom rules and a Rector coverage test import style. Continue requiring `nowo-tech/php-quality-tools: ^1.0`.
+
+```bash
+composer update nowo-tech/php-quality-tools
+```
 
 ### Upgrading to 1.0.14
 

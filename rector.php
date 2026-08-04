@@ -14,4 +14,8 @@ return RectorConfig::configure()
         deadCode: true,
         codeQuality: true,
         typeDeclarations: true
-    );
+    )
+    // Conflicts with php-cs-fixer fully_qualified_strict_types (short Tokens<Token> vs FQCN).
+    ->withSkip([
+        Rector\TypeDeclaration\Rector\FunctionLike\AddParamTypeSplFixedArrayRector::class,
+    ]);

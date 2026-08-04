@@ -75,7 +75,7 @@ final class ConsistentDocblockFixer extends AbstractFixer
     /**
      * Check if the fixer is a candidate for a given token.
      *
-     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
+     * @param Tokens<Token> $tokens
      */
     public function isCandidate(Tokens $tokens): bool
     {
@@ -93,7 +93,7 @@ final class ConsistentDocblockFixer extends AbstractFixer
     /**
      * Apply the fix.
      *
-     * @param \PhpCsFixer\Tokenizer\Tokens<\PhpCsFixer\Tokenizer\Token> $tokens
+     * @param Tokens<Token> $tokens
      */
     protected function applyFix(\SplFileInfo $file, Tokens $tokens): void
     {
