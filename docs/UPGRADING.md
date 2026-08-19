@@ -118,6 +118,14 @@ Always check [CHANGELOG.md](CHANGELOG.md) for:
 
 ## Version-Specific Upgrade Notes
 
+### Upgrading to 1.0.16
+
+**No action required** for typical consumers. CI runs `composer audit --locked`; dev dependency bumps only.
+
+```bash
+composer update nowo-tech/php-quality-tools
+```
+
 ### Upgrading to 1.0.15
 
 **No action required** for typical consumers — CS-only fixes on PhpCsFixer custom rules and a Rector coverage test import style. Continue requiring `nowo-tech/php-quality-tools: ^1.0`.

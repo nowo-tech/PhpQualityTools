@@ -65,6 +65,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.16] - 2026-08-19
+
+### Security
+
+- **CI:** run `composer audit --locked` after dependency install (REQ-SEC / P3).
+
+### Changed
+
+- **Dependencies (dev):** `rector/rector` 2.6.2, `nowo-tech/phpstan-frankenphp` 1.1.0, `phpstan/phpstan` group bump.
+
 ## [1.0.15] - 2026-08-04
 
 ### Fixed
