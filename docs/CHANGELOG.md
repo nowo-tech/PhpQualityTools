@@ -65,6 +65,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+## [1.0.17] - 2026-08-24
+
+### Changed
+
+- Raise minimum PHP to **8.2** and sync README badge (REQ-SF-001).
+- **QA:** add `phpstan-frankenphp` extension (REQ-CS-005).
+- **Docs:** PHP-FIG PSR evaluation (REQ-CS-007).
+
+### Notes
+
+- **No API or configuration changes** for integrators unless noted above.
+
+[1.0.17]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.0.17
+
 ## [1.0.16] - 2026-08-19
 
 ### Security
