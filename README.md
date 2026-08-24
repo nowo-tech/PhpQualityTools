@@ -1,6 +1,6 @@
 # PHP Quality Tools
 
-[![CI](https://github.com/nowo-tech/PhpQualityTools/actions/workflows/ci.yml/badge.svg)](https://github.com/nowo-tech/PhpQualityTools/actions/workflows/ci.yml) [![Packagist Version](https://img.shields.io/packagist/v/nowo-tech/php-quality-tools.svg?style=flat)](https://packagist.org/packages/nowo-tech/php-quality-tools) [![Packagist Downloads](https://img.shields.io/packagist/dt/nowo-tech/php-quality-tools.svg)](https://packagist.org/packages/nowo-tech/php-quality-tools) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![PHP](https://img.shields.io/badge/PHP-8.1%2B-777BB4?logo=php)](https://php.net) [![Symfony](https://img.shields.io/badge/Symfony-6.0%2B%20%7C%207.4%2B%20%7C%208.0%20%7C%208.1%2B-000000?logo=symfony)](https://symfony.com)
+[![CI](https://github.com/nowo-tech/PhpQualityTools/actions/workflows/ci.yml/badge.svg)](https://github.com/nowo-tech/PhpQualityTools/actions/workflows/ci.yml) [![Packagist Version](https://img.shields.io/packagist/v/nowo-tech/php-quality-tools.svg?style=flat)](https://packagist.org/packages/nowo-tech/php-quality-tools) [![Packagist Downloads](https://img.shields.io/packagist/dt/nowo-tech/php-quality-tools.svg)](https://packagist.org/packages/nowo-tech/php-quality-tools) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4?logo=php)](https://php.net) [![Symfony](https://img.shields.io/badge/Symfony-6.0%2B%20%7C%207.4%2B%20%7C%208.0%20%7C%208.1%2B-000000?logo=symfony)](https://symfony.com)
 
 > ⭐ **Found this useful?** Give it a star on GitHub! It helps us maintain and improve the project.
 
@@ -21,7 +21,7 @@ This bundle is **FrankenPHP worker mode friendly**.
 - ✅ Customizable without losing base settings
 - ✅ Files are **NEVER overwritten** after first install
 - ✅ Separate `*.custom.php` files for project-specific settings
-- ✅ PHP 8.1+ support
+- ✅ PHP 8.2+ support
 - ✅ PSR-12 and Symfony coding standards
 
 ## Installation
