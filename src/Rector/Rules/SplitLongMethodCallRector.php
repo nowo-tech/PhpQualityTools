@@ -159,7 +159,7 @@ final class SplitLongMethodCallRector extends AbstractRector
     /**
      * Calculate approximate length of arguments.
      *
-     * @param array<Node\Arg|Node\VariadicPlaceholder> $args
+     * @param array<Node\Arg|Node\ArgPlaceholder|Node\VariadicPlaceholder> $args
      */
     private function calculateArgumentsLength(array $args): int
     {
