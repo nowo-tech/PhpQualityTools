@@ -1,7 +1,7 @@
 # Makefile for PHP Quality Tools
 # Simplifies Docker commands for development
 
-.PHONY: help ensure-up up down down-dev build shell install assets test test-coverage cs-check cs-fix rector rector-dry phpstan qa release-check composer-sync clean update validate setup-hooks check-no-cursor-coauthor strip-cursor-coauthor-from-history
+.PHONY: help ensure-up up down down-dev build shell install assets test test-coverage cs-check cs-fix rector rector-dry phpstan igor qa release-check composer-sync clean update validate setup-hooks check-no-cursor-coauthor strip-cursor-coauthor-from-history
 
 COMPOSER_BIN := /usr/bin/composer
 # Prefer Compose V2 plugin (GitHub Actions / modern Docker Desktop); fall back to docker-compose V1 (REQ-MAKE-010).
@@ -29,6 +29,7 @@ help:
 	@echo "  rector        Apply Rector refactoring"
 	@echo "  rector-dry    Run Rector in dry-run mode"
 	@echo "  phpstan       Run PHPStan static analysis"
+	@echo "  igor          Run Igor worker-state audit (REQ-CS-008)"
 	@echo "  qa            Run all QA checks (cs-check + test)"
 	@echo "  release-check Run full pre-release validation chain"
 	@echo "  composer-sync Validate composer and sync lock"
@@ -115,6 +116,10 @@ composer-sync: ensure-up
 	$(COMPOSE) exec -T php $(COMPOSER_BIN) update --lock --no-interaction --no-install
 
 # Full pre-release chain
+
+# Run Igor worker-state audit (REQ-CS-008)
+igor: ensure-up
+	$(COMPOSE) exec -T php composer igor
 release-check: check-no-cursor-coauthor
 	@$(MAKE) ensure-up
 	@$(MAKE) composer-sync

@@ -40,6 +40,7 @@
     "require-dev": {
         "composer/composer": "^2.0",
         "friendsofphp/php-cs-fixer": "^3.95",
+        "igor-php/igor-php": "^0.9.7",
         "nowo-tech/phpstan-frankenphp": "^1.0",
         "phpstan/phpstan": "^2.0",
         "phpunit/phpunit": "^10.0 || ^11.0",
@@ -90,7 +91,8 @@
         "qa": [
             "@cs-check",
             "@test"
-        ]
+        ],
+        "igor": "igor-php --no-agent ."
     },
     "scripts-descriptions": {
         "test": "Run PHPUnit tests",
@@ -100,7 +102,8 @@
         "rector": "Apply Rector refactoring",
         "rector-dry": "Run Rector in dry-run mode",
         "phpstan": "Run PHPStan static analysis",
-        "qa": "Run all quality assurance checks"
+        "qa": "Run all quality assurance checks",
+        "igor": "Run Igor FrankenPHP worker-state audit (REQ-CS-008)"
     },
     "config": {
         "platform": {
