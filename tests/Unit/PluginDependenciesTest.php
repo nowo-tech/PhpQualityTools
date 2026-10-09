@@ -11,6 +11,7 @@ use Composer\Package\Package;
 use Composer\Repository\InstalledRepositoryInterface;
 use Composer\Repository\RepositoryManager;
 use NowoTech\PhpQualityTools\Plugin;
+use NowoTech\PhpQualityTools\Tests\Support\RecordingCommandRunner;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -29,8 +30,8 @@ class PluginDependenciesTest extends TestCase
         $composer = $this->createMock(Composer::class);
         $config = $this->createMock(Config::class);
         $config->method('get')->willReturnMap([
-            ['vendor-dir', null, '/tmp/vendor'],
-            ['bin-dir', null, '/tmp/vendor/bin'],
+            ['vendor-dir', 0, '/tmp/vendor'],
+            ['bin-dir', 0, '/tmp/vendor/bin'],
         ]);
         $composer->method('getConfig')->willReturn($config);
 
@@ -151,9 +152,12 @@ class PluginDependenciesTest extends TestCase
         $io->expects($this->atLeastOnce())->method('write');
         $io->expects($this->never())->method('askConfirmation');
 
-        $plugin = new Plugin();
+        $runner = new RecordingCommandRunner();
+        $plugin = new Plugin($runner);
         $plugin->activate($this->createComposerMock($localRepo), $io);
         $this->invokePrivateMethod($plugin, 'checkAndInstallDependencies', [$io]);
+
+        $this->assertSame([], $runner->commands);
     }
 
     public function testCheckAndInstallDependenciesInteractiveNoSkipsInstall(): void
@@ -165,9 +169,12 @@ class PluginDependenciesTest extends TestCase
         $io->method('askConfirmation')->willReturn(false);
         $io->expects($this->atLeastOnce())->method('write');
 
-        $plugin = new Plugin();
+        $runner = new RecordingCommandRunner();
+        $plugin = new Plugin($runner);
         $plugin->activate($this->createComposerMock($localRepo), $io);
         $this->invokePrivateMethod($plugin, 'checkAndInstallDependencies', [$io]);
+
+        $this->assertSame([], $runner->commands);
     }
 
     public function testInstallComposerScriptsWhenComposerJsonMissing(): void
@@ -215,47 +222,111 @@ class PluginDependenciesTest extends TestCase
         rmdir($tempDir);
     }
 
-    public function testInstallDependenciesFailureWritesError(): void
+    private function createPluginWithBinDir(RecordingCommandRunner $runner, string $binDir = '/nonexistent-bin'): Plugin
     {
-        $plugin = new Plugin();
+        $plugin = new Plugin($runner);
         $config = $this->createMock(Config::class);
         $config->method('get')->willReturnMap([
-            ['vendor-dir', null, '/tmp/vendor'],
-            ['bin-dir', null, '/nonexistent-bin'],
+            ['vendor-dir', 0, '/tmp/vendor'],
+            ['bin-dir', 0, $binDir],
         ]);
         $composer = $this->createMock(Composer::class);
         $composer->method('getConfig')->willReturn($config);
         $plugin->activate($composer, $this->createMock(IOInterface::class));
 
-        $io = $this->createMock(IOInterface::class);
-        $io->expects($this->atLeastOnce())->method('writeError')->with($this->logicalOr(
-            $this->stringContains('Failed to install'),
-            $this->stringContains('error>')
-        ));
+        return $plugin;
+    }
 
-        $this->invokePrivateMethod($plugin, 'installDependencies', [$io, ['invalid/package-that-does-not-exist-xyz']]);
+    public function testInstallDependenciesFailureWritesError(): void
+    {
+        $runner = new RecordingCommandRunner(1, ['Could not find package invalid/package']);
+        $plugin = $this->createPluginWithBinDir($runner);
+
+        $errors = [];
+        $io = $this->createMock(IOInterface::class);
+        $io->method('writeError')->willReturnCallback(static function (string $message) use (&$errors): void {
+            $errors[] = $message;
+        });
+
+        $this->invokePrivateMethod($plugin, 'installDependencies', [$io, ['invalid/package', 'rector/rector-doctrine']]);
+
+        $this->assertCount(1, $runner->commands);
+        $this->assertSame([
+            '<error>php-quality-tools: Failed to install dependencies</error>',
+            '<error>php-quality-tools: Output: Could not find package invalid/package</error>',
+            '<error>php-quality-tools: Please install manually: composer require --dev --with-all-dependencies invalid/package rector/rector-doctrine:^0.16</error>',
+        ], $errors);
+    }
+
+    public function testInstallDependenciesSuccessWritesSuccessMessage(): void
+    {
+        $runner = new RecordingCommandRunner(0);
+        $plugin = $this->createPluginWithBinDir($runner);
+
+        $writes = [];
+        $io = $this->createMock(IOInterface::class);
+        $io->expects($this->never())->method('writeError');
+        $io->method('write')->willReturnCallback(static function (string $message) use (&$writes): void {
+            $writes[] = $message;
+        });
+
+        $this->invokePrivateMethod($plugin, 'installDependencies', [$io, ['rector/rector']]);
+
+        $this->assertSame([
+            '<info>php-quality-tools: Installing dependencies...</info>',
+            '<info>php-quality-tools: Dependencies installed successfully!</info>',
+        ], $writes);
     }
 
     public function testInstallDependenciesBuildsCorrectVersionForOptionalRectorPackages(): void
     {
-        $plugin = new Plugin();
-        $config = $this->createMock(Config::class);
-        $config->method('get')->willReturnMap([
-            ['vendor-dir', null, '/tmp/vendor'],
-            ['bin-dir', null, '/nonexistent-bin'],
-        ]);
-        $composer = $this->createMock(Composer::class);
-        $composer->method('getConfig')->willReturn($config);
-        $plugin->activate($composer, $this->createMock(IOInterface::class));
-
-        $io = $this->createMock(IOInterface::class);
-        $io->expects($this->atLeastOnce())->method('write');
-        $io->expects($this->atLeastOnce())->method('writeError');
+        $runner = new RecordingCommandRunner(0);
+        $plugin = $this->createPluginWithBinDir($runner);
 
         $this->invokePrivateMethod($plugin, 'installDependencies', [
-            $io,
+            $this->createMock(IOInterface::class),
             ['rector/rector-doctrine', 'rector/rector-symfony', 'rector/rector-phpunit', 'friendsofphp/php-cs-fixer'],
         ]);
+
+        $this->assertSame(
+            ["'composer' require --dev --no-interaction --with-all-dependencies 'rector/rector-doctrine:^0.16' 'rector/rector-symfony:^1.0' 'rector/rector-phpunit:^1.0' 'friendsofphp/php-cs-fixer'"],
+            $runner->commands
+        );
+    }
+
+    public function testInstallDependenciesUsesComposerFromBinDirWhenPresent(): void
+    {
+        $binDir = sys_get_temp_dir() . '/phpqt-bin-' . uniqid();
+        mkdir($binDir, 0o777, true);
+        touch($binDir . '/composer');
+
+        try {
+            $runner = new RecordingCommandRunner(0);
+            $plugin = $this->createPluginWithBinDir($runner, $binDir);
+
+            $this->invokePrivateMethod($plugin, 'installDependencies', [$this->createMock(IOInterface::class), ['rector/rector']]);
+
+            $this->assertSame(
+                [escapeshellarg($binDir . '/composer') . " require --dev --no-interaction --with-all-dependencies 'rector/rector'"],
+                $runner->commands
+            );
+        } finally {
+            unlink($binDir . '/composer');
+            rmdir($binDir);
+        }
+    }
+
+    public function testInstallDependenciesEscapesPackageArguments(): void
+    {
+        $runner = new RecordingCommandRunner(0);
+        $plugin = $this->createPluginWithBinDir($runner);
+
+        $this->invokePrivateMethod($plugin, 'installDependencies', [$this->createMock(IOInterface::class), ['evil/pkg; rm -rf /']]);
+
+        $this->assertSame(
+            ["'composer' require --dev --no-interaction --with-all-dependencies 'evil/pkg; rm -rf /'"],
+            $runner->commands
+        );
     }
 
     public function testCheckAndInstallDependenciesSkipsOptionalRectorPackagesWhenRector2(): void
@@ -338,7 +409,7 @@ class PluginDependenciesTest extends TestCase
         rmdir($tempDir);
     }
 
-    public function testCheckAndInstallDependenciesInteractiveYesTriggersInstallAttempt(): void
+    public function testCheckAndInstallDependenciesInteractiveYesRunsComposerRequire(): void
     {
         $tempDir = sys_get_temp_dir() . '/phpqt-install-yes-' . uniqid();
         mkdir($tempDir, 0o777, true);
@@ -354,8 +425,8 @@ class PluginDependenciesTest extends TestCase
         $composer = $this->createMock(Composer::class);
         $config = $this->createMock(Config::class);
         $config->method('get')->willReturnMap([
-            ['vendor-dir', null, $tempDir . '/vendor'],
-            ['bin-dir', null, '/nonexistent-bin'],
+            ['vendor-dir', 0, $tempDir . '/vendor'],
+            ['bin-dir', 0, '/nonexistent-bin'],
         ]);
         $composer->method('getConfig')->willReturn($config);
         $repoManager = $this->createMock(RepositoryManager::class);
@@ -367,10 +438,15 @@ class PluginDependenciesTest extends TestCase
         $io->method('askConfirmation')->willReturn(true);
         $io->expects($this->atLeastOnce())->method('write');
 
-        $plugin = new Plugin();
+        $runner = new RecordingCommandRunner(0);
+        $plugin = new Plugin($runner);
         $plugin->activate($composer, $io);
         $this->invokePrivateMethod($plugin, 'checkAndInstallDependencies', [$io]);
-        $this->addToAssertionCount(1);
+
+        $this->assertSame(
+            ["'composer' require --dev --no-interaction --with-all-dependencies 'rector/rector' 'rector/rector-symfony:^1.0' 'rector/rector-doctrine:^0.16' 'rector/rector-phpunit:^1.0' 'friendsofphp/php-cs-fixer' 'vincentlanglet/twig-cs-fixer'"],
+            $runner->commands
+        );
 
         unlink($tempDir . '/composer.json');
         rmdir($tempDir . '/vendor');
@@ -393,8 +469,8 @@ class PluginDependenciesTest extends TestCase
         $composer = $this->createMock(Composer::class);
         $config = $this->createMock(Config::class);
         $config->method('get')->willReturnMap([
-            ['vendor-dir', null, $tempDir . '/vendor'],
-            ['bin-dir', null, '/tmp/vendor/bin'],
+            ['vendor-dir', 0, $tempDir . '/vendor'],
+            ['bin-dir', 0, '/tmp/vendor/bin'],
         ]);
         $composer->method('getConfig')->willReturn($config);
         $repoManager = $this->createMock(RepositoryManager::class);
@@ -442,8 +518,8 @@ class PluginDependenciesTest extends TestCase
         $composer = $this->createMock(Composer::class);
         $config = $this->createMock(Config::class);
         $config->method('get')->willReturnMap([
-            ['vendor-dir', null, $tempDir . '/vendor'],
-            ['bin-dir', null, '/tmp/vendor/bin'],
+            ['vendor-dir', 0, $tempDir . '/vendor'],
+            ['bin-dir', 0, '/tmp/vendor/bin'],
         ]);
         $composer->method('getConfig')->willReturn($config);
         $repoManager = $this->createMock(RepositoryManager::class);

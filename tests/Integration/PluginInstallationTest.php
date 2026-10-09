@@ -12,6 +12,7 @@ use Composer\Repository\InstalledRepositoryInterface;
 use Composer\Repository\RepositoryManager;
 use Composer\Script\Event;
 use NowoTech\PhpQualityTools\Plugin;
+use NowoTech\PhpQualityTools\Tests\Support\RecordingCommandRunner;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -301,7 +302,8 @@ class PluginInstallationTest extends TestCase
         $io->method('isInteractive')->willReturn(true);
         $io->method('askConfirmation')->willReturn(false);
 
-        $plugin = new Plugin();
+        $runner = new RecordingCommandRunner();
+        $plugin = new Plugin($runner);
         $composer = $this->createMock(Composer::class);
         $config = $this->createMock(Config::class);
         $localRepo = $this->createMock(InstalledRepositoryInterface::class);
@@ -319,6 +321,7 @@ class PluginInstallationTest extends TestCase
         $plugin->onPostUpdate($event);
 
         $this->assertFileExists($this->tempDir . '/.rector.php');
+        $this->assertSame([], $runner->commands);
     }
 
     public function testOnPostUpdateSkipsCheckDependenciesWhenNonInteractive(): void
