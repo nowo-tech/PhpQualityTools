@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.0.20] - 2026-10-09](#1020-2026-10-09)
 - [[1.0.19] - 2026-10-09](#1019-2026-10-09)
 - [[1.0.18] - 2026-09-27](#1018-2026-09-27)
 - [[1.0.15] - 2026-08-04](#1015-2026-08-04)
@@ -66,6 +67,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [1.0.20] - 2026-10-09
+
+### Fixed
+
+- **CI:** `rector/rector` require-dev constraint set to `^2.7` so `composer.json` matches the committed `composer.lock` content-hash (`composer validate --strict` failed on 1.0.19).
+
+[1.0.20]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.0.20
 
 ## [1.0.19] - 2026-10-09
 
