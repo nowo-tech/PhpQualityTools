@@ -3,6 +3,16 @@
 
 ## Unreleased
 
+## To 1.0.21
+
+From **1.0.20** — test-suite isolation (no real `composer require` against the repo) and internal command-runner refactor.
+
+```bash
+composer update nowo-tech/php-quality-tools
+```
+
+- No breaking changes. No application upgrade steps. `Process\CommandRunnerInterface` / `ExecCommandRunner` are `@internal`; the plugin's behaviour and messages are unchanged.
+
 ## To 1.0.20
 
 From **1.0.19** — dev-only lock/constraint sync.
@@ -40,6 +50,7 @@ This guide helps you upgrade between versions of PHP Quality Tools.
 ## Table of contents
 
 
+- [To 1.0.21](#to-1021)
 - [To 1.0.20](#to-1020)
 - [To 1.0.19](#to-1019)
 - [From 1.0.16 to 1.0.17](#from-1016-to-1017)

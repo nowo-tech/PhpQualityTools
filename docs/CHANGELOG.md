@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.0.21] - 2026-10-09](#1021-2026-10-09)
 - [[1.0.20] - 2026-10-09](#1020-2026-10-09)
 - [[1.0.19] - 2026-10-09](#1019-2026-10-09)
 - [[1.0.18] - 2026-09-27](#1018-2026-09-27)
@@ -67,6 +68,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [1.0.21] - 2026-10-09
+
+### Fixed
+
+- **Tests:** the PHPUnit suite no longer runs a real `composer require --dev --with-all-dependencies …` in the repository root. Several dependency-installation tests used to spawn Composer against this package's own `composer.json` / `composer.lock` (network access, ~45 s, and a successful resolution rewrote the files — the root cause of 1.0.19 shipping a `composer.json` out of sync with `composer.lock`).
+- **Tests:** `Composer\Config::get()` mock maps used `null` instead of the default flags (`0`), so `vendor-dir` / `bin-dir` silently resolved to `null` and temp-dir fixtures were never read.
+
+### Changed
+
+- **Plugin (internal):** `installDependencies()` now delegates execution to an internal `Process\CommandRunnerInterface` (default `Process\ExecCommandRunner`, same `exec()` + `2>&1` behaviour). `Plugin` accepts an optional runner in its constructor; Composer still instantiates it without arguments. The executed command and console messages are unchanged.
+- **Plugin (internal):** Rector optional-package constraint mapping (`rector-doctrine:^0.16`, `rector-symfony:^1.0`, `rector-phpunit:^1.0`) deduplicated into one helper; Rector `IfToNullCoalescingAssignRector` applied.
+
+### Added
+
+- **Tests:** `Tests\Support\RecordingCommandRunner` (asserts the exact escaped `composer require` command) and `Tests\Support\RepositoryIntegrityExtension` (PHPUnit extension: exits 1 if the suite modifies `composer.json` / `composer.lock`).
+- **CI:** coverage job runs `git diff --exit-code -- composer.json composer.lock` after the suite.
+
+[1.0.21]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.0.21
 
 ## [1.0.20] - 2026-10-09
 
