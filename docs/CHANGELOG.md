@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.0.19] - 2026-10-09](#1019-2026-10-09)
 - [[1.0.18] - 2026-09-27](#1018-2026-09-27)
 - [[1.0.15] - 2026-08-04](#1015-2026-08-04)
 - [[1.0.14] - 2026-07-29](#1014-2026-07-29)
@@ -65,6 +66,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [1.0.19] - 2026-10-09
+
+### Fixed
+
+- **PHPStan 2:** `SplitLongMethodCallRector::calculateArgumentsLength()` docblock accepts `Node\ArgPlaceholder` (PHP-Parser 5 / PHPStan 2 `MethodCall::$args` type).
+
+### Changed
+
+- **CI:** GitHub Actions bumped (`actions/cache` v6, `actions/github-script` v9, `actions/stale` v11).
+
+### Dependencies
+
+- `igor-php/igor-php` require-dev constraint bumped to `^0.10.0`; `nowo-tech/phpstan-frankenphp` 1.2.x Dependabot bumps.
+- Dev lock refreshed: Symfony 7.4.20, PHPStan 2.3.1, Rector 2.7.0, PHPUnit 11.5.57, `nowo-tech/phpstan-frankenphp` 1.2.3.
+
+[1.0.19]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.0.19
 
 ## [1.0.18] - 2026-09-27
 

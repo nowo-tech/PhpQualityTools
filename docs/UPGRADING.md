@@ -3,6 +3,16 @@
 
 ## Unreleased
 
+## To 1.0.19
+
+From **1.0.18** — PHPStan 2 docblock fix and dependency refresh.
+
+```bash
+composer update nowo-tech/php-quality-tools
+```
+
+- No breaking changes. No application upgrade steps.
+
 ## To 1.0.18
 
 From **1.0.17** — REQ-CS-008 Igor FrankenPHP worker audit (igor-php require-dev, igor.json, make igor).
@@ -20,6 +30,7 @@ This guide helps you upgrade between versions of PHP Quality Tools.
 ## Table of contents
 
 
+- [To 1.0.19](#to-1019)
 - [From 1.0.16 to 1.0.17](#from-1016-to-1017)
 - [General Upgrade Process](#general-upgrade-process)
   - [1. Update the Package](#1-update-the-package)
