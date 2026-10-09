@@ -595,9 +595,7 @@ final class Plugin implements PluginInterface, EventSubscriberInterface
         $indent = $this->detectJsonIndentation($originalContent);
 
         // Initialize scripts array if it doesn't exist
-        if (!isset($composerJson['scripts'])) {
-            $composerJson['scripts'] = [];
-        }
+        $composerJson['scripts'] ??= [];
 
         $framework = $this->detectFramework();
         $scriptsToAdd = $this->getScriptsForFramework($framework);
