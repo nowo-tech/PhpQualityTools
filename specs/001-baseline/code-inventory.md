@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/php-quality-tools`  
-**Last audited**: 2026-07-07
+**Last audited**: 2026-10-09
 
 This file proves that **every production source artifact** under `src/` is referenced by the baseline specification. PHPUnit tests under `tests/` and shipped config templates under `config/` are out of this inventory scope unless promoted in the spec.
 
@@ -10,7 +10,14 @@ This file proves that **every production source artifact** under `src/` is refer
 
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
-| `Plugin.php` | Composer plugin lifecycle | FR-PLUGIN-001, FR-PLUGIN-002, FR-PLUGIN-003, FR-PLUGIN-004, FR-PLUGIN-005 |
+| `Plugin.php` | Composer plugin lifecycle | FR-PLUGIN-001, FR-PLUGIN-002, FR-PLUGIN-003, FR-PLUGIN-004, FR-PLUGIN-005, FR-PLUGIN-006 |
+
+## Process runner (`src/Process/`, `@internal`)
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Process/CommandRunnerInterface.php` | Command execution seam for dependency install | FR-PLUGIN-006 |
+| `Process/ExecCommandRunner.php` | Default `exec()` runner | FR-PLUGIN-006 |
 
 ## PHP-CS-Fixer custom fixers (`src/PhpCsFixer/Rules/`)
 
@@ -56,9 +63,10 @@ This file proves that **every production source artifact** under `src/` is refer
 | Category | Files | Mapped |
 | --- | ---: | ---: |
 | Composer plugin (PHP) | 1 | 1 |
+| Process runner (PHP) | 2 | 2 |
 | PHP-CS-Fixer fixers | 3 | 3 |
 | PHP-CS-Fixer set | 1 | 1 |
 | Rector rules | 5 | 5 |
 | Rector set | 1 | 1 |
 | Placeholders & README | 4 | 4 |
-| **Total `src/` artifacts** | **15** | **15** |
+| **Total `src/` artifacts** | **17** | **17** |

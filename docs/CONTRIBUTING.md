@@ -143,6 +143,14 @@ composer cs-check
 composer cs-fix
 ```
 
+### Test isolation
+
+Tests must never touch the network or this repository's own files:
+
+- Never let a test reach a real `composer require`. Inject `Tests\Support\RecordingCommandRunner` into `new Plugin($runner)` and assert on `$runner->commands` (the exact escaped command line).
+- Use a throwaway directory under `sys_get_temp_dir()` with a fixture `composer.json` for anything that reads or writes project files, and remove it in `tearDown()`.
+- `Tests\Support\RepositoryIntegrityExtension` (registered in `phpunit.xml.dist`) aborts the run with exit code 1 if `composer.json` or `composer.lock` changed during the suite; CI also runs `git diff --exit-code -- composer.json composer.lock` after coverage.
+
 ## Adding Framework Support
 
 When adding support for a new framework:

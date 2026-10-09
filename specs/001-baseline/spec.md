@@ -65,6 +65,7 @@ As an integrator, I set `extra.php-quality-tools.auto_add_scripts` to `true`, so
 - **FR-PLUGIN-003**: Config copy MUST be non-destructive (skip existing target files).
 - **FR-PLUGIN-004**: Suggested packages (Rector 1.x/2.x, CS-Fixer, Twig-CS-Fixer) MAY be offered interactively on install.
 - **FR-PLUGIN-005**: Script injection MUST only run when `extra.php-quality-tools.auto_add_scripts === true`.
+- **FR-PLUGIN-006**: Installing suggested packages MUST go through the internal `Process\CommandRunnerInterface` (default `ExecCommandRunner`), so tests can assert the exact `composer require --dev --no-interaction --with-all-dependencies …` command with a fake runner and never execute Composer against the repository.
 
 ### PHP-CS-Fixer
 
@@ -85,7 +86,7 @@ As an integrator, I set `extra.php-quality-tools.auto_add_scripts` to `true`, so
 
 ## Success Criteria
 
-- **SC-001**: **15/15** artifacts under `src/` mapped in [`code-inventory.md`](code-inventory.md).
+- **SC-001**: **17/17** artifacts under `src/` mapped in [`code-inventory.md`](code-inventory.md).
 - **SC-002**: Shipped templates under `config/` match behaviour described in [`docs/USAGE.md`](../../docs/USAGE.md).
 - **SC-003**: PHPUnit and PHPStan pass in CI (`composer qa`).
 - **SC-004**: No Packagist-visible behaviour change without spec + test updates.

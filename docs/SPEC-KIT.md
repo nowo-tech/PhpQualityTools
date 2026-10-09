@@ -201,7 +201,7 @@ find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l
 
 The **Total production sources** row in `code-inventory.md` must match this count.
 
-In **PhpQualityTools**, the baseline inventory covers **15/15** files — see [`specs/001-baseline/code-inventory.md`](../specs/001-baseline/code-inventory.md).
+In **PhpQualityTools**, the baseline inventory covers **17/17** files — see [`specs/001-baseline/code-inventory.md`](../specs/001-baseline/code-inventory.md).
 
 ---
 
