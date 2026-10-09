@@ -10,6 +10,8 @@ use Composer\IO\IOInterface;
 use Composer\Plugin\PluginInterface;
 use Composer\Script\Event;
 use Composer\Script\ScriptEvents;
+use NowoTech\PhpQualityTools\Process\CommandRunnerInterface;
+use NowoTech\PhpQualityTools\Process\ExecCommandRunner;
 
 /**
  * Composer plugin that installs PHP quality tool configurations.
@@ -89,6 +91,19 @@ final class Plugin implements PluginInterface, EventSubscriberInterface
             'friendsofphp/php-cs-fixer' => 'PHP-CS-Fixer for code style fixing',
         ],
     ];
+
+    /** @var CommandRunnerInterface Runs the `composer require` command for suggested dependencies */
+    private readonly CommandRunnerInterface $commandRunner;
+
+    /**
+     * Composer instantiates the plugin without arguments; the runner is injectable for tests.
+     *
+     * @param CommandRunnerInterface|null $commandRunner Command runner (defaults to {@see ExecCommandRunner})
+     */
+    public function __construct(?CommandRunnerInterface $commandRunner = null)
+    {
+        $this->commandRunner = $commandRunner ?? new ExecCommandRunner();
+    }
 
     /**
      * Activate the plugin.
@@ -261,7 +276,6 @@ final class Plugin implements PluginInterface, EventSubscriberInterface
                 // Skip optional Rector packages if Rector 2.x is installed
                 // These packages (rector-symfony, rector-doctrine, rector-phpunit)
                 // are not compatible with Rector 2.x yet
-                // @codeCoverageIgnoreStart
                 if ($rectorVersion >= 2 && \in_array($package, [
                     'rector/rector-symfony',
                     'rector/rector-doctrine',
@@ -269,10 +283,7 @@ final class Plugin implements PluginInterface, EventSubscriberInterface
                 ], true)) {
                     continue; // Skip these packages for Rector 2.x
                 }
-                // @codeCoverageIgnoreEnd
-                // @codeCoverageIgnoreStart
                 $missingPackages[$package] = $description;
-                // @codeCoverageIgnoreEnd
             }
         }
 
@@ -286,26 +297,7 @@ final class Plugin implements PluginInterface, EventSubscriberInterface
             $io->write(\sprintf('  - <info>%s</info>: %s', $package, $description));
         }
 
-        // Build command with correct versions for optional Rector packages
-        // Note: These packages don't have version 2.0, even with Rector 2.x
-        // Latest versions: rector-symfony:^1.1, rector-doctrine:^0.16, rector-phpunit:^1.1
-        $packagesForMessage = [];
-        // @codeCoverageIgnoreStart
-        foreach (array_keys($missingPackages) as $package) {
-            if ('rector/rector-doctrine' === $package) {
-                // rector/rector-doctrine max version is 0.16.0 (compatible with both Rector 1.x and 2.x)
-                $packagesForMessage[] = 'rector/rector-doctrine:^0.16';
-            } elseif ('rector/rector-symfony' === $package) {
-                // rector/rector-symfony max version is 1.1.0 (compatible with both Rector 1.x and 2.x)
-                $packagesForMessage[] = 'rector/rector-symfony:^1.0';
-            } elseif ('rector/rector-phpunit' === $package) {
-                // rector/rector-phpunit max version is 1.1.0 (compatible with both Rector 1.x and 2.x)
-                $packagesForMessage[] = 'rector/rector-phpunit:^1.0';
-            } else {
-                $packagesForMessage[] = $package;
-            }
-        }
-        // @codeCoverageIgnoreEnd
+        $packagesForMessage = $this->withVersionConstraints(array_keys($missingPackages));
 
         if (!$io->isInteractive()) {
             $io->write('<comment>php-quality-tools: Run in interactive mode to install dependencies automatically</comment>');
@@ -331,72 +323,74 @@ final class Plugin implements PluginInterface, EventSubscriberInterface
      */
     private function installDependencies(IOInterface $io, array $packages): void
     {
-        $this->composer->getConfig()->get('vendor-dir');
-        $composerBin = $this->composer->getConfig()->get('bin-dir') . '/composer';
-
-        // Fallback to system composer if not found in vendor
-        if (!file_exists($composerBin)) {
-            $composerBin = 'composer';
-        }
-
         $io->write('<info>php-quality-tools: Installing dependencies...</info>');
 
-        // Build command with correct versions for optional Rector packages
-        // Note: These packages don't have version 2.0, even with Rector 2.x
-        // Latest versions: rector-symfony:^1.1, rector-doctrine:^0.16, rector-phpunit:^1.1
-        $packagesWithVersions = [];
-        foreach ($packages as $package) {
-            if ('rector/rector-doctrine' === $package) {
-                // rector/rector-doctrine max version is 0.16.0 (compatible with both Rector 1.x and 2.x)
-                $packagesWithVersions[] = 'rector/rector-doctrine:^0.16';
-            } elseif ('rector/rector-symfony' === $package) {
-                // rector/rector-symfony max version is 1.1.0 (compatible with both Rector 1.x and 2.x)
-                $packagesWithVersions[] = 'rector/rector-symfony:^1.0';
-            } elseif ('rector/rector-phpunit' === $package) {
-                // rector/rector-phpunit max version is 1.1.0 (compatible with both Rector 1.x and 2.x)
-                $packagesWithVersions[] = 'rector/rector-phpunit:^1.0';
-            } else {
-                $packagesWithVersions[] = $package;
-            }
+        $packagesWithVersions = $this->withVersionConstraints($packages);
+        $result = $this->commandRunner->run($this->buildRequireCommand($packagesWithVersions));
+
+        if (0 === $result['exitCode']) {
+            $io->write('<info>php-quality-tools: Dependencies installed successfully!</info>');
+
+            return;
         }
 
-        $command = \sprintf(
+        $io->writeError('<error>php-quality-tools: Failed to install dependencies</error>');
+        $io->writeError('<error>php-quality-tools: Output: ' . implode("\n", $result['output']) . '</error>');
+        $io->writeError('<error>php-quality-tools: Please install manually: composer require --dev --with-all-dependencies ' . implode(' ', $packagesWithVersions) . '</error>');
+    }
+
+    /**
+     * Resolve the Composer binary: the project's bin-dir copy if present, otherwise `composer` from PATH.
+     *
+     * @return string The Composer binary path or command name
+     */
+    private function resolveComposerBinary(): string
+    {
+        $composerBin = $this->composer->getConfig()->get('bin-dir') . '/composer';
+
+        return file_exists($composerBin) ? $composerBin : 'composer';
+    }
+
+    /**
+     * Build the shell command used to install the given packages as dev dependencies.
+     *
+     * @param array<string> $packagesWithVersions Package names, optionally with `:constraint`
+     *
+     * @return string The escaped shell command line
+     */
+    private function buildRequireCommand(array $packagesWithVersions): string
+    {
+        return \sprintf(
             '%s require --dev --no-interaction --with-all-dependencies %s',
-            escapeshellarg($composerBin),
+            escapeshellarg($this->resolveComposerBinary()),
             implode(' ', array_map(escapeshellarg(...), $packagesWithVersions))
         );
+    }
 
-        $output = [];
-        $returnCode = 0;
-        exec($command . ' 2>&1', $output, $returnCode);
-
-        if (0 === $returnCode) {
-            $io->write('<info>php-quality-tools: Dependencies installed successfully!</info>');
-        } else {
-            $io->writeError('<error>php-quality-tools: Failed to install dependencies</error>');
-            $io->writeError('<error>php-quality-tools: Output: ' . implode("\n", $output) . '</error>');
-
-            // Build command with correct versions for optional Rector packages
-            // Note: These packages don't have version 2.0, even with Rector 2.x
-            // Latest versions: rector-symfony:^1.1, rector-doctrine:^0.16, rector-phpunit:^1.1
-            $packagesWithVersions = [];
-            foreach ($packages as $package) {
-                if ('rector/rector-doctrine' === $package) {
-                    // rector/rector-doctrine max version is 0.16.0 (compatible with both Rector 1.x and 2.x)
-                    $packagesWithVersions[] = 'rector/rector-doctrine:^0.16';
-                } elseif ('rector/rector-symfony' === $package) {
-                    // rector/rector-symfony max version is 1.1.0 (compatible with both Rector 1.x and 2.x)
-                    $packagesWithVersions[] = 'rector/rector-symfony:^1.0';
-                } elseif ('rector/rector-phpunit' === $package) {
-                    // rector/rector-phpunit max version is 1.1.0 (compatible with both Rector 1.x and 2.x)
-                    $packagesWithVersions[] = 'rector/rector-phpunit:^1.0';
-                } else {
-                    $packagesWithVersions[] = $package;
-                }
-            }
-
-            $io->writeError('<error>php-quality-tools: Please install manually: composer require --dev --with-all-dependencies ' . implode(' ', $packagesWithVersions) . '</error>');
+    /**
+     * Append version constraints for the optional Rector packages.
+     *
+     * These packages don't have a 2.0 release, even with Rector 2.x
+     * (latest: rector-symfony ^1.1, rector-doctrine ^0.16, rector-phpunit ^1.1),
+     * so an explicit constraint is required to keep them resolvable.
+     *
+     * @param array<string> $packages Package names
+     *
+     * @return list<string> Package names with constraints where needed
+     */
+    private function withVersionConstraints(array $packages): array
+    {
+        $packagesWithVersions = [];
+        foreach ($packages as $package) {
+            $packagesWithVersions[] = match ($package) {
+                'rector/rector-doctrine' => 'rector/rector-doctrine:^0.16',
+                'rector/rector-symfony' => 'rector/rector-symfony:^1.0',
+                'rector/rector-phpunit' => 'rector/rector-phpunit:^1.0',
+                default => $package,
+            };
         }
+
+        return $packagesWithVersions;
     }
 
     /**
