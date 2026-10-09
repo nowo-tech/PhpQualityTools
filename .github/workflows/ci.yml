@@ -131,6 +131,9 @@ jobs:
       - name: Generate coverage report
         run: composer test-coverage
 
+      - name: Ensure tests did not modify composer.json / composer.lock
+        run: git diff --exit-code -- composer.json composer.lock
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
