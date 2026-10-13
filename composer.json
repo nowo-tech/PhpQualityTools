@@ -1,6 +1,6 @@
 {
     "name": "nowo-tech/php-quality-tools",
-    "description": "Pre-configured quality tools for PHP projects (Rector, PHP-CS-Fixer, Twig-CS-Fixer). Symfony, Laravel, and framework-agnostic configurations with automatic framework detection.",
+    "description": "Pre-configured quality tools for PHP projects (Rector, PHP-CS-Fixer, Twig-CS-Fixer) with automatic framework detection, plus CI gate scripts (Clover coverage threshold, module boundaries) and a PHPUnit SQL query-budget trait.",
     "type": "composer-plugin",
     "license": "MIT",
     "keywords": [
@@ -14,7 +14,10 @@
         "laravel",
         "php",
         "composer-plugin",
-        "psr-12"
+        "psr-12",
+        "coverage",
+        "module-boundaries",
+        "query-budget"
     ],
     "homepage": "https://github.com/nowo-tech/PhpQualityTools",
     "support": {
@@ -39,6 +42,7 @@
     },
     "require-dev": {
         "composer/composer": "^2.0",
+        "doctrine/dbal": "^4.0",
         "friendsofphp/php-cs-fixer": "^3.95",
         "igor-php/igor-php": "^0.10.0",
         "nowo-tech/phpstan-frankenphp": "^1.0",
@@ -46,6 +50,7 @@
         "phpunit/phpunit": "^10.0 || ^11.0",
         "rector/rector": "^2.7",
         "symfony/framework-bundle": "^6.0 || ^7.0 || ^8.0",
+        "symfony/yaml": "^6.4 || ^7.0 || ^8.0",
         "vincentlanglet/twig-cs-fixer": "^4.1"
     },
     "suggest": {
@@ -56,7 +61,10 @@
         "driftingly/rector-laravel": "Rector rules for Laravel projects",
         "friendsofphp/php-cs-fixer": "For code style fixing",
         "vincentlanglet/twig-cs-fixer": "For Twig template style fixing",
-        "symplify/rule-doc-generator-contracts": "Required for custom Rector rules (SplitLongGroupedImportsRector, SplitLongConstructorParametersRector)"
+        "symplify/rule-doc-generator-contracts": "Required for custom Rector rules (SplitLongGroupedImportsRector, SplitLongConstructorParametersRector)",
+        "symfony/yaml": "Read config/quality/module-boundaries.yaml in bin/check-module-boundaries (a PHP config file works without it)",
+        "doctrine/dbal": "(^4.0) Count SQL statements with Testing\\Dbal\\QueryCountingMiddleware for Testing\\QueryBudgetTrait",
+        "phpunit/phpunit": "Testing\\QueryBudgetTrait assertions (assertQueryBudget, assertScalesWith)"
     },
     "autoload": {
         "psr-4": {
@@ -68,10 +76,14 @@
             "NowoTech\\PhpQualityTools\\Tests\\": "tests/"
         }
     },
+    "bin": [
+        "bin/check-coverage-threshold",
+        "bin/check-module-boundaries"
+    ],
     "extra": {
         "class": "NowoTech\\PhpQualityTools\\Plugin",
         "branch-alias": {
-            "dev-main": "1.0-dev"
+            "dev-main": "1.x-dev"
         }
     },
     "archive": {

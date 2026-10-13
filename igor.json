@@ -8,7 +8,10 @@
     ".git",
     "node_modules",
     "scripts",
-    ".scripts"
+    ".scripts",
+    "bin",
+    "src/Gate",
+    "src/Testing"
   ],
   "safe_namespaces": [
     "Symfony\\",

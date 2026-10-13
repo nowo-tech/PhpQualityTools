@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.2.0](#to-120)
 - [To 1.1.0](#to-110)
 - [To 1.0.21](#to-1021)
 - [To 1.0.20](#to-1020)
@@ -46,6 +47,19 @@
 - [Related Documentation](#related-documentation)
 
 ## Unreleased
+
+## To 1.2.0
+
+From **1.1.0** — opt-in gate scripts and query-budget trait.
+
+```bash
+composer update nowo-tech/php-quality-tools
+```
+
+- No breaking changes; the Composer plugin behaves as before. Nothing runs unless you call the new tools.
+- **Coverage gate:** replace a custom Clover script with `vendor/bin/check-coverage-threshold <clover.xml>` (same `COVERAGE_MIN` variable, same exit codes 0 / 1 / 2). It checks statements **and** lines by default; add `--metric=statements` to keep a statements-only gate.
+- **Module boundaries:** move your rules to `config/quality/module-boundaries.yaml` and call `vendor/bin/check-module-boundaries`. YAML needs `symfony/yaml` (`composer require --dev symfony/yaml`), or use a `.php` file returning the same array.
+- **Query budgets:** `composer require --dev doctrine/dbal:^4` if not installed, register `Testing\Dbal\QueryCountingMiddleware` with the `doctrine.middleware` tag in the test environment and `use QueryBudgetTrait` (implement `getQueryCounter()`). A test class that already defines its own `assertQueryBudget()` / `countQueries()` must rename them or drop them for the trait's. See [Usage](USAGE.md#query-budgets-in-phpunit-since-120).
 
 ## To 1.1.0
 

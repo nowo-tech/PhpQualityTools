@@ -1,0 +1,15 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Fail when Clover statement / line coverage is below a minimum percentage.
+ * See docs/USAGE.md ("Gate scripts") or run with --help.
+ */
+
+use NowoTech\PhpQualityTools\Gate\Coverage\CoverageThresholdCommand;
+
+require __DIR__ . '/autoload.php';
+
+exit((new CoverageThresholdCommand(\STDOUT, \STDERR, getenv()))->run(array_slice($argv, 1)));

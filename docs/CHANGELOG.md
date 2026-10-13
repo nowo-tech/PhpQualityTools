@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.2.0] - 2026-10-13](#120---2026-10-13)
 - [[1.1.0] - 2026-10-13](#110---2026-10-13)
 - [[1.0.21] - 2026-10-09](#1021---2026-10-09)
 - [[1.0.20] - 2026-10-09](#1020---2026-10-09)
@@ -33,6 +34,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2024-12-11](#100---2024-12-11)
 
 ## [Unreleased]
+
+## [1.2.0] - 2026-10-13
+
+### Added
+
+- **`bin/check-coverage-threshold`** (Composer binary, plain PHP): reads a Clover report and fails (exit 1) when statement and/or line coverage is under a minimum (argument, `--min=N` or `COVERAGE_MIN`; informational exit 0 without one). `--metric=both|statements|lines`; exit 2 on usage / parse errors. Ported from Symfony Beacon's `.scripts/check-coverage-threshold.sh` (no `python3` fallback needed).
+- **`bin/check-module-boundaries`** (Composer binary): checks a module-boundary map from `config/quality/module-boundaries.yaml` (`.yml` / `.php` or `--config`): `modules` (namespace prefix + path), `allowed_edges` (allow-list), `forbidden_edges` (deny-list with `except`), `ignore`, `references: use|all`, and extra `rules` (`forbid_path`, `require_path`, `forbid_import`, `forbid_pattern`, `require_pattern`, `require_near`). Token-based `use` detection (grouped imports, `use function` / `use const`). Exit 0 / 1 (violations) / 2 (config error). Expresses every rule of Beacon's `.scripts/check-module-boundaries.sh` (see `tests/Fixtures/module-boundaries/beacon.yaml`).
+- **`Testing\QueryBudgetTrait`** (PHPUnit): `recordQueries()`, `countQueries()`, `assertQueryBudget(int $max, callable)` and `assertScalesWith($prepare, $operation, $sizes, $tolerance)` (anti N+1: the query count must not grow with N), fed by **`Testing\Dbal\QueryCountingMiddleware`** (Doctrine DBAL 4 middleware) and `Testing\QueryCounter`.
+- Spec [`specs/002-gate-scripts`](../specs/002-gate-scripts/spec.md).
+
+### Changed
+
+- `composer.json`: `bin` entries; `symfony/yaml`, `doctrine/dbal` (^4) and `phpunit/phpunit` suggested (dev-only, nothing added to `require`); `doctrine/dbal` and `symfony/yaml` in `require-dev`; `dev-main` branch alias `1.x-dev`.
+
+### Unchanged
+
+- Composer plugin behaviour (config copy, dependency suggestions, script injection).
+
+[1.2.0]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.2.0
 
 ## [1.1.0] - 2026-10-13
 

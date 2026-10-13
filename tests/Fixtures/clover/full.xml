@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1791888890">
+  <project timestamp="1791888890" name="Clover Coverage">
+    <package name="App">
+      <file name="/app/src/A.php">
+        <line num="10" type="method" name="a" visibility="public" complexity="1" crap="1" count="1"/>
+        <line num="12" type="stmt" count="1"/>
+        <line num="13" type="stmt" count="3"/>
+      </file>
+    </package>
+    <file name="/app/src/B.php">
+      <line num="5" type="stmt" count="2"/>
+      <line num="6" type="cond" truecount="1" falsecount="1" count="1"/>
+    </file>
+    <metrics files="2" loc="40" ncloc="30" classes="2" methods="1" coveredmethods="1" conditionals="0" coveredconditionals="0" statements="4" coveredstatements="4" elements="5" coveredelements="5"/>
+  </project>
+</coverage>

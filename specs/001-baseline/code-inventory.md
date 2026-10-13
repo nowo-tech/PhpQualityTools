@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/php-quality-tools`  
-**Last audited**: 2026-10-09
+**Last audited**: 2026-10-13
 
 This file proves that **every production source artifact** under `src/` is referenced by the baseline specification. PHPUnit tests under `tests/` and shipped config templates under `config/` are out of this inventory scope unless promoted in the spec.
 
@@ -70,3 +70,27 @@ This file proves that **every production source artifact** under `src/` is refer
 | Rector set | 1 | 1 |
 | Placeholders & README | 4 | 4 |
 | **Total `src/` artifacts** | **17** | **17** |
+
+## Gate scripts and query budgets (`src/Gate/`, `src/Testing/`, since 1.2.0)
+
+Specified in [`specs/002-gate-scripts/spec.md`](../002-gate-scripts/spec.md).
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Gate/Coverage/CloverReport.php` | Clover statements / lines | FR-GATE-COV-001 |
+| `Gate/Coverage/CloverException.php` | Report errors → exit codes | FR-GATE-COV-004 |
+| `Gate/Coverage/CoverageThresholdCommand.php` | `bin/check-coverage-threshold` | FR-GATE-COV-002, FR-GATE-COV-003, FR-GATE-COV-004 |
+| `Gate/ModuleBoundary/ModuleBoundaryConfig.php` | Config loading / validation | FR-GATE-MB-001, FR-GATE-MB-002 |
+| `Gate/ModuleBoundary/ConfigException.php` | Config errors (exit 2) | FR-GATE-MB-002 |
+| `Gate/ModuleBoundary/ForbiddenEdge.php` | Deny-list edge | FR-GATE-MB-002 |
+| `Gate/ModuleBoundary/Rule.php` | Extra rule types | FR-GATE-MB-005 |
+| `Gate/ModuleBoundary/ImportExtractor.php` | Token-based imports | FR-GATE-MB-004 |
+| `Gate/ModuleBoundary/ModuleBoundaryChecker.php` | Edge + rule evaluation | FR-GATE-MB-003, FR-GATE-MB-005, FR-GATE-MB-006 |
+| `Gate/ModuleBoundary/Violation.php` | Violation value | FR-GATE-MB-007 |
+| `Gate/ModuleBoundary/ModuleBoundaryCommand.php` | `bin/check-module-boundaries` | FR-GATE-MB-001, FR-GATE-MB-007 |
+| `Testing/QueryCounter.php` | Recorded SQL | FR-QB-001 |
+| `Testing/QueryBudgetTrait.php` | PHPUnit assertions | FR-QB-002, FR-QB-003 |
+| `Testing/Dbal/QueryCountingMiddleware.php` | DBAL 4 middleware | FR-QB-001 |
+| `Testing/Dbal/QueryCountingDriver.php` | Driver wrapper (`@internal`) | FR-QB-001 |
+| `Testing/Dbal/QueryCountingConnection.php` | Connection wrapper (`@internal`) | FR-QB-001 |
+| `Testing/Dbal/QueryCountingStatement.php` | Statement wrapper (`@internal`) | FR-QB-001 |

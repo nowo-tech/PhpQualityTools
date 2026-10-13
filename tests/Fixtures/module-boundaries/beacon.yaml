@@ -1,0 +1,130 @@
+# Symfony Beacon module-boundary map: an exact translation of Beacon's former
+# .scripts/check-module-boundaries.sh (architecture guardrails of specs 083 / 085 / 131 / 136).
+# Beacon keeps it at config/quality/module-boundaries.yaml; run: vendor/bin/check-module-boundaries
+#
+# Regexes are PCRE without delimiters; keep them single-quoted so backslashes stay literal.
+
+modules:
+  Identity: { namespace: 'App\Identity', path: src/Identity }
+  Ingest: { namespace: 'App\Ingest', path: src/Ingest }
+  Issues: { namespace: 'App\Issues', path: src/Issues }
+  Ops: { namespace: 'App\Ops', path: src/Ops }
+  Performance: { namespace: 'App\Performance', path: src/Performance }
+  Project: { namespace: 'App\Project', path: src/Project }
+  Shared: { namespace: 'App\Shared', path: src/Shared }
+
+forbidden_edges:
+  # Direction: Shared / Project must not depend on Ops or Ingest (spec 131, audit ARCH-DIRECTION).
+  # except = reviewed exceptions; any new import fails. Prefer a Shared port / enum instead.
+  - from: Shared
+    to: [Ops, Ingest]
+    except:
+      - src/Shared/Beacon/DropSelfIngestBeforeSend.php
+    message: 'Shared/Project must not depend on App\Ops or App\Ingest (see spec 131).'
+  - from: Project
+    to: [Ops, Ingest]
+    except:
+      - src/Project/Service/ProjectGovernanceResolver.php
+      - src/Project/Service/ProjectSettingsPageBuilder.php
+      - src/Project/Service/AdminProjectShowPageBuilder.php
+    message: 'Shared/Project must not depend on App\Ops or App\Ingest (see spec 131).'
+  # Shared must not depend on Project, except the Listing subsystem (spec 136 ARCH-LISTING-OWNER):
+  # App\Shared\Listing stores project-default / per-project layouts (docs/ARCHITECTURE.md, Shared row).
+  - from: Shared
+    to: Project
+    except:
+      - src/Shared/Listing/
+    message: 'only src/Shared/Listing/ may import App\Project (see docs/ARCHITECTURE.md).'
+
+rules:
+  # --- AdminProject ownership (Identity must not own project admin HTTP) ---
+  - type: forbid_path
+    path: src/Identity/Controller/AdminProjectController.php
+    message: 'src/Identity/Controller/AdminProjectController.php must not exist (belongs in App\Project\Controller).'
+  - type: forbid_pattern
+    in: [src/Identity]
+    pattern: 'class AdminProjectController\b'
+    message: 'AdminProjectController must not live under App\Identity.'
+  - type: require_path
+    path: src/Project/Controller/AdminProjectController.php
+
+  # --- Identity admin unlink flows must use ProjectMembershipAdminPort ---
+  - type: require_path
+    path: src/Project/Port/ProjectMembershipAdminPort.php
+  - type: forbid_import
+    in: [src/Identity/Controller]
+    imports: ['App\Project\Service\ProjectMembershipManager']
+    message: 'Identity controllers must depend on App\Project\Port\ProjectMembershipAdminPort, not ProjectMembershipManager:'
+
+  # --- OTLP controllers must live under Ingest/Otlp ---
+  - type: forbid_pattern
+    in: [src]
+    except: [src/Ingest/Otlp/]
+    pattern: 'Otlp.*Controller|Controller.*Otlp'
+    message: 'OTLP controllers must live under src/Ingest/Otlp/:'
+  - type: require_path
+    path: src/Ingest/Otlp/
+    message: 'missing src/Ingest/Otlp (OTLP adapters belong here).'
+
+  # --- Shared must not own domain write-path services (Issues/Events/Perf persist); Ops owns retention ---
+  - type: forbid_import
+    in: [src/Shared]
+    imports:
+      - 'App\Issues\Repository\IssueRepository'
+      - 'App\Issues\Repository\EventRepository'
+      - 'App\Issues\Service\IssueMergeService'
+      - 'App\Performance\Entity\'
+    message: 'Shared must not import Issues/Performance write-path types (use App\Ops for retention/ops):'
+
+  # --- Ops module expected after 085 ---
+  - type: require_path
+    path:
+      - src/Ops/Service/OpsOverviewService.php
+      - src/Ops/Retention/RetentionPurger.php
+
+  # --- Envelope writers: ProcessEnvelopeHandler should not re-inline Issue/Event persist ---
+  - type: require_pattern
+    path: src/Ingest/MessageHandler/ProcessEnvelopeHandler.php
+    pattern: 'IssueEnvelopeWriter'
+    message: 'ProcessEnvelopeHandler must use IssueEnvelopeWriter (domain writer extraction).'
+  - type: require_pattern
+    path: src/Ingest/MessageHandler/ProcessEnvelopeHandler.php
+    pattern: 'PerformanceEnvelopeWriter'
+    message: 'ProcessEnvelopeHandler must use PerformanceEnvelopeWriter.'
+
+  # --- Metrics scrape HTTP must live under Ops (not Shared) ---
+  - type: forbid_path
+    path: src/Shared/Metrics
+    message: 'Metrics scrape belongs in App\Ops\Metrics (remove src/Shared/Metrics).'
+  - type: forbid_pattern
+    in: [src]
+    pattern: 'namespace App\\Shared\\Metrics;'
+    message: 'namespace App\Shared\Metrics is forbidden; use App\Ops\Metrics:'
+  - type: require_path
+    path: src/Ops/Metrics/MetricsController.php
+
+  # --- Identity must not own project creation forms ---
+  - type: forbid_import
+    in: [src/Identity]
+    imports: ['App\Project\Service\ProjectCreationFormFactory']
+    message: 'Identity must not depend on ProjectCreationFormFactory (use Project fragment / project_new):'
+
+  # --- Shared LIKE helper + EXTRA_LAZY contract (REQ-BP-004) ---
+  - type: require_path
+    path: src/Shared/Doctrine/SqlLikeEscaper.php
+    message: 'missing src/Shared/Doctrine/SqlLikeEscaper.php (LIKE queries must escape wildcards).'
+  - type: require_pattern
+    path: src/Project/Entity/Project.php
+    pattern: 'EXTRA_LAZY'
+    message: 'Project collections should use EXTRA_LAZY fetch (REQ-BP-004).'
+
+  # --- EXTRA_LAZY on every OneToMany of the hot aggregates (REQ-BP-004, audit BP-004-02) ---
+  - type: require_near
+    path:
+      - src/Project/Entity/Project.php
+      - src/Issues/Entity/Issue.php
+      - src/Performance/Entity/PerfTransaction.php
+    pattern: 'ORM\\OneToMany\('
+    requires: 'EXTRA_LAZY'
+    within_lines: 4
+    message: "OneToMany collection(s) without fetch: 'EXTRA_LAZY' (REQ-BP-004):"

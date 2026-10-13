@@ -42,3 +42,13 @@ When enabled, the plugin can add quality scripts (if missing), such as:
 - `test` (when PHPUnit is installed)
 
 Existing scripts are preserved.
+
+## Gate scripts and query budgets (since 1.2.0)
+
+Nothing to configure for the Composer plugin. The optional CI gates read their own inputs:
+
+- `vendor/bin/check-coverage-threshold`: Clover path + minimum (argument, `--min` or `COVERAGE_MIN`).
+- `vendor/bin/check-module-boundaries`: `config/quality/module-boundaries.yaml` (or `.yml` / `.php`, or `--config`).
+- `Testing\QueryBudgetTrait`: register `Testing\Dbal\QueryCountingMiddleware` (tag `doctrine.middleware`) in the test environment.
+
+Full reference: [Usage → Gate scripts](USAGE.md#gate-scripts-since-120) and [Usage → Query budgets](USAGE.md#query-budgets-in-phpunit-since-120).

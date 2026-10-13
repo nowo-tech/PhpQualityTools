@@ -1,0 +1,15 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Fail on module-boundary regressions described by config/quality/module-boundaries.yaml.
+ * See docs/USAGE.md ("Gate scripts") or run with --help.
+ */
+
+use NowoTech\PhpQualityTools\Gate\ModuleBoundary\ModuleBoundaryCommand;
+
+require __DIR__ . '/autoload.php';
+
+exit((new ModuleBoundaryCommand(\STDOUT, \STDERR, (string) getcwd()))->run(array_slice($argv, 1)));

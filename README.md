@@ -9,6 +9,9 @@ Pre-configured quality tools for PHP projects. Includes ready-to-use configurati
 - **PHP-CS-Fixer** - Code style fixing (PSR-12 + Symfony)
 - **Twig-CS-Fixer** - Twig template style fixing
 
+Plus opt-in CI gates (since 1.2.0): `vendor/bin/check-coverage-threshold`, `vendor/bin/check-module-boundaries`
+and a PHPUnit `QueryBudgetTrait` (SQL query budgets / N+1 scaling checks).
+
 ![FrankenPHP Friendly Worker Mode](docs/images/frankenphp-friendly.png)
 
 This bundle is **FrankenPHP worker mode friendly**.
@@ -23,6 +26,8 @@ This bundle is **FrankenPHP worker mode friendly**.
 - ✅ Separate `*.custom.php` files for project-specific settings
 - ✅ PHP 8.2+ support
 - ✅ PSR-12 and Symfony coding standards
+- ✅ Gate scripts: Clover coverage threshold (statements + lines) and module boundaries (YAML map of modules and forbidden / allowed import edges)
+- ✅ `Testing\QueryBudgetTrait`: `assertQueryBudget()` / `assertScalesWith()` on top of a Doctrine DBAL 4 counting middleware
 
 ## Installation
 
@@ -300,6 +305,36 @@ composer test     # Run PHPUnit tests
 ```
 
 **Note**: Enable `auto_add_scripts` or add scripts manually (see sections above). If you rely on the plugin defaults, set `extra.php-quality-tools.auto_add_scripts` to `true`.
+
+## Gate Scripts and Query Budgets
+
+Opt-in tools for CI; the Composer plugin does not call them.
+
+```bash
+# Fail under 95 % statements and lines (minimum also from COVERAGE_MIN)
+vendor/bin/check-coverage-threshold var/coverage/clover.xml 95
+
+# Fail on forbidden imports between modules (config/quality/module-boundaries.yaml)
+vendor/bin/check-module-boundaries
+```
+
+```yaml
+# config/quality/module-boundaries.yaml (needs symfony/yaml; a .php file returning an array works too)
+modules:
+  Shared: { namespace: 'App\Shared', path: src/Shared }
+  Project: { namespace: 'App\Project', path: src/Project }
+forbidden_edges:
+  - { from: Shared, to: Project, except: [src/Shared/Listing/] }
+```
+
+```php
+use NowoTech\PhpQualityTools\Testing\QueryBudgetTrait;
+
+$this->assertQueryBudget(60, fn () => $client->request('GET', '/issues'));
+$this->assertScalesWith(fn (int $n, int $previous) => $this->seed($previous, $n), fn () => $client->request('GET', '/issues'));
+```
+
+See [docs/USAGE.md](docs/USAGE.md#gate-scripts-since-120) for every option, exit code, rule type and the Symfony wiring of the DBAL middleware.
 
 ## Customization
 
