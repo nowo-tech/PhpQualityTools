@@ -16,7 +16,7 @@ use NowoTech\PhpQualityTools\Process\ExecCommandRunner;
 /**
  * Composer plugin that installs PHP quality tool configurations.
  * Automatically detects the framework and installs appropriate configs.
- * Files are only created on install (composer install), NOT on update (composer update).
+ * Missing configuration files are created on both install and update (composer install / composer update).
  * Existing files are NEVER overwritten.
  * Optionally installs suggested dependencies (Rector, PHP-CS-Fixer, etc.).
  *
@@ -235,7 +235,7 @@ final class Plugin implements PluginInterface, EventSubscriberInterface
     /**
      * Get the major version of Rector if installed.
      *
-     * @return int The major version number (1 or 2), or 1 as default if not installed
+     * @return int The installed major version, or 2 (the current major) when Rector is not installed or unparseable
      */
     private function getRectorVersion(): int
     {
@@ -243,8 +243,8 @@ final class Plugin implements PluginInterface, EventSubscriberInterface
         $rectorPackage = $localRepository->findPackage('rector/rector', '*');
 
         if (null === $rectorPackage) {
-            // Default to version 1 if Rector is not installed
-            return 1;
+            // Not installed: `composer require rector/rector` resolves to the current major (2.x)
+            return 2;
         }
 
         $version = $rectorPackage->getVersion();
@@ -254,8 +254,8 @@ final class Plugin implements PluginInterface, EventSubscriberInterface
             return (int) $matches[1];
         }
 
-        // Default to version 1 if version cannot be determined
-        return 1;
+        // Default to the current major if the version cannot be determined (e.g. dev-main)
+        return 2;
     }
 
     /**
@@ -273,9 +273,9 @@ final class Plugin implements PluginInterface, EventSubscriberInterface
 
         foreach ($suggestedPackages as $package => $description) {
             if (!$this->isPackageInstalled($package)) {
-                // Skip optional Rector packages if Rector 2.x is installed
-                // These packages (rector-symfony, rector-doctrine, rector-phpunit)
-                // are not compatible with Rector 2.x yet
+                // Rector 2.x (installed, or what a fresh `composer require rector/rector` gets) bundles the
+                // Symfony/Doctrine/PHPUnit rules; the separate rector-symfony/-doctrine/-phpunit packages
+                // only target Rector 0.x/1.x, so suggest them only when Rector 1.x is installed.
                 if ($rectorVersion >= 2 && \in_array($package, [
                     'rector/rector-symfony',
                     'rector/rector-doctrine',
@@ -370,9 +370,8 @@ final class Plugin implements PluginInterface, EventSubscriberInterface
     /**
      * Append version constraints for the optional Rector packages.
      *
-     * These packages don't have a 2.0 release, even with Rector 2.x
-     * (latest: rector-symfony ^1.1, rector-doctrine ^0.16, rector-phpunit ^1.1),
-     * so an explicit constraint is required to keep them resolvable.
+     * Only used when Rector 1.x is installed (Rector 2.x bundles these rule sets and they are never
+     * suggested alongside it); the constraints keep them on the lines that target Rector 0.x/1.x.
      *
      * @param array<string> $packages Package names
      *
@@ -775,7 +774,8 @@ final class Plugin implements PluginInterface, EventSubscriberInterface
         // Add Twig-CS-Fixer scripts if Twig is installed
         if ($this->isPackageInstalled('twig/twig')) {
             $scripts['twig:fix'] = 'twig-cs-fixer fix --config=.twig-cs-fixer.php';
-            $scripts['twig:fix:check'] = 'twig-cs-fixer lint --config=.twig-cs-fixer.php --fix';
+            // Check only (no --fix): must never modify templates, like fix:check / rector:check
+            $scripts['twig:fix:check'] = 'twig-cs-fixer lint --config=.twig-cs-fixer.php';
             $scripts['twig:lint'] = 'twig-cs-fixer lint --config=.twig-cs-fixer.php';
         }
 

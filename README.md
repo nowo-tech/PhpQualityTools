@@ -75,7 +75,7 @@ php-quality-tools: Installing dependencies...
 php-quality-tools: Dependencies installed successfully!
 ```
 
-**Note**: If you're using Rector 2.x, the optional packages (`rector-symfony`, `rector-doctrine`, `rector-phpunit`) will be automatically skipped as they are not compatible with Rector 2.x yet.
+**Note**: The optional packages (`rector-symfony`, `rector-doctrine`, `rector-phpunit`) are only suggested when Rector **1.x** is installed. Rector 2.x bundles the Symfony, Doctrine and PHPUnit rule sets, so they are skipped when Rector 2.x is installed **and** when Rector is not installed yet (a fresh `composer require rector/rector` gets 2.x).
 
 If you choose **yes**, dependencies will be installed automatically. If **no**, you can install them manually later.
 
@@ -84,15 +84,14 @@ If you choose **yes**, dependencies will be installed automatically. If **no**, 
 If you prefer to install dependencies manually or in non-interactive mode:
 
 **Note**: The plugin automatically detects your Rector version:
-- **For Rector 1.x**: Optional packages are installed normally
-- **For Rector 2.x**: Optional packages are automatically skipped (not compatible yet)
+- **For Rector 1.x**: Optional packages are suggested with constraints that target Rector 1.x
+- **For Rector 2.x or no Rector yet**: Optional packages are skipped (Rector 2.x already bundles those rules)
 
 ```bash
 # For Symfony projects (Rector 1.x)
 composer require --dev rector/rector rector/rector-symfony:^1.0 rector/rector-doctrine:^0.16 rector/rector-phpunit:^1.0 friendsofphp/php-cs-fixer vincentlanglet/twig-cs-fixer
 
-# For Symfony projects (Rector 2.x)
-# Note: Optional Rector packages are NOT compatible with Rector 2.x
+# For Symfony projects (Rector 2.x — Symfony/Doctrine/PHPUnit rules are bundled in rector/rector)
 composer require --dev rector/rector friendsofphp/php-cs-fixer vincentlanglet/twig-cs-fixer
 
 # For Laravel projects
@@ -241,7 +240,7 @@ The following scripts can be added (if they don't already exist):
 **If Twig is installed:**
 - `twig:lint` - Lint Twig templates (dry-run)
 - `twig:fix` - Fix Twig templates
-- `twig:fix:check` - Check and fix Twig templates
+- `twig:fix:check` - Check Twig templates without modifying them (same as `twig:lint`)
 
 **Laravel only:**
 - `blade-check` - Check Blade templates (dry-run)
@@ -266,7 +265,7 @@ If you prefer different script names or commands, you can manually add them to y
   "rector:check": "rector process -c .rector.php --dry-run",
   "twig:fix": "twig-cs-fixer fix --config=.twig-cs-fixer.php",
   "twig:lint": "twig-cs-fixer lint --config=.twig-cs-fixer.php",
-  "twig:fix:check": "twig-cs-fixer lint --config=.twig-cs-fixer.php --fix",
+  "twig:fix:check": "twig-cs-fixer lint --config=.twig-cs-fixer.php",
   "blade-check": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix resources/views --config=.php-cs-fixer.php --dry-run --diff --allow-risky=yes",
   "blade-fix": "PHP_CS_FIXER_IGNORE_ENV=1 php-cs-fixer fix resources/views --config=.php-cs-fixer.php --allow-risky=yes"
  }
@@ -290,7 +289,7 @@ composer rector    # Apply changes
 # Twig-CS-Fixer (automatically installed if Twig is present)
 composer twig:lint   # Lint Twig templates (dry-run)
 composer twig:fix    # Fix Twig templates
-composer twig:fix:check # Check and fix Twig templates
+composer twig:fix:check # Check Twig templates (dry-run)
 
 # Blade Templates (Laravel only, automatically installed)
 composer blade-check # Check Blade templates (dry-run)
@@ -417,11 +416,9 @@ If you prefer to install manually or the automatic installation didn't work:
 #### Symfony Projects
 
 ```bash
+# Rector 2.x bundles the Symfony, Doctrine and PHPUnit rule sets
 composer require --dev \
   rector/rector \
-  rector/rector-symfony \
-  rector/rector-doctrine \
-  rector/rector-phpunit \
   friendsofphp/php-cs-fixer \
   vincentlanglet/twig-cs-fixer
 ```

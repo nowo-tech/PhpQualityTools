@@ -3,6 +3,9 @@
 
 ## Unreleased
 
+- **`twig:fix:check`:** projects where the plugin already added this script keep the old command (existing scripts are never overwritten). Change it to `twig-cs-fixer lint --config=.twig-cs-fixer.php` in your `composer.json` so a "check" does not rewrite templates.
+- **Rector add-ons:** if you installed `rector/rector-symfony` / `rector-doctrine` / `rector-phpunit` next to Rector 2.x because the plugin suggested them, you can remove them — Rector 2.x ships those rules.
+
 ## To 1.0.21
 
 From **1.0.20** — test-suite isolation (no real `composer require` against the repo) and internal command-runner refactor.

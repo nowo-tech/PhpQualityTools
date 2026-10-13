@@ -40,9 +40,9 @@ class RectorVersionDetectionTest extends TestCase
     }
 
     /**
-     * Test getRectorVersion returns 1 when Rector is not installed.
+     * Test getRectorVersion returns 2 (what `composer require rector/rector` installs) when Rector is not installed.
      */
-    public function testGetRectorVersionReturnsOneWhenNotInstalled(): void
+    public function testGetRectorVersionReturnsTwoWhenNotInstalled(): void
     {
         $plugin = new Plugin();
         $composer = $this->createMock(Composer::class);
@@ -74,7 +74,7 @@ class RectorVersionDetectionTest extends TestCase
         $method = $reflection->getMethod('getRectorVersion');
 
         $version = $method->invoke($plugin);
-        $this->assertEquals(1, $version);
+        $this->assertSame(2, $version);
     }
 
     /**
@@ -200,7 +200,7 @@ class RectorVersionDetectionTest extends TestCase
         $method = $reflection->getMethod('getRectorVersion');
 
         $version = $method->invoke($plugin);
-        // Should default to 1 for invalid versions
-        $this->assertEquals(1, $version);
+        // Should default to the current major (2) for unparseable versions
+        $this->assertSame(2, $version);
     }
 }

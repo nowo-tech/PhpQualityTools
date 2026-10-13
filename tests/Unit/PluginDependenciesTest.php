@@ -116,6 +116,9 @@ class PluginDependenciesTest extends TestCase
         $scripts = $this->invokePrivateMethod($plugin, 'getScriptsForFramework', ['generic']);
         $this->assertArrayHasKey('twig:fix', $scripts);
         $this->assertArrayHasKey('twig:lint', $scripts);
+        // The *:check script must never modify templates
+        $this->assertSame('twig-cs-fixer lint --config=.twig-cs-fixer.php', $scripts['twig:fix:check']);
+        $this->assertStringNotContainsString('--fix', $scripts['twig:fix:check']);
     }
 
     public function testGetScriptsForFrameworkWithPhpunitAddsTestScript(): void
@@ -444,7 +447,8 @@ class PluginDependenciesTest extends TestCase
         $this->invokePrivateMethod($plugin, 'checkAndInstallDependencies', [$io]);
 
         $this->assertSame(
-            ["'composer' require --dev --no-interaction --with-all-dependencies 'rector/rector' 'rector/rector-symfony:^1.0' 'rector/rector-doctrine:^0.16' 'rector/rector-phpunit:^1.0' 'friendsofphp/php-cs-fixer' 'vincentlanglet/twig-cs-fixer'"],
+            // Rector absent → a fresh install gets Rector 2.x, which bundles the Symfony/Doctrine/PHPUnit rules
+            ["'composer' require --dev --no-interaction --with-all-dependencies 'rector/rector' 'friendsofphp/php-cs-fixer' 'vincentlanglet/twig-cs-fixer'"],
             $runner->commands
         );
 
