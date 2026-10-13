@@ -2,10 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
-
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.1.0] - 2026-10-13](#110-2026-10-13)
 - [[1.0.21] - 2026-10-09](#1021-2026-10-09)
 - [[1.0.20] - 2026-10-09](#1020-2026-10-09)
 - [[1.0.19] - 2026-10-09](#1019-2026-10-09)
@@ -69,11 +69,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-13
+
 ### Fixed
 
 - `rector/rector-symfony`, `rector/rector-doctrine` and `rector/rector-phpunit` (with `^1.0` / `^0.16` constraints) are no longer suggested when Rector is not installed: Rector absent (or with an unparseable version) now counts as Rector 2.x, which bundles those rule sets. They are only suggested when Rector 1.x is installed.
 - The `twig:fix:check` Composer script added by the plugin no longer passes `--fix` (it modified templates); it is now a read-only `twig-cs-fixer lint --config=.twig-cs-fixer.php`.
 - `Plugin` class docblock: missing configuration files are created on both `composer install` and `composer update` (it said install only).
+
+### Dependencies
+
+- `actions/checkout` 6 → 7 (GitHub Actions; #56).
+- `codecov/codecov-action` 5 → 7 (GitHub Actions).
+
+[1.1.0]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.1.0
 
 ## [1.0.21] - 2026-10-09
 

@@ -1,7 +1,14 @@
 # Upgrade Guide
 
-
 ## Unreleased
+
+## To 1.1.0
+
+From **1.0.21** — no Rector 1.x add-on suggestions by default; read-only twig:fix:check.
+
+```bash
+composer update nowo-tech/php-quality-tools
+```
 
 - **`twig:fix:check`:** projects where the plugin already added this script keep the old command (existing scripts are never overwritten). Change it to `twig-cs-fixer lint --config=.twig-cs-fixer.php` in your `composer.json` so a "check" does not rewrite templates.
 - **Rector add-ons:** if you installed `rector/rector-symfony` / `rector-doctrine` / `rector-phpunit` next to Rector 2.x because the plugin suggested them, you can remove them — Rector 2.x ships those rules.
@@ -49,10 +56,9 @@ php bin/console cache:clear
 
 This guide helps you upgrade between versions of PHP Quality Tools.
 
-
 ## Table of contents
 
-
+- [To 1.1.0](#to-110)
 - [To 1.0.21](#to-1021)
 - [To 1.0.20](#to-1020)
 - [To 1.0.19](#to-1019)
