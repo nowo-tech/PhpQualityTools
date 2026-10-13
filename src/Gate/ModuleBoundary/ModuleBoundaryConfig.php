@@ -72,15 +72,15 @@ final class ModuleBoundaryConfig
 
     public static function fromFile(string $file): self
     {
-        if (!\is_file($file)) {
+        if (!is_file($file)) {
             throw new ConfigException("Module boundary config not found: {$file}");
         }
 
-        $extension = \strtolower(\pathinfo($file, \PATHINFO_EXTENSION));
+        $extension = strtolower(pathinfo($file, \PATHINFO_EXTENSION));
         if ('php' === $extension) {
             $data = (static fn (string $path): mixed => require $path)($file);
         } elseif ('yaml' === $extension || 'yml' === $extension) {
-            if (!\class_exists(Yaml::class)) {
+            if (!class_exists(Yaml::class)) {
                 // symfony/yaml is a dev dependency of this package, so this branch never runs here.
                 // @codeCoverageIgnoreStart
                 throw new ConfigException('Reading a YAML config needs symfony/yaml (composer require --dev symfony/yaml), or use a PHP file returning an array.');
@@ -112,9 +112,9 @@ final class ModuleBoundaryConfig
      */
     public static function fromArray(array $data): self
     {
-        $unknown = \array_diff(\array_keys($data), self::TOP_LEVEL_KEYS);
+        $unknown = array_diff(array_keys($data), self::TOP_LEVEL_KEYS);
         if ([] !== $unknown) {
-            throw new ConfigException('Unknown key(s): ' . \implode(', ', $unknown) . ' (allowed: ' . \implode(', ', self::TOP_LEVEL_KEYS) . ').');
+            throw new ConfigException('Unknown key(s): ' . implode(', ', $unknown) . ' (allowed: ' . implode(', ', self::TOP_LEVEL_KEYS) . ').');
         }
 
         $modules = [];
@@ -122,19 +122,19 @@ final class ModuleBoundaryConfig
             if (\is_string($definition)) {
                 $definition = ['namespace' => $definition];
             }
-            if (!\is_array($definition) || !isset($definition['namespace']) || !\is_string($definition['namespace']) || '' === \trim($definition['namespace'], '\\')) {
+            if (!\is_array($definition) || !isset($definition['namespace']) || !\is_string($definition['namespace']) || '' === trim($definition['namespace'], '\\')) {
                 throw new ConfigException("modules.{$name} needs a non-empty \"namespace\" string.");
             }
-            $extra = \array_diff(\array_keys($definition), ['namespace', 'path']);
+            $extra = array_diff(array_keys($definition), ['namespace', 'path']);
             if ([] !== $extra) {
-                throw new ConfigException("modules.{$name}: unknown key(s) " . \implode(', ', $extra) . ' (allowed: namespace, path).');
+                throw new ConfigException("modules.{$name}: unknown key(s) " . implode(', ', $extra) . ' (allowed: namespace, path).');
             }
             $path = $definition['path'] ?? null;
             if (null !== $path && (!\is_string($path) || '' === $path)) {
                 throw new ConfigException("modules.{$name}.path must be a non-empty string.");
             }
             $modules[$name] = [
-                'namespace' => \trim($definition['namespace'], '\\'),
+                'namespace' => trim($definition['namespace'], '\\'),
                 'path' => null === $path ? null : self::normalizePath($path),
             ];
         }
@@ -151,9 +151,9 @@ final class ModuleBoundaryConfig
             if (!\is_array($edge)) {
                 throw new ConfigException("{$where} must be a map with from / to.");
             }
-            $extra = \array_diff(\array_keys($edge), ['from', 'to', 'except', 'message']);
+            $extra = array_diff(array_keys($edge), ['from', 'to', 'except', 'message']);
             if ([] !== $extra) {
-                throw new ConfigException("{$where}: unknown key(s) " . \implode(', ', $extra) . ' (allowed: from, to, except, message).');
+                throw new ConfigException("{$where}: unknown key(s) " . implode(', ', $extra) . ' (allowed: from, to, except, message).');
             }
             if (!isset($edge['from'], $edge['to'])) {
                 throw new ConfigException("{$where} needs \"from\" and \"to\".");
@@ -201,8 +201,8 @@ final class ModuleBoundaryConfig
      */
     public static function compilePattern(string $pattern, string $where): string
     {
-        $regex = '~' . \str_replace('~', '\~', $pattern) . '~m';
-        if (false === @\preg_match($regex, '')) {
+        $regex = '~' . str_replace('~', '\~', $pattern) . '~m';
+        if (false === @preg_match($regex, '')) {
             throw new ConfigException("{$where} is not a valid regular expression: {$pattern}");
         }
 
@@ -216,12 +216,12 @@ final class ModuleBoundaryConfig
         }
         $type = $rule['type'];
         if (!isset(self::RULE_KEYS[$type])) {
-            throw new ConfigException("{$where}.type \"{$type}\" is unknown (allowed: " . \implode(', ', Rule::TYPES) . ').');
+            throw new ConfigException("{$where}.type \"{$type}\" is unknown (allowed: " . implode(', ', Rule::TYPES) . ').');
         }
         $allowed = [...self::RULE_KEYS[$type], 'type', 'message'];
-        $extra = \array_diff(\array_keys($rule), $allowed);
+        $extra = array_diff(array_keys($rule), $allowed);
         if ([] !== $extra) {
-            throw new ConfigException("{$where} ({$type}): unknown key(s) " . \implode(', ', $extra) . ' (allowed: ' . \implode(', ', $allowed) . ').');
+            throw new ConfigException("{$where} ({$type}): unknown key(s) " . implode(', ', $extra) . ' (allowed: ' . implode(', ', $allowed) . ').');
         }
         foreach (self::REQUIRED_RULE_KEYS[$type] as $key) {
             if (!isset($rule[$key])) {
@@ -280,7 +280,7 @@ final class ModuleBoundaryConfig
             throw new ConfigException("{$where} must be a list.");
         }
 
-        return \array_values($value);
+        return array_values($value);
     }
 
     /**
@@ -358,7 +358,7 @@ final class ModuleBoundaryConfig
     /** Forward slashes, no leading `./` (`.` is the root, ''); a trailing `/` (directory prefix) is kept. */
     private static function normalizePath(string $path): string
     {
-        $path = \str_replace('\\', '/', $path);
+        $path = str_replace('\\', '/', $path);
         while (str_starts_with($path, './')) {
             $path = substr($path, 2);
         }
@@ -366,7 +366,7 @@ final class ModuleBoundaryConfig
             return '';
         }
         $trailing = str_ends_with($path, '/');
-        $path = \rtrim($path, '/');
+        $path = rtrim($path, '/');
 
         return $trailing && '' !== $path ? $path . '/' : $path;
     }

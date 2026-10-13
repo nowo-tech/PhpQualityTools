@@ -26,9 +26,9 @@ final class ImportExtractor
     public function extract(string $code, bool $includeFullyQualified = false): array
     {
         try {
-            $tokens = \token_get_all($code, \TOKEN_PARSE);
+            $tokens = token_get_all($code, \TOKEN_PARSE);
         } catch (\ParseError) {
-            $tokens = \token_get_all($code);
+            $tokens = token_get_all($code);
         }
 
         $significant = [];
@@ -66,7 +66,7 @@ final class ImportExtractor
                 continue;
             }
             if (\T_NAME_FULLY_QUALIFIED === $token[0] && $includeFullyQualified) {
-                $names[] = ['name' => \ltrim($token[1], '\\'), 'line' => $token[2]];
+                $names[] = ['name' => ltrim($token[1], '\\'), 'line' => $token[2]];
                 continue;
             }
             if (\T_USE !== $token[0] || \in_array(false, $braces, true)) {
@@ -113,7 +113,7 @@ final class ImportExtractor
             if (!$expectName || !\in_array($token[0], self::NAME_TOKENS, true)) {
                 continue;
             }
-            $name = \ltrim($token[1], '\\');
+            $name = ltrim($token[1], '\\');
             $after = $tokens[$i + 1] ?? null;
             if (\is_array($after) && \T_NS_SEPARATOR === $after[0] && '{' === ($tokens[$i + 2] ?? null)) {
                 $prefix = $name . '\\';

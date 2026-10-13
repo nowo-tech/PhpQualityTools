@@ -124,14 +124,14 @@ trait QueryBudgetTrait
         foreach ($counts as $size => $count) {
             $parts[] = \sprintf('%d for N=%d', $count, $size);
         }
-        $sizesList = \array_keys($counts);
+        $sizesList = array_keys($counts);
 
         Assert::assertLessThanOrEqual($min + $tolerance, $max, \sprintf(
             '%sQuery count grows with N (N=%d..%d): %s (tolerance %d). An N+1 grows with the data set.',
             '' !== $message ? $message . "\n" : '',
             $sizesList[0],
             $sizesList[\count($sizesList) - 1],
-            \implode(', ', $parts),
+            implode(', ', $parts),
             $tolerance,
         ));
 
@@ -154,6 +154,6 @@ trait QueryBudgetTrait
             $lines[] = \sprintf('  ... %d more', \count($queries) - $limit);
         }
 
-        return "Statements:\n" . \implode("\n", $lines);
+        return "Statements:\n" . implode("\n", $lines);
     }
 }

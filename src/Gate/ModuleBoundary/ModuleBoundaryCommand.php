@@ -58,36 +58,36 @@ final class ModuleBoundaryCommand
         $root = $this->cwd;
         foreach ($args as $arg) {
             if ('-h' === $arg || '--help' === $arg) {
-                \fwrite($this->stdout, self::USAGE . "\n");
+                fwrite($this->stdout, self::USAGE . "\n");
 
                 return 0;
             }
-            if (\str_starts_with($arg, '--config=')) {
-                $config = \substr($arg, 9);
-            } elseif (\str_starts_with($arg, '--root=')) {
-                $root = $this->resolve(\substr($arg, 7), $this->cwd);
+            if (str_starts_with($arg, '--config=')) {
+                $config = substr($arg, 9);
+            } elseif (str_starts_with($arg, '--root=')) {
+                $root = $this->resolve(substr($arg, 7), $this->cwd);
             } else {
-                \fwrite($this->stderr, "ERROR: Unknown argument {$arg}\n" . self::USAGE . "\n");
+                fwrite($this->stderr, "ERROR: Unknown argument {$arg}\n" . self::USAGE . "\n");
 
                 return 2;
             }
         }
 
-        if (!\is_dir($root)) {
-            \fwrite($this->stderr, "ERROR: root directory not found: {$root}\n");
+        if (!is_dir($root)) {
+            fwrite($this->stderr, "ERROR: root directory not found: {$root}\n");
 
             return 2;
         }
 
         if (null === $config) {
             foreach (self::DEFAULT_CONFIGS as $candidate) {
-                if (\is_file($root . '/' . $candidate)) {
+                if (is_file($root . '/' . $candidate)) {
                     $config = $root . '/' . $candidate;
                     break;
                 }
             }
             if (null === $config) {
-                \fwrite($this->stderr, "ERROR: no config found (looked for config/quality/module-boundaries.{yaml,yml,php} in {$root}); pass --config=<file>.\n");
+                fwrite($this->stderr, "ERROR: no config found (looked for config/quality/module-boundaries.{yaml,yml,php} in {$root}); pass --config=<file>.\n");
 
                 return 2;
             }
@@ -98,26 +98,26 @@ final class ModuleBoundaryCommand
         try {
             $loaded = ModuleBoundaryConfig::fromFile($config);
         } catch (ConfigException $e) {
-            \fwrite($this->stderr, 'ERROR: ' . $e->getMessage() . "\n");
+            fwrite($this->stderr, 'ERROR: ' . $e->getMessage() . "\n");
 
             return 2;
         }
 
         $result = $this->checker->check($loaded, $root);
         foreach ($result['violations'] as $violation) {
-            \fwrite($this->stderr, 'error: ' . $violation->message . "\n");
+            fwrite($this->stderr, 'error: ' . $violation->message . "\n");
             foreach ($violation->details as $detail) {
-                \fwrite($this->stderr, '  ' . $detail . "\n");
+                fwrite($this->stderr, '  ' . $detail . "\n");
             }
         }
 
         if ([] !== $result['violations']) {
-            \fwrite($this->stderr, \sprintf("Module boundaries: %d violation(s).\n", \count($result['violations'])));
+            fwrite($this->stderr, \sprintf("Module boundaries: %d violation(s).\n", \count($result['violations'])));
 
             return 1;
         }
 
-        \fwrite($this->stdout, \sprintf(
+        fwrite($this->stdout, \sprintf(
             "OK: module boundaries (%d module(s), %d PHP file(s) scanned, %d edge rule(s), %d extra rule(s)).\n",
             \count($loaded->modules),
             $result['files'],
@@ -130,10 +130,10 @@ final class ModuleBoundaryCommand
 
     private function resolve(string $path, string $base): string
     {
-        if (\str_starts_with($path, '/') || \str_contains($path, ':')) {
-            return \rtrim($path, '/');
+        if (str_starts_with($path, '/') || str_contains($path, ':')) {
+            return rtrim($path, '/');
         }
 
-        return \rtrim($base, '/') . '/' . \rtrim($path, '/');
+        return rtrim($base, '/') . '/' . rtrim($path, '/');
     }
 }
