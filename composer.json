@@ -1,6 +1,6 @@
 {
     "name": "nowo-tech/php-quality-tools",
-    "description": "Pre-configured quality tools for PHP projects (Rector, PHP-CS-Fixer, Twig-CS-Fixer) with automatic framework detection, plus CI gate scripts (Clover coverage threshold, module boundaries) and a PHPUnit SQL query-budget trait.",
+    "description": "Pre-configured quality tools for PHP projects (Rector, PHP-CS-Fixer, Twig-CS-Fixer) with automatic framework detection, plus CI gate scripts (Clover coverage threshold, module boundaries, latest-release-tag deploy guard) and a PHPUnit SQL query-budget trait.",
     "type": "composer-plugin",
     "license": "MIT",
     "keywords": [
@@ -17,7 +17,9 @@
         "psr-12",
         "coverage",
         "module-boundaries",
-        "query-budget"
+        "query-budget",
+        "release",
+        "deploy-guard"
     ],
     "homepage": "https://github.com/nowo-tech/PhpQualityTools",
     "support": {
@@ -77,6 +79,7 @@
         }
     },
     "bin": [
+        "bin/assert-latest-tag",
         "bin/check-coverage-threshold",
         "bin/check-module-boundaries"
     ],

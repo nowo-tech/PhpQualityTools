@@ -2,7 +2,7 @@
 
 Use this checklist when cutting a new version.
 
-> Current release target: **1.2.0** (`v1.2.0`).
+> Current release target: **1.3.0** (`v1.3.0`).
 
 ## Before releasing
 

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.3.0] - 2026-10-14](#130---2026-10-14)
 - [[1.2.0] - 2026-10-13](#120---2026-10-13)
 - [[1.1.0] - 2026-10-13](#110---2026-10-13)
 - [[1.0.21] - 2026-10-09](#1021---2026-10-09)
@@ -34,6 +35,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2024-12-11](#100---2024-12-11)
 
 ## [Unreleased]
+
+## [1.3.0] - 2026-10-14
+
+### Added
+
+- **`bin/assert-latest-tag`** (Composer binary, plain PHP): exits 0 only when a tag (argument, default `GITHUB_REF_NAME`) is the highest semver release tag (`<prefix>MAJOR.MINOR.PATCH`, numeric order, pre-releases excluded), so a tag-triggered deploy of an older tag never rolls production back. Tags from `git tag --list` (optional `--fetch[=<remote>]`) or `--stdin`; `--prefix=` for other tag schemes; `--github-output` appends `deploy=true|false` and `latest=<tag>` to `$GITHUB_OUTPUT` (with a `::notice` when skipped) and exits 0. Exit 1 = not the latest (strict mode), 2 = usage / git / output error. Ported from Symfony Beacon's `deploy-on-tag.yml` guard step (KIT-EXTRACTION row #20).
+- [Usage → Release guards](USAGE.md#release-guards-since-130): deploy workflow examples (guard job + self-hosted deploy job, single-job variant, `git ls-remote` variant) and the recommended local `make release-check` recipe (QA + coverage threshold + Gitleaks secrets scan) as the release gate while hosted CI is unavailable.
+- Spec [`specs/003-release-guards`](../specs/003-release-guards/spec.md).
+
+### Changed
+
+- `bin/autoload.php`: when no Composer autoloader is found (bare `git clone` of the package), falls back to a PSR-4 loader for `src/` instead of exiting 2, so the dependency-free gates run without `composer install`.
+
+### Unchanged
+
+- Composer plugin behaviour; `check-coverage-threshold`, `check-module-boundaries` and `QueryBudgetTrait`.
+
+[1.3.0]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.3.0
 
 ## [1.2.0] - 2026-10-13
 

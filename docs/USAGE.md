@@ -145,6 +145,133 @@ A complete real-world map (Symfony Beacon, 7 modules, 3 forbidden edges, 18 rule
 [`tests/Fixtures/module-boundaries/beacon.yaml`](../tests/Fixtures/module-boundaries/beacon.yaml); the test
 suite runs it on a fake module tree and checks every rule fails on its regression.
 
+## Release guards (since 1.3.0)
+
+### `assert-latest-tag`
+
+```bash
+vendor/bin/assert-latest-tag [<tag>] [--prefix=v] [--stdin] [--fetch[=<remote>]] [--github-output]
+```
+
+Succeeds only when `<tag>` is the **highest semver release tag** of the repository, so a tag-triggered
+deploy of an older tag (backfilling `v1.51.0` after `v1.60.0`, or several queued tag runs finishing out of
+order) never rolls production back.
+
+- `<tag>` defaults to `GITHUB_REF_NAME` (a leading `refs/tags/` is stripped).
+- Release tags are `<prefix>MAJOR.MINOR.PATCH` (default prefix `v`; `--prefix=` for bare `1.2.3`,
+  `--prefix=api/v` for `api/v1.2.3`). They are compared numerically (`v1.10.0` > `v1.9.0`). Pre-releases
+  (`v2.0.0-rc1`) and other tags are never the latest and never outrank a release.
+- Tags come from `git tag --list '<prefix>*'` in the current directory (the checkout needs its tags:
+  `actions/checkout` with `fetch-depth: 0`, or `--fetch` to run `git fetch --tags --force --quiet origin`
+  first). `--stdin` reads the list from stdin instead (one tag per line), e.g. from `git ls-remote`.
+- `--github-output` appends `deploy=true|false` and `latest=<tag>` to `$GITHUB_OUTPUT`, prints a
+  `::notice` annotation when the deploy is skipped, and exits 0 either way (the job stays green; later
+  steps check `deploy`). Without it, the command is a strict check (exit 1 when not the latest).
+- Plain PHP without dependencies: it also runs from a bare `git clone` of this package (no
+  `composer install`); `bin/autoload.php` falls back to loading `src/` directly.
+
+| Exit code | Meaning |
+| --- | --- |
+| 0 | `<tag>` is the latest release tag, or the decision was written with `--github-output` |
+| 1 | `<tag>` is not the latest release tag (strict mode) |
+| 2 | usage error, no tag (argument / `GITHUB_REF_NAME`), git error, or `$GITHUB_OUTPUT` unset / not writable |
+
+```text
+$ vendor/bin/assert-latest-tag v1.59.0
+pushed=v1.59.0 latest=v1.60.2
+ERROR: v1.59.0 is not the latest release (v1.60.2).
+```
+
+#### Deploy workflow (GitHub Actions)
+
+A light guard job decides; the deploy job (often on a self-hosted runner without PHP) only runs for the
+latest tag. Pin the package tag you trust:
+
+```yaml
+# .github/workflows/deploy-on-tag.yml
+name: Deploy on tag
+
+on:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: deploy-prod-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest          # PHP and git preinstalled
+    outputs:
+      deploy: ${{ steps.latest.outputs.deploy }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0            # all tags
+      - name: Guard — deploy only the latest release tag
+        id: latest
+        run: |
+          git clone --quiet --depth 1 --branch v1.3.0 https://github.com/nowo-tech/PhpQualityTools.git "$RUNNER_TEMP/pqt"
+          php "$RUNNER_TEMP/pqt/bin/assert-latest-tag" --github-output
+
+  deploy:
+    needs: guard
+    if: needs.guard.outputs.deploy == 'true'
+    runs-on: [self-hosted, linux, x64, prod-vps]
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      # … deploy steps …
+```
+
+Single job, when the runner has PHP and the project's `vendor/` (Composer install done earlier in the job):
+
+```yaml
+      - name: Guard — deploy only the latest release tag
+        id: latest
+        run: vendor/bin/assert-latest-tag --fetch --github-output
+      - name: Deploy
+        if: steps.latest.outputs.deploy == 'true'
+        run: ./scripts/deploy-prod.sh
+```
+
+Without a checkout at all, list the remote tags: `git ls-remote --tags --refs "https://github.com/${GITHUB_REPOSITORY}.git" 'v*' | sed 's#.*refs/tags/##' | php "$RUNNER_TEMP/pqt/bin/assert-latest-tag" --stdin --github-output`
+(private repositories need a token in the URL).
+
+### Local release gate: `make release-check`
+
+When hosted CI is unavailable (or before every tag anyway), run one Make target that repeats the CI gates
+locally and only then tag. Recommended recipe (Docker Compose service `php`, as in Symfony Beacon):
+
+```makefile
+COVERAGE_MIN ?=
+GITLEAKS_VERSION ?= 8.28.0   # same version as the CI secret-scan job
+
+test-coverage:
+	$(DC) exec -T -e XDEBUG_MODE=coverage php vendor/bin/phpunit --coverage-text --coverage-clover var/coverage/clover.xml
+	$(DC) exec -T -e COVERAGE_MIN="$(COVERAGE_MIN)" php vendor/bin/check-coverage-threshold var/coverage/clover.xml --metric=statements
+
+secrets-scan:
+	docker run --rm -v "$(CURDIR):/repo:ro" -w /repo "zricethezav/gitleaks:v$(GITLEAKS_VERSION)" \
+		detect --source . --verbose --redact --exit-code 1
+
+# Local release gate: QA + coverage threshold + secrets scan. Run before `git tag`.
+release-check:
+	$(MAKE) qa
+	$(MAKE) test-coverage COVERAGE_MIN=100
+	$(MAKE) secrets-scan
+	@echo "release-check OK: qa + 100% PHP coverage + secrets scan passed — safe to tag."
+```
+
+- `qa` is the project's full static + test chain (CS, Rector dry run, PHPStan, Twig lint, module
+  boundaries, tests …); `COVERAGE_MIN` is your policy (Beacon enforces 100).
+- Release flow: `make release-check` → commit → `git tag -a vX.Y.Z` → `git push origin main vX.Y.Z`. The
+  tag-triggered deploy then runs `assert-latest-tag`, so re-pushing an old tag is harmless.
+- Optionally assert locally that the tag you are about to deploy by hand is the newest:
+  `git fetch --tags && vendor/bin/assert-latest-tag vX.Y.Z`.
+
 ## Query budgets in PHPUnit (since 1.2.0)
 
 `NowoTech\PhpQualityTools\Testing\QueryBudgetTrait` counts the SQL statements executed around a callable.

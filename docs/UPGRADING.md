@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.3.0](#to-130)
 - [To 1.2.0](#to-120)
 - [To 1.1.0](#to-110)
 - [To 1.0.21](#to-1021)
@@ -47,6 +48,18 @@
 - [Related Documentation](#related-documentation)
 
 ## Unreleased
+
+## To 1.3.0
+
+From **1.2.0** — opt-in deploy guard.
+
+```bash
+composer update nowo-tech/php-quality-tools
+```
+
+- No breaking changes; nothing runs unless you call the new binary.
+- **Deploy guard:** replace an inline "deploy only the latest tag" shell step (`git tag --list 'v*' | grep -E … | sort -V | tail -n 1`) with `vendor/bin/assert-latest-tag --github-output` (same `deploy=true|false` output; keep `if: steps.<id>.outputs.deploy == 'true'` on the deploy steps). On a runner without the project's `vendor/`, use the guard-job example in [Usage → Release guards](USAGE.md#release-guards-since-130) (bare clone of the package, no Composer needed).
+- Workflows using another output name (e.g. `skip=true|false`): switch the condition to `deploy != 'true'` / `deploy == 'true'`.
 
 ## To 1.2.0
 

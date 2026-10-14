@@ -10,7 +10,8 @@ Pre-configured quality tools for PHP projects. Includes ready-to-use configurati
 - **Twig-CS-Fixer** - Twig template style fixing
 
 Plus opt-in CI gates (since 1.2.0): `vendor/bin/check-coverage-threshold`, `vendor/bin/check-module-boundaries`
-and a PHPUnit `QueryBudgetTrait` (SQL query budgets / N+1 scaling checks).
+and a PHPUnit `QueryBudgetTrait` (SQL query budgets / N+1 scaling checks), and a deploy guard (since 1.3.0):
+`vendor/bin/assert-latest-tag` (only the highest semver tag deploys).
 
 ![FrankenPHP Friendly Worker Mode](docs/images/frankenphp-friendly.png)
 
@@ -27,6 +28,7 @@ This bundle is **FrankenPHP worker mode friendly**.
 - ✅ PHP 8.2+ support
 - ✅ PSR-12 and Symfony coding standards
 - ✅ Gate scripts: Clover coverage threshold (statements + lines) and module boundaries (YAML map of modules and forbidden / allowed import edges)
+- ✅ Release guard: `assert-latest-tag` refuses to deploy a tag that is not the highest semver release (no rollback when an old tag is pushed), with a `$GITHUB_OUTPUT` mode
 - ✅ `Testing\QueryBudgetTrait`: `assertQueryBudget()` / `assertScalesWith()` on top of a Doctrine DBAL 4 counting middleware
 
 ## Installation
@@ -316,6 +318,10 @@ vendor/bin/check-coverage-threshold var/coverage/clover.xml 95
 
 # Fail on forbidden imports between modules (config/quality/module-boundaries.yaml)
 vendor/bin/check-module-boundaries
+
+# Deploy guard (since 1.3.0): exit 1 unless the tag is the highest vX.Y.Z tag;
+# --github-output writes deploy=true|false to $GITHUB_OUTPUT instead
+vendor/bin/assert-latest-tag v1.4.0
 ```
 
 ```yaml
@@ -334,7 +340,7 @@ $this->assertQueryBudget(60, fn () => $client->request('GET', '/issues'));
 $this->assertScalesWith(fn (int $n, int $previous) => $this->seed($previous, $n), fn () => $client->request('GET', '/issues'));
 ```
 
-See [docs/USAGE.md](docs/USAGE.md#gate-scripts-since-120) for every option, exit code, rule type and the Symfony wiring of the DBAL middleware.
+See [docs/USAGE.md](docs/USAGE.md#gate-scripts-since-120) for every option, exit code, rule type and the Symfony wiring of the DBAL middleware, and [Release guards](docs/USAGE.md#release-guards-since-130) for the deploy workflow and the recommended local `make release-check` gate.
 
 ## Customization
 

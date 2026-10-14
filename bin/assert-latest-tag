@@ -1,0 +1,15 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Exit 0 only when a tag (default: GITHUB_REF_NAME) is the highest semver release tag; guards
+ * tag-triggered deploys against rolling back. See docs/USAGE.md ("Release guards") or run with --help.
+ */
+
+use NowoTech\PhpQualityTools\Gate\Release\LatestTagCommand;
+
+require __DIR__ . '/autoload.php';
+
+exit((new LatestTagCommand(\STDOUT, \STDERR, getenv(), null, \STDIN))->run(array_slice($argv, 1)));

@@ -94,3 +94,11 @@ Specified in [`specs/002-gate-scripts/spec.md`](../002-gate-scripts/spec.md).
 | `Testing/Dbal/QueryCountingDriver.php` | Driver wrapper (`@internal`) | FR-QB-001 |
 | `Testing/Dbal/QueryCountingConnection.php` | Connection wrapper (`@internal`) | FR-QB-001 |
 | `Testing/Dbal/QueryCountingStatement.php` | Statement wrapper (`@internal`) | FR-QB-001 |
+
+## Release guards (`src/Gate/Release/`, since 1.3.0)
+
+Specified in [`specs/003-release-guards/spec.md`](../003-release-guards/spec.md).
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Gate/Release/LatestTagCommand.php` | `bin/assert-latest-tag` | FR-REL-001 – FR-REL-006 |
