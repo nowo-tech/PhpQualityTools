@@ -36,6 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`bin/assert-release-proof`** (`Gate\Release\ReleaseProofCommand`): passes only when the annotated release tag records `release-check: OK <sha>` for its own commit (the local gate proof), with `--github-output` (`proof=true|false`) and an explicit, logged `--allow-skip` + `RELEASE_GATE=skip` override. Lets tag-triggered deploys stay gated by default while hosted CI is unavailable (Nowo REQ-RELEASE-003 item 6).
+
 ## [1.3.0] - 2026-10-14
 
 ### Added

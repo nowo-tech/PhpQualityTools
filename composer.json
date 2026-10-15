@@ -80,6 +80,7 @@
     },
     "bin": [
         "bin/assert-latest-tag",
+        "bin/assert-release-proof",
         "bin/check-coverage-threshold",
         "bin/check-module-boundaries"
     ],

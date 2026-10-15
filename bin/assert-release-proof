@@ -1,0 +1,15 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Exit 0 only when the annotated release tag (default: GITHUB_REF_NAME) records a passing
+ * `make release-check` for its commit ("release-check: OK <sha>"). See docs/USAGE.md ("Release guards").
+ */
+
+use NowoTech\PhpQualityTools\Gate\Release\ReleaseProofCommand;
+
+require __DIR__ . '/autoload.php';
+
+exit((new ReleaseProofCommand(\STDOUT, \STDERR, getenv()))->run(array_slice($argv, 1)));

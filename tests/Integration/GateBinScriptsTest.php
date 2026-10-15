@@ -34,8 +34,9 @@ final class GateBinScriptsTest extends TestCase
         $composer = json_decode((string) file_get_contents(self::ROOT . '/composer.json'), true, 512, \JSON_THROW_ON_ERROR);
 
         self::assertIsArray($composer);
-        self::assertSame(['bin/assert-latest-tag', 'bin/check-coverage-threshold', 'bin/check-module-boundaries'], $composer['bin'] ?? null);
+        self::assertSame(['bin/assert-latest-tag', 'bin/assert-release-proof', 'bin/check-coverage-threshold', 'bin/check-module-boundaries'], $composer['bin'] ?? null);
         self::assertTrue(is_executable(self::ROOT . '/bin/assert-latest-tag'));
+        self::assertTrue(is_executable(self::ROOT . '/bin/assert-release-proof'));
         self::assertTrue(is_executable(self::ROOT . '/bin/check-coverage-threshold'));
         self::assertTrue(is_executable(self::ROOT . '/bin/check-module-boundaries'));
     }
@@ -56,6 +57,24 @@ final class GateBinScriptsTest extends TestCase
         [$code, $out] = $this->runScript('assert-latest-tag', ['v1.2.0'], [], $repo);
         self::assertSame(1, $code);
         self::assertStringContainsString('ERROR: v1.2.0 is not the latest release (v1.10.0).', $out);
+    }
+
+    public function testAssertReleaseProofScriptReadsTheAnnotatedTag(): void
+    {
+        $repo = $this->createRepository(['v1.0.0']);
+        $git = ['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.com', '-c', 'tag.gpgsign=false'];
+        $head = new Process(['git', 'rev-parse', 'HEAD'], $repo);
+        $head->mustRun();
+        $sha = trim($head->getOutput());
+        (new Process([...$git, 'tag', '-a', 'v1.1.0', '-m', 'Release v1.1.0', '-m', 'release-check: OK ' . $sha], $repo))->mustRun();
+
+        [$code, $out] = $this->runScript('assert-release-proof', ['v1.1.0'], [], $repo);
+        self::assertSame(0, $code, $out);
+        self::assertStringContainsString('OK: v1.1.0 records a passing release-check for ' . $sha, $out);
+
+        // Lightweight tag: no message, no proof.
+        [$code, $out] = $this->runScript('assert-release-proof', ['v1.0.0'], [], $repo);
+        self::assertSame(1, $code, $out);
     }
 
     public function testAssertLatestTagScriptReadsStdinOutsideGit(): void

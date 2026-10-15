@@ -272,6 +272,20 @@ release-check:
 - Optionally assert locally that the tag you are about to deploy by hand is the newest:
   `git fetch --tags && vendor/bin/assert-latest-tag vX.Y.Z`.
 
+### `assert-release-proof`
+
+```text
+vendor/bin/assert-release-proof [<tag>] [--github-output] [--allow-skip]
+```
+
+Succeeds only when the **annotated** tag message has the line `release-check: OK <full sha of the tagged commit>` — the proof that the local release gate passed on exactly that commit. Tag it right after a green `make release-check`:
+
+```bash
+git tag -a vX.Y.Z -m "Release vX.Y.Z" -m "release-check: OK $(git rev-parse HEAD)"
+```
+
+Tag-triggered deploys use it as the gate while hosted CI cannot run (or as a second gate next to a green `ci.yml`). A lightweight tag, or a proof line for another commit, fails (exit 1). `--github-output` writes `proof=true|false` and exits 0; `--allow-skip` accepts `RELEASE_GATE=skip` from the environment and prints a `::warning` (emergency override, logged in the run). Exit 2 on usage or git errors (needs the tags fetched: `actions/checkout` `fetch-depth: 0`).
+
 ## Query budgets in PHPUnit (since 1.2.0)
 
 `NowoTech\PhpQualityTools\Testing\QueryBudgetTrait` counts the SQL statements executed around a callable.
