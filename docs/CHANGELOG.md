@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.4.0] - 2026-10-15](#140---2026-10-15)
 - [[1.3.0] - 2026-10-14](#130---2026-10-14)
 - [[1.2.0] - 2026-10-13](#120---2026-10-13)
 - [[1.1.0] - 2026-10-13](#110---2026-10-13)
@@ -36,9 +37,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-15
+
 ### Added
 
 - **`bin/assert-release-proof`** (`Gate\Release\ReleaseProofCommand`): passes only when the annotated release tag records `release-check: OK <sha>` for its own commit (the local gate proof), with `--github-output` (`proof=true|false`) and an explicit, logged `--allow-skip` + `RELEASE_GATE=skip` override. Lets tag-triggered deploys stay gated by default while hosted CI is unavailable (Nowo REQ-RELEASE-003 item 6).
+
+[1.4.0]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.4.0
 
 ## [1.3.0] - 2026-10-14
 
