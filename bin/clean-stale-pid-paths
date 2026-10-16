@@ -1,0 +1,15 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Remove per-process test files / directories (`{pid}` in the pattern) whose process no longer exists.
+ * See docs/USAGE.md ("Parallel PHPUnit isolation") or run with --help.
+ */
+
+use NowoTech\PhpQualityTools\Testing\Pid\StalePidPathsCommand;
+
+require __DIR__ . '/autoload.php';
+
+exit((new StalePidPathsCommand(\STDOUT, \STDERR))->run(array_slice($argv, 1)));

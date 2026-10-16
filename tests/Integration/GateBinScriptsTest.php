@@ -34,11 +34,12 @@ final class GateBinScriptsTest extends TestCase
         $composer = json_decode((string) file_get_contents(self::ROOT . '/composer.json'), true, 512, \JSON_THROW_ON_ERROR);
 
         self::assertIsArray($composer);
-        self::assertSame(['bin/assert-latest-tag', 'bin/assert-release-proof', 'bin/check-coverage-threshold', 'bin/check-module-boundaries'], $composer['bin'] ?? null);
+        self::assertSame(['bin/assert-latest-tag', 'bin/assert-release-proof', 'bin/check-coverage-threshold', 'bin/check-module-boundaries', 'bin/clean-stale-pid-paths'], $composer['bin'] ?? null);
         self::assertTrue(is_executable(self::ROOT . '/bin/assert-latest-tag'));
         self::assertTrue(is_executable(self::ROOT . '/bin/assert-release-proof'));
         self::assertTrue(is_executable(self::ROOT . '/bin/check-coverage-threshold'));
         self::assertTrue(is_executable(self::ROOT . '/bin/check-module-boundaries'));
+        self::assertTrue(is_executable(self::ROOT . '/bin/clean-stale-pid-paths'));
     }
 
     public function testAssertLatestTagScriptReadsRealGitTags(): void
@@ -75,6 +76,23 @@ final class GateBinScriptsTest extends TestCase
         // Lightweight tag: no message, no proof.
         [$code, $out] = $this->runScript('assert-release-proof', ['v1.0.0'], [], $repo);
         self::assertSame(1, $code, $out);
+    }
+
+    public function testCleanStalePidPathsScriptKeepsLiveProcesses(): void
+    {
+        $this->repo = sys_get_temp_dir() . '/pqt-pids-' . bin2hex(random_bytes(4));
+        $live = $this->repo . '/markers-' . getmypid();
+        $dead = $this->repo . '/markers-999999999';
+        mkdir($live, 0o777, true);
+        mkdir($dead . '/sub', 0o777, true);
+        touch($dead . '/sub/setup.done');
+
+        [$code, $out] = $this->runScript('clean-stale-pid-paths', [$this->repo . '/markers-{pid}']);
+
+        self::assertSame(0, $code, $out);
+        self::assertStringContainsString('removed 1 path(s) of dead processes, kept 1 of running processes.', $out);
+        self::assertDirectoryExists($live);
+        self::assertDirectoryDoesNotExist($dead);
     }
 
     public function testAssertLatestTagScriptReadsStdinOutsideGit(): void

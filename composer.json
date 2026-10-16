@@ -1,6 +1,6 @@
 {
     "name": "nowo-tech/php-quality-tools",
-    "description": "Pre-configured quality tools for PHP projects (Rector, PHP-CS-Fixer, Twig-CS-Fixer) with automatic framework detection, plus CI gate scripts (Clover coverage threshold, module boundaries, latest-release-tag deploy guard) and a PHPUnit SQL query-budget trait.",
+    "description": "Pre-configured quality tools for PHP projects (Rector, PHP-CS-Fixer, Twig-CS-Fixer) with automatic framework detection, plus CI gate scripts (Clover coverage threshold, module boundaries, latest-release-tag deploy guard), a PHPUnit SQL query-budget trait and ParaTest per-process isolation helpers.",
     "type": "composer-plugin",
     "license": "MIT",
     "keywords": [
@@ -19,7 +19,8 @@
         "module-boundaries",
         "query-budget",
         "release",
-        "deploy-guard"
+        "deploy-guard",
+        "paratest"
     ],
     "homepage": "https://github.com/nowo-tech/PhpQualityTools",
     "support": {
@@ -66,7 +67,9 @@
         "symplify/rule-doc-generator-contracts": "Required for custom Rector rules (SplitLongGroupedImportsRector, SplitLongConstructorParametersRector)",
         "symfony/yaml": "Read config/quality/module-boundaries.yaml in bin/check-module-boundaries (a PHP config file works without it)",
         "doctrine/dbal": "(^4.0) Count SQL statements with Testing\\Dbal\\QueryCountingMiddleware for Testing\\QueryBudgetTrait",
-        "phpunit/phpunit": "Testing\\QueryBudgetTrait assertions (assertQueryBudget, assertScalesWith)"
+        "phpunit/phpunit": "Testing\\QueryBudgetTrait assertions (assertQueryBudget, assertScalesWith)",
+        "symfony/dependency-injection": "Register Testing\\Env\\PidPathEnvVarProcessor (env var processor pid_path) for per-process test paths under ParaTest",
+        "brianium/paratest": "Run PHPUnit (and coverage) in parallel; isolate per-process state with pid_path and bin/clean-stale-pid-paths"
     },
     "autoload": {
         "psr-4": {
@@ -82,7 +85,8 @@
         "bin/assert-latest-tag",
         "bin/assert-release-proof",
         "bin/check-coverage-threshold",
-        "bin/check-module-boundaries"
+        "bin/check-module-boundaries",
+        "bin/clean-stale-pid-paths"
     ],
     "extra": {
         "class": "NowoTech\\PhpQualityTools\\Plugin",

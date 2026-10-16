@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.5.0] - 2026-10-16](#150---2026-10-16)
 - [[1.4.0] - 2026-10-15](#140---2026-10-15)
 - [[1.3.0] - 2026-10-14](#130---2026-10-14)
 - [[1.2.0] - 2026-10-13](#120---2026-10-13)
@@ -36,6 +37,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2024-12-11](#100---2024-12-11)
 
 ## [Unreleased]
+
+## [1.5.0] - 2026-10-16
+
+### Added
+
+- **`Testing\Env\PidPathEnvVarProcessor`** (Symfony env var processor `pid_path`): appends `-<pid>` to a path (`%env(pid_path:default:app.test_dir:APP_TEST_DIR)%`) without mutating `$_ENV`, so each PHPUnit / ParaTest process gets its own marker files and scratch directories. Register it with the `container.env_var_processor` tag under `when@test`. Ported from Symfony Beacon (`App\Shared\Env\PidPathEnvVarProcessor`, Beacon spec 149 FR-003).
+- **`bin/clean-stale-pid-paths`** (`Testing\Pid\StalePidPathsCommand`): removes files / directories matching `{pid}` patterns (`'/dev/shm/app-phpunit-{pid}.db*'`) whose process no longer exists (`/proc`, else `posix_kill`), keeping those of running processes; `--dry-run`, `--quiet`; exit 0 / 1 (removal failed) / 2 (usage). Replaces the shell loops of Beacon's `scripts/phpunit-reset.sh`.
+- [Usage → Parallel PHPUnit isolation](USAGE.md#parallel-phpunit-isolation-since-150): registration, `default:` fallback, cleanup, and a ParaTest coverage gate recipe (`paratest --processes=N` + `check-coverage-threshold`).
+- Spec [`specs/004-paratest-isolation`](../specs/004-paratest-isolation/spec.md).
+
+### Changed
+
+- `composer.json`: `bin/clean-stale-pid-paths`; `symfony/dependency-injection` and `brianium/paratest` suggested (nothing added to `require`).
+
+### Unchanged
+
+- Composer plugin behaviour and the existing gates (`check-coverage-threshold`, `check-module-boundaries`, `assert-latest-tag`, `assert-release-proof`), `QueryBudgetTrait`.
+
+[1.5.0]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.5.0
 
 ## [1.4.0] - 2026-10-15
 

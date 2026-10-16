@@ -286,6 +286,90 @@ git tag -a vX.Y.Z -m "Release vX.Y.Z" -m "release-check: OK $(git rev-parse HEAD
 
 Tag-triggered deploys use it as the gate while hosted CI cannot run (or as a second gate next to a green `ci.yml`). A lightweight tag, or a proof line for another commit, fails (exit 1). `--github-output` writes `proof=true|false` and exits 0; `--allow-skip` accepts `RELEASE_GATE=skip` from the environment and prints a `::warning` (emergency override, logged in the run). Exit 2 on usage or git errors (needs the tags fetched: `actions/checkout` `fetch-depth: 0`).
 
+## Parallel PHPUnit isolation (since 1.5.0)
+
+ParaTest runs the suite in N PHPUnit processes at once. File-based test state configured from one env var
+(setup markers, scratch / lock directories, a SQLite file) is then shared by every process and the runs
+step on each other (one process deletes the marker another one just wrote). Two helpers give each process
+its own paths and clean them up afterwards.
+
+### `pid_path` env var processor
+
+`NowoTech\PhpQualityTools\Testing\Env\PidPathEnvVarProcessor` appends `-<pid>` of the current PHP
+process to a path (trailing slashes removed): `/dev/shm/app-markers/` → `/dev/shm/app-markers-12345`.
+It does not touch `$_ENV` / `putenv()`; an empty or non-string value throws a `RuntimeException`.
+
+Register it in the **test** environment only (this package is a dev dependency, absent from a
+`--no-dev` production install):
+
+```yaml
+# config/services.yaml (or config/services_test.yaml without the when@test key)
+when@test:
+    services:
+        NowoTech\PhpQualityTools\Testing\Env\PidPathEnvVarProcessor:
+            tags: [container.env_var_processor]
+```
+
+Use it wherever a test-only path comes from an env var, with Symfony's `default:` processor for a
+fallback parameter when the variable is unset:
+
+```yaml
+when@test:
+    parameters:
+        app.test_marker_dir: '/dev/shm/app-markers'
+    some_bundle:
+        marker_file: '%env(pid_path:default:app.test_marker_dir:APP_TEST_MARKER_DIR)%/setup.done'
+```
+
+The suffix is the PID of the process that **resolves** the variable (env vars are resolved at runtime,
+not at compile time), so a container compiled once into `var/cache/test` still gives every ParaTest
+worker its own path.
+
+### `clean-stale-pid-paths`
+
+```text
+vendor/bin/clean-stale-pid-paths [--dry-run] [--quiet] <pattern> [<pattern> ...]
+```
+
+Removes the per-process paths of processes that no longer exist. Each pattern has exactly one `{pid}`
+placeholder and optional `*` / `?` wildcards (never across `/`); quote the patterns so the shell does not
+expand them. Directories are removed recursively, symlinks are unlinked (never followed), and the paths of
+**running** processes are kept, so it is safe next to a test run still in progress (a coverage run next
+to `make test`).
+
+```bash
+vendor/bin/clean-stale-pid-paths --quiet \
+    '/dev/shm/app-phpunit-{pid}.db*' \
+    '/dev/shm/app-markers-{pid}'
+```
+
+Liveness comes from `/proc/<pid>` when procfs is mounted, else `posix_kill($pid, 0)`; when neither is
+available nothing is removed. `--dry-run` lists what would go. Exit codes: 0 OK (also when nothing
+matched), 1 a path could not be removed, 2 usage error.
+
+### Parallel coverage gate (Makefile recipe)
+
+ParaTest (`composer require --dev brianium/paratest`) merges the coverage of every process, so the
+existing `check-coverage-threshold` gate works unchanged on its Clover report:
+
+```makefile
+PARATEST_PROCESSES ?= 12
+
+test-coverage-parallel:
+	$(DC) exec -T php vendor/bin/clean-stale-pid-paths --quiet '/dev/shm/app-phpunit-{pid}.db*' '/dev/shm/app-markers-{pid}'
+	$(DC) exec -T php sh -c 'mkdir -p var/coverage'
+	$(DC) exec -T -e XDEBUG_MODE=coverage php vendor/bin/paratest --processes=$(PARATEST_PROCESSES) \
+		--coverage-text --coverage-clover var/coverage/clover.xml
+	$(DC) exec -T -e COVERAGE_MIN="100" php vendor/bin/check-coverage-threshold var/coverage/clover.xml --metric=statements
+```
+
+- Warm the test cache **once** before the parallel phase (`bin/console cache:warmup --env=test`) so the
+  workers do not all compile the container at the same time.
+- No pipes in gate recipes (`… | tee` hides a failing exit code); run the gate jobs with
+  `make -j<N> --output-sync=target` so each job's output prints as one block.
+- Per-process databases follow the same idea (e.g. a SQLite file per PID); add their pattern to the
+  cleanup call.
+
 ## Query budgets in PHPUnit (since 1.2.0)
 
 `NowoTech\PhpQualityTools\Testing\QueryBudgetTrait` counts the SQL statements executed around a callable.

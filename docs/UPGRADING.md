@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.5.0](#to-150)
 - [To 1.4.0](#to-140)
 - [To 1.3.0](#to-130)
 - [To 1.2.0](#to-120)
@@ -49,6 +50,18 @@
 - [Related Documentation](#related-documentation)
 
 ## Unreleased
+
+## To 1.5.0
+
+From **1.4.0** — opt-in ParaTest isolation helpers.
+
+```bash
+composer update nowo-tech/php-quality-tools
+```
+
+- No breaking changes; nothing runs or registers itself.
+- **Own `pid_path` processor:** an application that ships its own `pid_path` env var processor (e.g. Symfony Beacon's `App\Shared\Env\PidPathEnvVarProcessor`) can delete it (and its test) and register `NowoTech\PhpQualityTools\Testing\Env\PidPathEnvVarProcessor` with the `container.env_var_processor` tag under `when@test`. Same prefix, same output; keep only one of them registered (with two, Symfony silently uses the last one registered for the prefix). `%env(pid_path:…)%` usages stay unchanged.
+- **Stale per-process paths:** replace shell loops that delete per-PID files / directories of dead processes with `vendor/bin/clean-stale-pid-paths --quiet '<path-with-{pid}>' …`. See [Usage → Parallel PHPUnit isolation](USAGE.md#parallel-phpunit-isolation-since-150).
 
 ## To 1.4.0
 

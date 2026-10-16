@@ -51,5 +51,7 @@ Nothing to configure for the Composer plugin. The optional CI gates read their o
 - `vendor/bin/check-module-boundaries`: `config/quality/module-boundaries.yaml` (or `.yml` / `.php`, or `--config`).
 - `vendor/bin/assert-latest-tag` (since 1.3.0): tag argument or `GITHUB_REF_NAME`, `--prefix` (default `v`), `GITHUB_OUTPUT` with `--github-output`; tags from `git tag --list` (or `--stdin`).
 - `Testing\QueryBudgetTrait`: register `Testing\Dbal\QueryCountingMiddleware` (tag `doctrine.middleware`) in the test environment.
+- `Testing\Env\PidPathEnvVarProcessor` (since 1.5.0): register it with the tag `container.env_var_processor` under `when@test`, then use `%env(pid_path:…)%`.
+- `vendor/bin/clean-stale-pid-paths` (since 1.5.0): one or more path patterns with a `{pid}` placeholder.
 
-Full reference: [Usage → Gate scripts](USAGE.md#gate-scripts-since-120), [Usage → Release guards](USAGE.md#release-guards-since-130) and [Usage → Query budgets](USAGE.md#query-budgets-in-phpunit-since-120).
+Full reference: [Usage → Gate scripts](USAGE.md#gate-scripts-since-120), [Usage → Release guards](USAGE.md#release-guards-since-130), [Usage → Query budgets](USAGE.md#query-budgets-in-phpunit-since-120) and [Usage → Parallel PHPUnit isolation](USAGE.md#parallel-phpunit-isolation-since-150).
