@@ -1,0 +1,15 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Fail on broken relative links and images (optionally #anchors) in Markdown files.
+ * See docs/USAGE.md ("Front-end and docs gates") or run with --help.
+ */
+
+use NowoTech\PhpQualityTools\Gate\DocLinks\DocLinksCommand;
+
+require __DIR__ . '/autoload.php';
+
+exit((new DocLinksCommand(\STDOUT, \STDERR, (string) getcwd()))->run(array_slice($argv, 1)));

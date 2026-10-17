@@ -34,7 +34,10 @@ final class GateBinScriptsTest extends TestCase
         $composer = json_decode((string) file_get_contents(self::ROOT . '/composer.json'), true, 512, \JSON_THROW_ON_ERROR);
 
         self::assertIsArray($composer);
-        self::assertSame(['bin/assert-latest-tag', 'bin/assert-release-proof', 'bin/check-coverage-threshold', 'bin/check-module-boundaries', 'bin/clean-stale-pid-paths'], $composer['bin'] ?? null);
+        self::assertSame(['bin/assert-latest-tag', 'bin/assert-release-proof', 'bin/check-asset-budgets', 'bin/check-coverage-threshold', 'bin/check-doc-links', 'bin/check-module-boundaries', 'bin/check-no-inline-svg', 'bin/clean-stale-pid-paths'], $composer['bin'] ?? null);
+        foreach ($composer['bin'] as $script) {
+            self::assertTrue(is_executable(self::ROOT . '/' . $script), $script);
+        }
         self::assertTrue(is_executable(self::ROOT . '/bin/assert-latest-tag'));
         self::assertTrue(is_executable(self::ROOT . '/bin/assert-release-proof'));
         self::assertTrue(is_executable(self::ROOT . '/bin/check-coverage-threshold'));
@@ -93,6 +96,91 @@ final class GateBinScriptsTest extends TestCase
         self::assertStringContainsString('removed 1 path(s) of dead processes, kept 1 of running processes.', $out);
         self::assertDirectoryExists($live);
         self::assertDirectoryDoesNotExist($dead);
+    }
+
+    public function testFrontEndAndDocsGateScripts(): void
+    {
+        $this->repo = sys_get_temp_dir() . '/pqt-front-' . bin2hex(random_bytes(4));
+        $files = [
+            'templates/base.html.twig' => "{{ ux_icon('lucide:x') }}",
+            'assets/app.ts' => 'export {};',
+            'public/build/.vite/manifest.json' => '{"assets/app.ts": {"file": "assets/app-1.js", "css": ["assets/app-1.css"]}}',
+            'public/build/assets/app-1.js' => str_repeat('j', 1200),
+            'public/build/assets/app-1.css' => str_repeat('c', 800),
+            'config/quality/asset-budgets.json' => '{"budgets": {"assets/app.ts": {"js": "2kB", "css": "1kB"}}}',
+            'README.md' => "# App\n\n[Usage](docs/USAGE.md#gates)\n",
+            'docs/USAGE.md' => "## Gates\n",
+        ];
+        foreach ($files as $path => $content) {
+            (new Filesystem())->dumpFile($this->repo . '/' . $path, $content);
+        }
+
+        [$code, $out] = $this->runScript('check-no-inline-svg', [], [], $this->repo);
+        self::assertSame(0, $code, $out);
+        self::assertStringContainsString('OK: no inline SVG (1 template(s), 1 script(s), 0 allowed).', $out);
+
+        [$code, $out] = $this->runScript('check-asset-budgets', [], [], $this->repo);
+        self::assertSame(0, $code, $out);
+        self::assertStringContainsString('OK   assets/app.ts js: 1.2 kB', $out);
+        [$code, $out] = $this->runScript('check-asset-budgets', ['--budget=assets/app.ts:css=500B'], [], $this->repo);
+        self::assertSame(1, $code, $out);
+        self::assertStringContainsString('FAIL assets/app.ts css: 0.8 kB', $out);
+
+        [$code, $out] = $this->runScript('check-doc-links', ['--check-anchors'], [], $this->repo);
+        self::assertSame(0, $code, $out);
+        self::assertStringContainsString('OK: doc links (2 Markdown files, no broken relative link, image or anchor).', $out);
+    }
+
+    public function testPhpWorkerResetMakefileSnippet(): void
+    {
+        $make = new Process(['make', '--version']);
+        $make->run();
+        if (!$make->isSuccessful()) {
+            self::markTestSkipped('GNU make is not installed.');
+        }
+        $this->repo = sys_get_temp_dir() . '/pqt-make-' . bin2hex(random_bytes(4));
+        $log = $this->repo . '/calls.log';
+        $fs = new Filesystem();
+        // Fake `docker` and compose wrappers: log every call; `ps -q` prints one container id per stack.
+        $fs->dumpFile($this->repo . '/bin/docker', "#!/bin/sh\necho \"docker \$*\" >> {$log}\necho healthy\n");
+        $fs->dumpFile($this->repo . '/bin/dc-dev', "#!/bin/sh\necho \"dev \$*\" >> {$log}\n[ \"\$1\" = ps ] && echo dev-id\nexit 0\n");
+        $fs->dumpFile($this->repo . '/bin/dc-e2e', "#!/bin/sh\necho \"e2e \$*\" >> {$log}\n[ \"\$1\" = ps ] && echo e2e-id\nexit 0\n");
+        $fs->dumpFile($this->repo . '/bin/dc-down', "#!/bin/sh\necho \"down \$*\" >> {$log}\nexit 1\n");
+        $fs->chmod([$this->repo . '/bin/docker', $this->repo . '/bin/dc-dev', $this->repo . '/bin/dc-e2e', $this->repo . '/bin/dc-down'], 0o755);
+        $env = ['PATH' => $this->repo . '/bin:' . getenv('PATH')];
+        $snippet = self::ROOT . '/resources/make/php-worker-reset.mk';
+
+        $process = new Process(['make', '-s', '-f', $snippet, 'php-worker-reset', 'PHP_WORKER_RESET_COMPOSE=dc-dev', 'PHP_WORKER_RESET_EXTRA_COMPOSE=dc-e2e', 'PHP_WORKER_RESET_SERVICE=app'], $this->repo, $env, null, 30.0);
+        $process->run();
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertSame("PHP workers restarted (cache cleared): fresh Vite entrypoints.\n", $process->getOutput());
+        self::assertSame(
+            "dev exec -T app bin/console cache:clear --no-warmup\n"
+            . "dev restart app\n"
+            . "e2e exec -T app true\n"
+            . "e2e exec -T app bin/console cache:clear --no-warmup\n"
+            . "e2e restart app\n"
+            . "dev ps -q app\n"
+            . "e2e ps -q app\n"
+            . "docker inspect -f {{if .State.Health}}{{.State.Health.Status}}{{else}}healthy{{end}} dev-id\n"
+            . "docker inspect -f {{if .State.Health}}{{.State.Health.Status}}{{else}}healthy{{end}} e2e-id\n",
+            file_get_contents($log),
+        );
+
+        // Extra stack down: only probed, never restarted.
+        unlink($log);
+        $process = new Process(['make', '-s', '-f', $snippet, 'php-worker-reset', 'PHP_WORKER_RESET_COMPOSE=dc-dev', 'PHP_WORKER_RESET_EXTRA_COMPOSE=dc-down'], $this->repo, $env, null, 30.0);
+        $process->run();
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertStringNotContainsString('down restart', (string) file_get_contents($log));
+        self::assertStringContainsString('down exec -T php true', (string) file_get_contents($log));
+
+        // A container that never becomes healthy fails after the timeout.
+        $fs->dumpFile($this->repo . '/bin/docker', "#!/bin/sh\necho starting\n");
+        $process = new Process(['make', '-s', '-f', $snippet, 'php-worker-reset', 'PHP_WORKER_RESET_COMPOSE=dc-dev', 'PHP_WORKER_RESET_TIMEOUT=1'], $this->repo, $env, null, 30.0);
+        $process->run();
+        self::assertNotSame(0, $process->getExitCode());
+        self::assertStringContainsString('php-worker-reset: container dev-id not healthy after 1s', $process->getErrorOutput());
     }
 
     public function testAssertLatestTagScriptReadsStdinOutsideGit(): void

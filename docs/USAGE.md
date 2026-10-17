@@ -370,6 +370,166 @@ test-coverage-parallel:
 - Per-process databases follow the same idea (e.g. a SQLite file per PID); add their pattern to the
   cleanup call.
 
+## Front-end and docs gates (since 1.6.0)
+
+Three more CI gates for applications with Twig templates, a Vite build and Markdown docs (harvested from
+Symfony Beacon, where they were a PHPUnit test and two Node scripts). Plain PHP, no Node needed; same
+conventions as the other gates: `OK …` on stdout, problems on stderr, exit 0 OK, 1 violations, 2 usage error.
+
+### `check-no-inline-svg`
+
+```text
+vendor/bin/check-no-inline-svg [--root=<dir>] [--templates=<dir>]... [--scripts=<dir>]...
+                               [--template-ext=<.ext,...>] [--script-ext=<.ext,...>]
+                               [--allow=<path>]... [--no-scripts]
+```
+
+One icon source (e.g. Symfony UX Icons from an imported local set): no hand-written SVG.
+
+- **Templates** (`--templates`, default `templates/`; suffixes `--template-ext`, default `.twig`): fail on `<svg`.
+- **Scripts** (`--scripts`, default `assets/`; suffixes `--script-ext`, default `.ts`): fail on SVG markup
+  strings (`<svg`, `<path`, `<circle`, `<rect`, `<polyline`, `<polygon`). Render the icon server-side in a
+  `<template>` and clone it instead. `--no-scripts` checks templates only.
+- Skipped everywhere: `node_modules/`, `*.test.*`, `*.spec.*`, `*.d.ts`. Default directories that do not
+  exist are skipped; an explicit `--templates` / `--scripts` directory that does not exist is a usage error.
+- `--allow=<path>` (relative to the root, repeatable) keeps a file that genuinely needs inline SVG, such as
+  a third-party `<symbol>` sprite. An allowed file that is missing or no longer contains SVG is an error, so
+  the allowlist cannot go stale.
+
+```text
+$ vendor/bin/check-no-inline-svg --allow=templates/bundles/NelmioApiDocBundle/SwaggerUi/index.html.twig
+OK: no inline SVG (245 template(s), 45 script(s), 1 allowed).
+
+$ vendor/bin/check-no-inline-svg
+error: inline <svg> in templates/components/badge.html.twig:12 (render the icon through the icon component, e.g. ux_icon())
+error: SVG markup string in assets/controllers/chart_controller.ts:40 (render the icon server-side in a <template> and clone it)
+```
+
+### `check-asset-budgets`
+
+```text
+vendor/bin/check-asset-budgets [--root=<dir>] [--config=<file>] [--manifest=<file>] [--build-dir=<dir>]
+                               [--budget=<entry>:<kind>=<size>]...
+```
+
+Reads the Vite manifest of a **production build** (`build.manifest: true`; run `pnpm run build` /
+`npm run build` first) and, for every budgeted entry, sums the entry file plus its **statically imported**
+chunks (JS) and their CSS. Dynamic imports (lazy controllers) are not counted: they load only where used.
+
+- Manifest: `--manifest`, the config's `manifest`, else `public/build/.vite/manifest.json` (Vite 5+), then
+  `public/build/manifest.json`. Build directory: `--build-dir`, the config's `build_dir`, else the manifest
+  directory without `.vite/`.
+- Budgets: `config/quality/asset-budgets.{yaml,yml,json,php}` (or `--config`) and/or `--budget` (repeatable;
+  overrides the config for the same entry and kind).
+- Kinds: `js`, `css` (raw bytes) and `js_gzip`, `css_gzip` (gzip level 9, needs ext-zlib). Sizes: bytes, or
+  a number with `B`, `k` / `kB` (1000), `KiB` (1024), `M` / `MB`, `MiB` (case-insensitive).
+- Output: one `OK  ` / `FAIL` line per check with raw and gzip sizes, then a summary.
+
+| Exit code | Meaning |
+| --- | --- |
+| 0 | every entry within budget |
+| 1 | over budget, entry missing from the manifest (renamed?), manifest or built file missing (build first) |
+| 2 | usage error, no budget, invalid config / sizes / kinds, malformed manifest |
+
+```yaml
+# config/quality/asset-budgets.yaml (needs symfony/yaml; .json or a .php file returning the array work too)
+manifest: public/build/.vite/manifest.json   # optional
+build_dir: public/build                       # optional
+budgets:
+  assets/app.ts: { js: 200kB, css: 250kB }
+  assets/styles/shell-entry.scss: { css: 60kB }
+  assets/kit-admin.ts: { js: 30kB }
+  assets/styles/kit-admin.css: { css: 60kB }
+  assets/styles/dashboard-summary-entry.scss: { css: 20kB, css_gzip: 5kB }
+```
+
+```text
+$ vendor/bin/check-asset-budgets
+OK   assets/app.ts js: 148.9 kB (gzip 43.4 kB) / budget 200.0 kB
+OK   assets/app.ts css: 248.5 kB (gzip 36.3 kB) / budget 250.0 kB
+OK   assets/styles/shell-entry.scss css: 43.4 kB (gzip 6.6 kB) / budget 60.0 kB
+OK   assets/kit-admin.ts js: 5.1 kB (gzip 1.7 kB) / budget 30.0 kB
+OK   assets/styles/kit-admin.css css: 35.3 kB (gzip 5.9 kB) / budget 60.0 kB
+OK   assets/styles/dashboard-summary-entry.scss css: 7.0 kB (gzip 1.8 kB) / budget 20.0 kB
+OK   assets/styles/dashboard-summary-entry.scss css_gzip: gzip 1.8 kB (raw 7.0 kB) / budget 5.0 kB
+OK: asset budgets (7 check(s), 5 entries).
+```
+
+A build rewrites `public/build/`, so long-lived PHP workers must be restarted afterwards (see
+[`php-worker-reset`](#php-worker-reset-makefile-snippet)):
+
+```makefile
+asset-budgets: ensure-up
+	$(DC) exec -T php sh -c 'pnpm run build >/dev/null && vendor/bin/check-asset-budgets'
+	@$(MAKE) php-worker-reset
+```
+
+### `check-doc-links`
+
+```text
+vendor/bin/check-doc-links [--root=<dir>] [--exclude=<pattern>]... [--check-anchors] [--no-git]
+```
+
+- Files: the tracked and new, not ignored `*.md` files (`git ls-files --cached --others --exclude-standard`),
+  so `vendor/`, `var/` and other ignored trees are never read. Outside a git work tree (or with `--no-git`)
+  every `*.md` under the root, except `.git/`, `vendor/`, `node_modules/` and `var/`.
+- Every `[text](target)` / `![alt](target)` with a relative target must point to an existing file or
+  directory (query strings and `#fragments` are ignored for that check; `%20` is decoded). `/target` is
+  relative to the root (GitHub semantics). Nested brackets work (`[![badge](img.svg)](docs/x.md)` checks
+  both targets).
+- Skipped: URLs and other schemes (`https:`, `mailto:` …), fenced code blocks, inline code spans, targets
+  that climb above the root (workspace-only links).
+- `--exclude=<pattern>` (repeatable): a path, a directory prefix or an `fnmatch` glob relative to the root.
+- `--check-anchors` (opt-in): `#fragment`s into Markdown files and in-page `#fragment`s must match a heading
+  slug (GitHub rules: lower case, punctuation removed, spaces to `-`, `-1`, `-2` … for repeated headings;
+  ATX and setext headings, not inside fenced code), an HTML anchor (`<a id="…">`, `<a name="…">`, any tag's
+  `id="…"`) or a heading attribute (`## Title {#custom-id}`, Pandoc / kramdown / MkDocs). Matching is
+  case-insensitive. Fragments into other files (`src/Foo.php#L10`) are not checked.
+
+```text
+$ vendor/bin/check-doc-links
+OK: doc links (481 Markdown files, no broken relative link or image).
+
+$ vendor/bin/check-doc-links --check-anchors
+Broken relative links / images / anchors (2):
+docs/manual/01-getting-started.md:55 → 03-account.md#profile (no such anchor)
+docs/guide.md:3 → images/missing.webp
+```
+
+### `php-worker-reset` (Makefile snippet)
+
+Long-lived PHP workers (FrankenPHP worker mode, RoadRunner, Swoole) keep the Vite entrypoints / manifest
+they read at boot. After a front-end build they must be restarted, or they serve stale asset URLs. The
+package ships a Docker Compose snippet, `resources/make/php-worker-reset.mk`, with every name in a variable:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `PHP_WORKER_RESET_COMPOSE` | `docker compose` | compose command of the main (dev) stack |
+| `PHP_WORKER_RESET_EXTRA_COMPOSE` | empty | optional second stack (e.g. E2E); reset only when its PHP service is running |
+| `PHP_WORKER_RESET_SERVICE` | `php` | PHP service name in both stacks |
+| `PHP_WORKER_RESET_CACHE_CLEAR` | `bin/console cache:clear --no-warmup` | command run in the service before the restart (failure ignored) |
+| `PHP_WORKER_RESET_TIMEOUT` | `90` | seconds to wait per container for `healthy` (no healthcheck = healthy at once) |
+
+For each stack: `cache:clear`, `restart <service>` (the container env is kept), then wait until every
+container of the service is healthy; exit 1 when one is not healthy in time.
+
+```makefile
+DC := docker compose -f compose.yaml
+DC_E2E := docker compose -p myapp-e2e --env-file .env.e2e -f compose.yaml -f compose.e2e.yaml
+
+PHP_WORKER_RESET_COMPOSE := $(DC)
+PHP_WORKER_RESET_EXTRA_COMPOSE := $(DC_E2E)
+-include vendor/nowo-tech/php-quality-tools/resources/make/php-worker-reset.mk
+php-worker-reset: ensure-up   # optional extra prerequisite of the host Makefile
+
+vite-build: ensure-up
+	$(DC) exec -T php pnpm run build
+	@$(MAKE) php-worker-reset
+```
+
+`-include` keeps the Makefile usable before `composer install` (the target is then missing). The `vendor/`
+directory must be visible on the host (the usual bind mount); otherwise copy the file into the project.
+
 ## Query budgets in PHPUnit (since 1.2.0)
 
 `NowoTech\PhpQualityTools\Testing\QueryBudgetTrait` counts the SQL statements executed around a callable.

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.6.0] - 2026-10-17](#160---2026-10-17)
 - [[1.5.0] - 2026-10-16](#150---2026-10-16)
 - [[1.4.0] - 2026-10-15](#140---2026-10-15)
 - [[1.3.0] - 2026-10-14](#130---2026-10-14)
@@ -37,6 +38,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2024-12-11](#100---2024-12-11)
 
 ## [Unreleased]
+
+## [1.6.0] - 2026-10-17
+
+### Added
+
+- **`bin/check-no-inline-svg`** (`Gate\Svg\NoInlineSvgCommand`): fails on `<svg` in templates (`templates/`, `.twig` by default) and on SVG markup strings (`<svg`, `<path`, `<circle`, `<rect`, `<polyline`, `<polygon`) in front-end scripts (`assets/`, `.ts` by default; `*.test.*`, `*.spec.*`, `*.d.ts`, `node_modules/` skipped), with line numbers; `--allow=<path>` for genuine non-icon SVG (a stale allow entry fails); `--templates`, `--scripts`, `--template-ext`, `--script-ext`, `--no-scripts`, `--root`. Ported from Symfony Beacon's `NoInlineSvgTemplatesTest` (OTHER REQ-ICON-001).
+- **`bin/check-asset-budgets`** (`Gate\Assets\AssetBudgetCommand`, `AssetBudgetConfig`, `ViteManifest`): per-entry JS / CSS size budgets of a Vite production build (entry + statically imported chunks; lazy chunks not counted), raw and gzip sizes (`js`, `css`, `js_gzip`, `css_gzip`), from `config/quality/asset-budgets.{yaml,yml,json,php}` and/or `--budget=<entry>:<kind>=<size>` (`250kB`, `1.5KiB`, bytes); `OK  ` / `FAIL` lines. Ported from Beacon's `scripts/check-asset-budgets.mjs` (OTHER REQ-ASSETS-APP-002).
+- **`bin/check-doc-links`** (`Gate\DocLinks\DocLinksCommand`, `MarkdownAnchors`): broken relative links and images in the tracked / new Markdown files (`git ls-files`, or a tree walk outside git), fenced and inline code skipped, `/root-relative` targets, nested brackets (`[![badge](img)](url)`), `--exclude`; opt-in `--check-anchors` checks `#fragments` against GitHub heading slugs, HTML anchors and `{#id}` heading attributes. Ported from Beacon's `scripts/check-doc-links.mjs` (OTHER REQ-DOCS-APP-001).
+- **`resources/make/php-worker-reset.mk`**: Docker Compose Makefile snippet that clears the cache and restarts the PHP service (and an optional second stack, e.g. E2E, when it is up), then waits for `healthy`, so long-lived workers never serve stale Vite entrypoints after a build. Service names and commands are variables. Ported from Beacon's `php-worker-reset` target (OTHER REQ-ASSETS-APP-002 item 7).
+- [Usage → Front-end and docs gates](USAGE.md#front-end-and-docs-gates-since-160) and spec [`specs/005-frontend-docs-gates`](../specs/005-frontend-docs-gates/spec.md).
+- `make docs-links` in this repository (`check-doc-links --check-anchors`), part of `make release-check`.
+
+### Fixed
+
+- `docs/CONTRIBUTING.md`: table of contents entries pointing at headings inside a fenced example (found by `check-doc-links --check-anchors`).
+
+### Changed
+
+- `composer.json`: three new `bin` entries; `symfony/yaml` suggestion also covers the asset budgets config. Nothing added to `require`.
+
+### Unchanged
+
+- Composer plugin behaviour and the existing gates and helpers.
+
+[1.6.0]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.6.0
 
 ## [1.5.0] - 2026-10-16
 

@@ -1,6 +1,6 @@
 {
     "name": "nowo-tech/php-quality-tools",
-    "description": "Pre-configured quality tools for PHP projects (Rector, PHP-CS-Fixer, Twig-CS-Fixer) with automatic framework detection, plus CI gate scripts (Clover coverage threshold, module boundaries, latest-release-tag deploy guard), a PHPUnit SQL query-budget trait and ParaTest per-process isolation helpers.",
+    "description": "Pre-configured quality tools for PHP projects (Rector, PHP-CS-Fixer, Twig-CS-Fixer) with automatic framework detection, plus CI gate scripts (Clover coverage threshold, module boundaries, latest-release-tag deploy guard), a PHPUnit SQL query-budget trait, ParaTest per-process isolation helpers and front-end / docs gates (no inline SVG, Vite asset budgets, Markdown links).",
     "type": "composer-plugin",
     "license": "MIT",
     "keywords": [
@@ -20,7 +20,11 @@
         "query-budget",
         "release",
         "deploy-guard",
-        "paratest"
+        "paratest",
+        "vite",
+        "asset-budget",
+        "markdown-links",
+        "svg"
     ],
     "homepage": "https://github.com/nowo-tech/PhpQualityTools",
     "support": {
@@ -65,7 +69,7 @@
         "friendsofphp/php-cs-fixer": "For code style fixing",
         "vincentlanglet/twig-cs-fixer": "For Twig template style fixing",
         "symplify/rule-doc-generator-contracts": "Required for custom Rector rules (SplitLongGroupedImportsRector, SplitLongConstructorParametersRector)",
-        "symfony/yaml": "Read config/quality/module-boundaries.yaml in bin/check-module-boundaries (a PHP config file works without it)",
+        "symfony/yaml": "Read config/quality/module-boundaries.yaml in bin/check-module-boundaries and config/quality/asset-budgets.yaml in bin/check-asset-budgets (a PHP or JSON config file works without it)",
         "doctrine/dbal": "(^4.0) Count SQL statements with Testing\\Dbal\\QueryCountingMiddleware for Testing\\QueryBudgetTrait",
         "phpunit/phpunit": "Testing\\QueryBudgetTrait assertions (assertQueryBudget, assertScalesWith)",
         "symfony/dependency-injection": "Register Testing\\Env\\PidPathEnvVarProcessor (env var processor pid_path) for per-process test paths under ParaTest",
@@ -84,8 +88,11 @@
     "bin": [
         "bin/assert-latest-tag",
         "bin/assert-release-proof",
+        "bin/check-asset-budgets",
         "bin/check-coverage-threshold",
+        "bin/check-doc-links",
         "bin/check-module-boundaries",
+        "bin/check-no-inline-svg",
         "bin/clean-stale-pid-paths"
     ],
     "extra": {

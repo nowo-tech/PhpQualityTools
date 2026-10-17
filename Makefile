@@ -1,7 +1,7 @@
 # Makefile for PHP Quality Tools
 # Simplifies Docker commands for development
 
-.PHONY: help ensure-up up down down-dev build shell install assets test test-coverage cs-check cs-fix rector rector-dry phpstan igor qa release-check composer-sync clean update validate setup-hooks check-no-cursor-coauthor strip-cursor-coauthor-from-history
+.PHONY: help ensure-up up down down-dev build shell install assets test test-coverage cs-check cs-fix rector rector-dry phpstan igor qa docs-links release-check composer-sync clean update validate setup-hooks check-no-cursor-coauthor strip-cursor-coauthor-from-history
 
 COMPOSER_BIN := /usr/bin/composer
 # Prefer Compose V2 plugin (GitHub Actions / modern Docker Desktop); fall back to docker-compose V1 (REQ-MAKE-010).
@@ -31,6 +31,7 @@ help:
 	@echo "  phpstan       Run PHPStan static analysis"
 	@echo "  igor          Run Igor worker-state audit (REQ-CS-008)"
 	@echo "  qa            Run all QA checks (cs-check + test)"
+	@echo "  docs-links    Check relative links, images and anchors in Markdown (bin/check-doc-links)"
 	@echo "  release-check Run full pre-release validation chain"
 	@echo "  composer-sync Validate composer and sync lock"
 	@echo "  clean         Remove vendor and cache"
@@ -120,6 +121,11 @@ composer-sync: ensure-up
 # Run Igor worker-state audit (REQ-CS-008)
 igor: ensure-up
 	$(COMPOSE) exec -T php composer igor
+
+# Broken relative links, images and #anchors in the Markdown docs (dogfoods bin/check-doc-links)
+docs-links: ensure-up
+	$(COMPOSE) exec -T php php bin/check-doc-links --check-anchors
+
 release-check: check-no-cursor-coauthor
 	@$(MAKE) ensure-up
 	@$(MAKE) composer-sync
@@ -127,6 +133,7 @@ release-check: check-no-cursor-coauthor
 	@$(MAKE) cs-check
 	@$(MAKE) rector-dry
 	@$(MAKE) phpstan
+	@$(MAKE) docs-links
 	@$(MAKE) test-coverage
 
 # Update dependencies

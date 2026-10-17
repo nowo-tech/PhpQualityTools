@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.6.0](#to-160)
 - [To 1.5.0](#to-150)
 - [To 1.4.0](#to-140)
 - [To 1.3.0](#to-130)
@@ -50,6 +51,20 @@
 - [Related Documentation](#related-documentation)
 
 ## Unreleased
+
+## To 1.6.0
+
+From **1.5.0** — opt-in front-end and docs gates.
+
+```bash
+composer update nowo-tech/php-quality-tools
+```
+
+- No breaking changes; nothing runs unless you call the new binaries or include the Makefile snippet.
+- **Own SVG guard test** (e.g. Symfony Beacon's `NoInlineSvgTemplatesTest`): replace it with `vendor/bin/check-no-inline-svg --allow=<sprite template>` in `make qa` / `release-check`, or keep a thin PHPUnit test that runs the command and asserts exit 0. Allow entries are paths relative to the project root (`templates/…`), not to `templates/`.
+- **`scripts/check-asset-budgets.mjs`**: move the `BUDGETS` map to `config/quality/asset-budgets.yaml` (`budgets: { assets/app.ts: { js: 200kB, css: 250kB } }`; the script's `200_000` bytes are `200kB`) and call `vendor/bin/check-asset-budgets` after the build. Same `OK  ` / `FAIL` lines; a summary line is added; exit 2 (not 1) on configuration errors.
+- **`scripts/check-doc-links.mjs`**: call `vendor/bin/check-doc-links`. Same file set (`git ls-files --cached --others --exclude-standard`) and `OK: doc links (…)` line. Differences: `/path` targets are now checked against the repository root (the script skipped them), and links with nested brackets (`[[1.0] - date](#x)`, `[![badge](img)](url)`) are parsed. Add `--check-anchors` once the `#fragments` are clean.
+- **Own `php-worker-reset` target**: `-include vendor/nowo-tech/php-quality-tools/resources/make/php-worker-reset.mk` after setting `PHP_WORKER_RESET_COMPOSE` (and `PHP_WORKER_RESET_EXTRA_COMPOSE` for an E2E stack); remove the local target. See [Usage → Front-end and docs gates](USAGE.md#front-end-and-docs-gates-since-160).
 
 ## To 1.5.0
 

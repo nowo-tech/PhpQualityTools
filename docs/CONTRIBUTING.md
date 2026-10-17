@@ -20,8 +20,6 @@ This project follows the [Contributor Covenant Code of Conduct](../CODE_OF_CONDU
   - [Without Docker](#without-docker)
 - [Adding Framework Support](#adding-framework-support)
 - [Version Compatibility](#version-compatibility)
-- [[1.1.0] - 2024-12-15](#110-2024-12-15)
-  - [Compatibility](#compatibility)
 - [Reporting Issues](#reporting-issues)
 - [Contact](#contact)
 

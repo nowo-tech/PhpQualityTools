@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/php-quality-tools`  
-**Last audited**: 2026-10-13
+**Last audited**: 2026-10-17
 
 This file proves that **every production source artifact** under `src/` is referenced by the baseline specification. PHPUnit tests under `tests/` and shipped config templates under `config/` are out of this inventory scope unless promoted in the spec.
 
@@ -102,3 +102,28 @@ Specified in [`specs/003-release-guards/spec.md`](../003-release-guards/spec.md)
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
 | `Gate/Release/LatestTagCommand.php` | `bin/assert-latest-tag` | FR-REL-001 – FR-REL-006 |
+| `Gate/Release/ReleaseProofCommand.php` | `bin/assert-release-proof` (1.4.0) | none (CHANGELOG 1.4.0, docs/USAGE.md) |
+
+## ParaTest isolation (`src/Testing/`, since 1.5.0)
+
+Specified in [`specs/004-paratest-isolation/spec.md`](../004-paratest-isolation/spec.md).
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Testing/Env/PidPathEnvVarProcessor.php` | `pid_path` env var processor | FR-PID-001 |
+| `Testing/Pid/StalePidPathsCommand.php` | `bin/clean-stale-pid-paths` | FR-PID-002 – FR-PID-004 |
+
+## Front-end and docs gates (`src/Gate/Svg/`, `src/Gate/Assets/`, `src/Gate/DocLinks/`, `resources/make/`, since 1.6.0)
+
+Specified in [`specs/005-frontend-docs-gates/spec.md`](../005-frontend-docs-gates/spec.md).
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Gate/Svg/NoInlineSvgCommand.php` | `bin/check-no-inline-svg` | FR-SVG-001, FR-SVG-002, FR-SVG-003 |
+| `Gate/Assets/AssetBudgetCommand.php` | `bin/check-asset-budgets` | FR-AB-001, FR-AB-003 |
+| `Gate/Assets/AssetBudgetConfig.php` | Budgets config / sizes | FR-AB-001 |
+| `Gate/Assets/AssetBudgetException.php` | Errors → exit codes 1 / 2 | FR-AB-003 |
+| `Gate/Assets/ViteManifest.php` | Entry + static imports | FR-AB-002 |
+| `Gate/DocLinks/DocLinksCommand.php` | `bin/check-doc-links` | FR-DL-001, FR-DL-002, FR-DL-004 |
+| `Gate/DocLinks/MarkdownAnchors.php` | GitHub heading slugs / HTML anchors | FR-DL-003 |
+| `../resources/make/php-worker-reset.mk` | Makefile snippet | FR-MK-001 |
