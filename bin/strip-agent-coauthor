@@ -1,0 +1,62 @@
+#!/usr/bin/env sh
+# nowo-tech/php-quality-tools — strip-agent-coauthor
+#
+# commit-msg / prepare-commit-msg hook: removes AI agent attribution trailers (Co-authored-by / Made-with /
+# Generated-by / Assisted-by naming Cursor, Claude, Copilot, Codex, Gemini, …) from the commit message file.
+# Installed (copied) by install-git-hooks; standalone POSIX sh + awk, no PHP needed.
+#
+# Usage: strip-agent-coauthor <commit-message-file>
+#   AGENT_COAUTHOR_AGENTS=cursor,claude   agents to strip (known: cursor, claude, copilot, codex, gemini, aider, devin)
+#   AGENT_COAUTHOR_PATTERN='bot\.example' extra extended regex (lower-case) matched against the trailer value
+set -eu
+
+DEFAULT_AGENTS='cursor,claude,copilot,codex,gemini'
+
+MSG_FILE="${1:-}"
+if [ -z "$MSG_FILE" ] || [ ! -f "$MSG_FILE" ]; then
+  exit 0
+fi
+
+agent_pattern() {
+  case "$1" in
+    cursor) printf '%s' 'cursor' ;;
+    claude) printf '%s' 'claude|anthropic\.com' ;;
+    copilot) printf '%s' 'copilot' ;;
+    codex) printf '%s' 'codex|openai\.com' ;;
+    gemini) printf '%s' 'gemini' ;;
+    aider) printf '%s' 'aider' ;;
+    devin) printf '%s' 'devin-ai|devin\.ai' ;;
+    *) return 1 ;;
+  esac
+}
+
+PAT=''
+OLD_IFS="$IFS"
+IFS=','
+for agent in ${AGENT_COAUTHOR_AGENTS:-$DEFAULT_AGENTS}; do
+  agent="$(printf '%s' "$agent" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
+  if [ -n "$agent" ] && one="$(agent_pattern "$agent")"; then
+    PAT="${PAT:+$PAT|}$one"
+  fi
+done
+IFS="$OLD_IFS"
+if [ -n "${AGENT_COAUTHOR_PATTERN:-}" ]; then
+  PAT="${PAT:+$PAT|}$AGENT_COAUTHOR_PATTERN"
+fi
+[ -z "$PAT" ] && exit 0
+
+tmp="$(mktemp)"
+trap 'rm -f "$tmp"' EXIT
+AGENT_PAT="$PAT" awk '
+  BEGIN { re = "^(co-authored-by|made-with|generated-by|generated-with|assisted-by):.*(" tolower(ENVIRON["AGENT_PAT"]) ")"; blanks = 0 }
+  {
+    line = tolower($0)
+    sub(/^[ \t]+/, "", line)
+    if (line ~ re) { next }
+    if ($0 ~ /^[ \t]*$/) { blanks++; next }
+    for (; blanks > 0; blanks--) { print "" }
+    print
+  }
+' "$MSG_FILE" > "$tmp"
+cat "$tmp" > "$MSG_FILE"
+exit 0

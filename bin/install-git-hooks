@@ -1,0 +1,76 @@
+#!/usr/bin/env sh
+# nowo-tech/php-quality-tools — install-git-hooks
+#
+# Installs the commit-msg hook (a copy of strip-agent-coauthor) that removes AI agent attribution trailers,
+# and points core.hooksPath at the hooks directory. Run with --help for the options.
+set -eu
+
+usage() {
+  cat <<'USAGE'
+Usage: install-git-hooks [options]
+
+Options:
+  --hooks-dir DIR        Hooks directory, relative to the repository root (default: .githooks).
+  --agents LIST          Agents stripped by the hook (default: cursor,claude,copilot,codex,gemini).
+  --prepare-commit-msg   Also install the hook as prepare-commit-msg (strips trailers before the editor opens).
+  --force                Replace existing hooks that were not installed by this script.
+  --no-config            Do not set git config core.hooksPath.
+  -h, --help             Show this help.
+USAGE
+}
+
+HOOKS_DIR='.githooks'
+AGENTS=''
+HOOKS='commit-msg'
+FORCE=0
+CONFIG=1
+MARKER='nowo-tech/php-quality-tools — strip-agent-coauthor'
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -h|--help) usage; exit 0 ;;
+    --hooks-dir) [ "$#" -ge 2 ] || { echo "ERROR: --hooks-dir needs a value." >&2; exit 2; }; HOOKS_DIR="$2"; shift 2 ;;
+    --hooks-dir=*) HOOKS_DIR="${1#*=}"; shift ;;
+    --agents) [ "$#" -ge 2 ] || { echo "ERROR: --agents needs a value." >&2; exit 2; }; AGENTS="$2"; shift 2 ;;
+    --agents=*) AGENTS="${1#*=}"; shift ;;
+    --prepare-commit-msg) HOOKS='commit-msg prepare-commit-msg'; shift ;;
+    --force) FORCE=1; shift ;;
+    --no-config) CONFIG=0; shift ;;
+    *) echo "ERROR: unknown option $1 (see --help)." >&2; exit 2 ;;
+  esac
+done
+
+case "$AGENTS" in
+  *[!a-zA-Z0-9,\ -]*) echo "ERROR: --agents takes a comma-separated list of agent names." >&2; exit 2 ;;
+esac
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || { echo "ERROR: not inside a git work tree." >&2; exit 2; }
+SELF_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+SOURCE="$SELF_DIR/strip-agent-coauthor"
+if [ ! -f "$SOURCE" ]; then
+  echo "ERROR: $SOURCE not found." >&2
+  exit 2
+fi
+
+cd "$ROOT"
+mkdir -p "$HOOKS_DIR"
+for hook in $HOOKS; do
+  target="$HOOKS_DIR/$hook"
+  if [ -f "$target" ] && [ "$FORCE" -ne 1 ] && ! grep -qF "$MARKER" "$target"; then
+    echo "ERROR: $target exists and was not installed by install-git-hooks; pass --force to replace it." >&2
+    exit 1
+  fi
+  if [ -n "$AGENTS" ]; then
+    sed "s/^DEFAULT_AGENTS=.*/DEFAULT_AGENTS='$AGENTS'/" "$SOURCE" > "$target"
+  else
+    cat "$SOURCE" > "$target"
+  fi
+  chmod +x "$target"
+  echo "Installed $target"
+done
+
+if [ "$CONFIG" -eq 1 ]; then
+  git config core.hooksPath "$HOOKS_DIR"
+  echo "git config core.hooksPath $HOOKS_DIR"
+fi
+echo "OK: AI agent co-author trailers are stripped from new commit messages."

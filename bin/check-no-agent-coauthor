@@ -1,0 +1,169 @@
+#!/usr/bin/env sh
+# nowo-tech/php-quality-tools — check-no-agent-coauthor
+#
+# Fail when commit messages carry AI agent attribution trailers (Co-authored-by / Made-with / Generated-by /
+# Assisted-by naming Cursor, Claude, Copilot, Codex, Gemini, …). POSIX sh + git + awk: runs on hosts without PHP.
+# Run with --help for the options.
+set -eu
+
+DEFAULT_AGENTS='cursor,claude,copilot,codex,gemini'
+
+usage() {
+  cat <<'USAGE'
+Usage: check-no-agent-coauthor [options] [<ref-or-range>]
+
+Checks every commit reachable from <ref-or-range> (default HEAD; a range such as origin/main..HEAD works too)
+for AI agent attribution trailers, or one commit message file with --message-file.
+
+Options:
+  --agents LIST        Comma-separated agents (default: $AGENT_COAUTHOR_AGENTS or cursor,claude,copilot,codex,gemini).
+                       Known: cursor, claude, copilot, codex, gemini, aider, devin.
+  --pattern ERE        Extra extended regex matched (lower-case) against the trailer value ($AGENT_COAUTHOR_PATTERN).
+  --since SHA          Audit only SHA..<ref> when SHA is an ancestor of <ref> (older history accepted as-is).
+  --since-file FILE    Same, reading SHA from FILE (missing or empty file: audit everything).
+  --message-file FILE  Check one commit message file instead of the history (commit-msg hook, CI on a PR title/body).
+  -h, --help           Show this help.
+
+Exit codes: 0 clean, 1 trailers found, 2 usage or git error.
+USAGE
+}
+
+agent_pattern() {
+  case "$1" in
+    cursor) printf '%s' 'cursor' ;;
+    claude) printf '%s' 'claude|anthropic\.com' ;;
+    copilot) printf '%s' 'copilot' ;;
+    codex) printf '%s' 'codex|openai\.com' ;;
+    gemini) printf '%s' 'gemini' ;;
+    aider) printf '%s' 'aider' ;;
+    devin) printf '%s' 'devin-ai|devin\.ai' ;;
+    *) return 1 ;;
+  esac
+}
+
+AGENTS="${AGENT_COAUTHOR_AGENTS:-$DEFAULT_AGENTS}"
+EXTRA="${AGENT_COAUTHOR_PATTERN:-}"
+SINCE=''
+SINCE_FILE=''
+MESSAGE_FILE=''
+REF=''
+
+need_value() {
+  if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+    echo "ERROR: $1 needs a value." >&2
+    exit 2
+  fi
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -h|--help) usage; exit 0 ;;
+    --agents) need_value "$@"; AGENTS="$2"; shift 2 ;;
+    --agents=*) AGENTS="${1#*=}"; shift ;;
+    --pattern) need_value "$@"; EXTRA="$2"; shift 2 ;;
+    --pattern=*) EXTRA="${1#*=}"; shift ;;
+    --since) need_value "$@"; SINCE="$2"; shift 2 ;;
+    --since=*) SINCE="${1#*=}"; shift ;;
+    --since-file) need_value "$@"; SINCE_FILE="$2"; shift 2 ;;
+    --since-file=*) SINCE_FILE="${1#*=}"; shift ;;
+    --message-file) need_value "$@"; MESSAGE_FILE="$2"; shift 2 ;;
+    --message-file=*) MESSAGE_FILE="${1#*=}"; shift ;;
+    -*) echo "ERROR: unknown option $1 (see --help)." >&2; exit 2 ;;
+    *)
+      if [ -n "$REF" ]; then echo "ERROR: only one <ref-or-range> is accepted." >&2; exit 2; fi
+      REF="$1"; shift ;;
+  esac
+done
+REF="${REF:-HEAD}"
+
+PAT=''
+OLD_IFS="$IFS"
+IFS=','
+for agent in $AGENTS; do
+  agent="$(printf '%s' "$agent" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
+  [ -z "$agent" ] && continue
+  if ! one="$(agent_pattern "$agent")"; then
+    IFS="$OLD_IFS"
+    echo "ERROR: unknown agent '$agent' (known: cursor, claude, copilot, codex, gemini, aider, devin; use --pattern for others)." >&2
+    exit 2
+  fi
+  PAT="${PAT:+$PAT|}$one"
+done
+IFS="$OLD_IFS"
+if [ -n "$EXTRA" ]; then
+  PAT="${PAT:+$PAT|}$EXTRA"
+fi
+if [ -z "$PAT" ]; then
+  echo "ERROR: no agent selected (--agents is empty and no --pattern)." >&2
+  exit 2
+fi
+LABEL="$(printf '%s' "$AGENTS" | tr -d '[:space:]' | sed 's/,/, /g')${EXTRA:+, /$EXTRA/}"
+
+# Prints offending lines (grouped under "@@agent-coauthor-commit@@ <hash> <subject>" headers); exit 1 when any.
+scan() {
+  AGENT_PAT="$PAT" awk '
+    BEGIN {
+      re = "^(co-authored-by|made-with|generated-by|generated-with|assisted-by):.*(" tolower(ENVIRON["AGENT_PAT"]) ")"
+      bad = 0
+      header = ""
+      shown = 0
+    }
+    /^@@agent-coauthor-commit@@ / { header = substr($0, 27); shown = 0; next }
+    {
+      line = tolower($0)
+      sub(/^[ \t]+/, "", line)
+      if (line ~ re) {
+        if (header != "" && !shown) { print "  " header; shown = 1 }
+        print (header != "" ? "      " : "  ") $0
+        bad = 1
+      }
+    }
+    END { exit bad }
+  '
+}
+
+if [ -n "$MESSAGE_FILE" ]; then
+  if [ ! -f "$MESSAGE_FILE" ]; then
+    echo "ERROR: message file not found: $MESSAGE_FILE" >&2
+    exit 2
+  fi
+  if OUT="$(scan < "$MESSAGE_FILE")"; then
+    echo "OK: no AI agent co-author trailers ($LABEL) in $MESSAGE_FILE"
+    exit 0
+  fi
+  echo "ERROR: AI agent co-author trailers ($LABEL) in $MESSAGE_FILE:" >&2
+  echo "$OUT" >&2
+  exit 1
+fi
+
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+  echo "ERROR: not inside a git repository." >&2
+  exit 2
+fi
+if ! git rev-parse "$REF" >/dev/null 2>&1; then
+  echo "ERROR: git ref or range not found: $REF" >&2
+  exit 2
+fi
+
+if [ -n "$SINCE_FILE" ] && [ -z "$SINCE" ] && [ -f "$SINCE_FILE" ]; then
+  SINCE="$(tr -d '[:space:]' < "$SINCE_FILE")"
+fi
+RANGE="$REF"
+case "$REF" in
+  *..*) ;;
+  *)
+    # A rewritten history no longer contains the baseline: audit everything then.
+    if [ -n "$SINCE" ] && git --no-replace-objects merge-base --is-ancestor "$SINCE" "$REF" 2>/dev/null; then
+      RANGE="$SINCE..$REF"
+    fi
+    ;;
+esac
+
+if OUT="$(git --no-replace-objects log --format='@@agent-coauthor-commit@@ %H %s%n%B' "$RANGE" | scan)"; then
+  echo "OK: no AI agent co-author trailers ($LABEL) in $RANGE"
+  exit 0
+fi
+echo "ERROR: AI agent co-author trailers ($LABEL) found in $RANGE:" >&2
+echo "$OUT" >&2
+echo "Amend or reword those commits, and install the commit-msg hook that strips them: vendor/bin/install-git-hooks" >&2
+exit 1
