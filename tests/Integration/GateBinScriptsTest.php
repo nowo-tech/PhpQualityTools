@@ -175,6 +175,32 @@ final class GateBinScriptsTest extends TestCase
         self::assertStringNotContainsString('down restart', (string) file_get_contents($log));
         self::assertStringContainsString('down exec -T php true', (string) file_get_contents($log));
 
+        // Extra services: restarted after the PHP service in both stacks (no cache:clear), then waited for.
+        unlink($log);
+        $process = new Process(['make', '-s', '-f', $snippet, 'php-worker-reset', 'PHP_WORKER_RESET_COMPOSE=dc-dev', 'PHP_WORKER_RESET_EXTRA_COMPOSE=dc-e2e', 'PHP_WORKER_RESET_EXTRA_SERVICES=messenger messenger-notify'], $this->repo, $env, null, 30.0);
+        $process->run();
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertSame(
+            "dev exec -T php bin/console cache:clear --no-warmup\n"
+            . "dev restart php\n"
+            . "dev restart messenger\n"
+            . "dev restart messenger-notify\n"
+            . "e2e exec -T php true\n"
+            . "e2e exec -T php bin/console cache:clear --no-warmup\n"
+            . "e2e restart php\n"
+            . "e2e restart messenger\n"
+            . "e2e restart messenger-notify\n"
+            . "dev ps -q php\n"
+            . "dev ps -q messenger\n"
+            . "dev ps -q messenger-notify\n"
+            . "e2e ps -q php\n"
+            . "e2e ps -q messenger\n"
+            . "e2e ps -q messenger-notify\n"
+            . str_repeat("docker inspect -f {{if .State.Health}}{{.State.Health.Status}}{{else}}healthy{{end}} dev-id\n", 3)
+            . str_repeat("docker inspect -f {{if .State.Health}}{{.State.Health.Status}}{{else}}healthy{{end}} e2e-id\n", 3),
+            file_get_contents($log),
+        );
+
         // A container that never becomes healthy fails after the timeout.
         $fs->dumpFile($this->repo . '/bin/docker', "#!/bin/sh\necho starting\n");
         $process = new Process(['make', '-s', '-f', $snippet, 'php-worker-reset', 'PHP_WORKER_RESET_COMPOSE=dc-dev', 'PHP_WORKER_RESET_TIMEOUT=1'], $this->repo, $env, null, 30.0);

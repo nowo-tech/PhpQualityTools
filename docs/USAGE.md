@@ -507,11 +507,16 @@ package ships a Docker Compose snippet, `resources/make/php-worker-reset.mk`, wi
 | `PHP_WORKER_RESET_COMPOSE` | `docker compose` | compose command of the main (dev) stack |
 | `PHP_WORKER_RESET_EXTRA_COMPOSE` | empty | optional second stack (e.g. E2E); reset only when its PHP service is running |
 | `PHP_WORKER_RESET_SERVICE` | `php` | PHP service name in both stacks |
+| `PHP_WORKER_RESET_EXTRA_SERVICES` | empty | (since 1.6.1) space-separated services restarted after the PHP service in both stacks, without `cache:clear` (e.g. `messenger messenger-notify`); waited for like the PHP service (no healthcheck = continue at once). A failed restart fails the target in the main stack and is ignored in the extra stack (service not defined there) |
 | `PHP_WORKER_RESET_CACHE_CLEAR` | `bin/console cache:clear --no-warmup` | command run in the service before the restart (failure ignored) |
 | `PHP_WORKER_RESET_TIMEOUT` | `90` | seconds to wait per container for `healthy` (no healthcheck = healthy at once) |
 
 For each stack: `cache:clear`, `restart <service>` (the container env is kept), then wait until every
-container of the service is healthy; exit 1 when one is not healthy in time.
+container of the service is healthy; exit 1 when one is not healthy in time. With
+`PHP_WORKER_RESET_EXTRA_SERVICES`, those services are restarted right after the PHP service (no
+`cache:clear` in them) and waited for too: workers that share `var/cache` with PHP (Messenger consumers)
+would otherwise rebuild the cache from the old container they hold in memory, with unresolved
+`%parameters%`.
 
 ```makefile
 DC := docker compose -f compose.yaml
@@ -519,6 +524,7 @@ DC_E2E := docker compose -p myapp-e2e --env-file .env.e2e -f compose.yaml -f com
 
 PHP_WORKER_RESET_COMPOSE := $(DC)
 PHP_WORKER_RESET_EXTRA_COMPOSE := $(DC_E2E)
+PHP_WORKER_RESET_EXTRA_SERVICES := messenger messenger-notify   # optional
 -include vendor/nowo-tech/php-quality-tools/resources/make/php-worker-reset.mk
 php-worker-reset: ensure-up   # optional extra prerequisite of the host Makefile
 

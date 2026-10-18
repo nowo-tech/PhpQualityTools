@@ -39,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`PHP_WORKER_RESET_EXTRA_SERVICES`** in `resources/make/php-worker-reset.mk` (default empty = unchanged behaviour): space-separated Compose services restarted after the PHP service, in the main stack and in the extra stack when it is up, without `cache:clear`, then waited for like the PHP service (`healthy`, or at once without a healthcheck). For workers that share `var/cache` with PHP (e.g. Messenger consumers): a worker still holding the old container would rebuild the cache after the clear with unresolved `%parameters%` (e.g. `url_generating_routes.php`), causing intermittent 500s. A failed restart fails the target in the main stack and is ignored in the extra stack.
+
 ## [1.6.0] - 2026-10-17
 
 ### Added
