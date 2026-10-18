@@ -1,6 +1,6 @@
 {
     "name": "nowo-tech/php-quality-tools",
-    "description": "Pre-configured quality tools for PHP projects (Rector, PHP-CS-Fixer, Twig-CS-Fixer) with automatic framework detection, plus CI gate scripts (Clover coverage threshold, module boundaries, latest-release-tag deploy guard), a PHPUnit SQL query-budget trait, ParaTest per-process isolation helpers and front-end / docs gates (no inline SVG, Vite asset budgets, Markdown links).",
+    "description": "Pre-configured quality tools for PHP projects (Rector, PHP-CS-Fixer, Twig-CS-Fixer) with automatic framework detection, plus CI gate scripts (Clover coverage threshold, module boundaries, latest-release-tag deploy guard), a PHPUnit SQL query-budget trait, ParaTest per-process isolation helpers, profiler-based route query scaling and missing-translation test traits, front-end / docs gates (no inline SVG, Vite asset budgets, Markdown links) and AI agent co-author trailer checks / hooks.",
     "type": "composer-plugin",
     "license": "MIT",
     "keywords": [
@@ -56,7 +56,9 @@
         "phpstan/phpstan": "^2.0",
         "phpunit/phpunit": "^10.0 || ^11.0",
         "rector/rector": "^2.7",
+        "symfony/browser-kit": "^6.4 || ^7.0 || ^8.0",
         "symfony/framework-bundle": "^6.0 || ^7.0 || ^8.0",
+        "symfony/translation": "^6.4 || ^7.0 || ^8.0",
         "symfony/yaml": "^6.4 || ^7.0 || ^8.0",
         "vincentlanglet/twig-cs-fixer": "^4.1"
     },
@@ -73,6 +75,8 @@
         "doctrine/dbal": "(^4.0) Count SQL statements with Testing\\Dbal\\QueryCountingMiddleware for Testing\\QueryBudgetTrait",
         "phpunit/phpunit": "Testing\\QueryBudgetTrait assertions (assertQueryBudget, assertScalesWith)",
         "symfony/dependency-injection": "Register Testing\\Env\\PidPathEnvVarProcessor (env var processor pid_path) for per-process test paths under ParaTest",
+        "symfony/browser-kit": "Testing\\RouteQueryScalingTrait and Testing\\MissingTranslationsTrait (KernelBrowser + profiler)",
+        "symfony/translation": "Testing\\MissingTranslationsTrait (profiler translation collector)",
         "brianium/paratest": "Run PHPUnit (and coverage) in parallel; isolate per-process state with pid_path and bin/clean-stale-pid-paths"
     },
     "autoload": {
@@ -92,8 +96,11 @@
         "bin/check-coverage-threshold",
         "bin/check-doc-links",
         "bin/check-module-boundaries",
+        "bin/check-no-agent-coauthor",
         "bin/check-no-inline-svg",
-        "bin/clean-stale-pid-paths"
+        "bin/clean-stale-pid-paths",
+        "bin/install-git-hooks",
+        "bin/strip-agent-coauthor"
     ],
     "extra": {
         "class": "NowoTech\\PhpQualityTools\\Plugin",

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.7.0] - 2026-10-18](#170---2026-10-18)
 - [[1.6.1] - 2026-10-18](#161---2026-10-18)
 - [[1.6.0] - 2026-10-17](#160---2026-10-17)
 - [[1.5.0] - 2026-10-16](#150---2026-10-16)
@@ -39,6 +40,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2024-12-11](#100---2024-12-11)
 
 ## [Unreleased]
+
+## [1.7.0] - 2026-10-18
+
+Git hygiene for AI agent co-author trailers and two profiler-based PHPUnit helpers. See [UPGRADING](UPGRADING.md#to-170).
+
+### Added
+
+- **`bin/check-no-agent-coauthor`** (POSIX sh + git + awk, runs on hosts without PHP): fails when a commit reachable from a ref or in a range carries an AI agent attribution trailer (`Co-authored-by`, `Made-with`, `Generated-by`, `Generated-with`, `Assisted-by`, case-insensitive) naming one of `--agents` (default `cursor,claude,copilot,codex,gemini`; also `aider`, `devin`; `$AGENT_COAUTHOR_AGENTS`) or matching `--pattern` (`$AGENT_COAUTHOR_PATTERN`). `--since` / `--since-file` audit only `<sha>..<ref>` when the baseline is an ancestor (older history accepted as-is), `--message-file` checks one message (hooks, PR text). Exit 0 / 1 / 2 (usage or git error). Generalises Symfony Beacon's `check-no-cursor-coauthor.sh` + `check-no-claude-coauthor.sh`.
+- **`bin/strip-agent-coauthor`**: commit-msg / prepare-commit-msg hook that removes those trailers (and the blank lines they leave at the end); human co-authors are kept.
+- **`bin/install-git-hooks`**: copies the strip hook to `--hooks-dir` (default `.githooks`) as `commit-msg` (`--prepare-commit-msg` too), bakes `--agents` in, sets `core.hooksPath` (`--no-config` to skip); refuses to replace a foreign hook without `--force`.
+- **`resources/make/git-hygiene.mk`**: `check-no-agent-coauthor` and `install-git-hooks` targets (`GIT_HYGIENE_REF`, `GIT_HYGIENE_AGENTS`, `GIT_HYGIENE_SINCE_FILE`, `GIT_HYGIENE_HOOKS_DIR`, `GIT_HYGIENE_HOOK_FLAGS`, `GIT_HYGIENE_BIN`).
+- **`Testing\RouteQueryScalingTrait`**: route-level query counts from the profiler's `db` collector with a `KernelBrowser` — `measureRouteQueries()`, `assertRouteQueryBudget()` and `assertRouteQueriesIndependentOfRows($client, $path, $seed, small: 5, large: 50, rowMarker: …, tolerance: 0)` (seed `[0, small)`, unmeasured warm-up, measure, seed `[small, large)`, measure; the seed closure gets the ORM entity manager, flushed and cleared). From Beacon's duplicated `assertQueryCountIndependentOfRows()` / `measureQueries()`. Independent of `QueryBudgetTrait`; both can be used together.
+- **`Testing\MissingTranslationsTrait`**: `collectMissingTranslations($client, $url)` returns the profiler's missing messages (`DataCollectorTranslator::MESSAGE_MISSING`, unique `locale` / `domain` / `id`) of one request; `assertNoMissingTranslations($client, $url, allowlist: [...])` fails listing them (`"locale domain: id"`, `"domain: id"` or `"id"` entries, trailing `*` prefix) and returns the allowlisted ones. From Beacon's `FormWidgetMissingTranslationsTest`.
+- Dev dependencies `symfony/browser-kit` and `symfony/translation` (real-kernel tests of the traits).
+
+[1.7.0]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.7.0
 
 ## [1.6.1] - 2026-10-18
 

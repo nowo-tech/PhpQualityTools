@@ -609,3 +609,146 @@ so the callback can add only the missing rows `[previousN, N)`. Invalid sizes or
 The trait reads `getQueryCounter()` again after the operation: when the kernel was rebooted in between
 (`KernelBrowser` reboots before each request unless `disableReboot()`), the new counter holds exactly the
 operation's statements.
+
+## Route query scaling through the profiler (since 1.7.0)
+
+`NowoTech\PhpQualityTools\Testing\RouteQueryScalingTrait` measures whole requests of a `KernelBrowser` with the
+profiler's `db` collector (DoctrineBundle's `DoctrineDataCollector`, or any collector named `db` with
+`getQueryCount()`). Needs `symfony/browser-kit` and the profiler in the test environment:
+
+```yaml
+# config/packages/test/framework.yaml (or when@test)
+framework:
+    profiler: { collect: false }   # the trait enables collection for its own requests
+```
+
+```php
+use Doctrine\ORM\EntityManagerInterface;
+use NowoTech\PhpQualityTools\Testing\RouteQueryScalingTrait;
+
+final class IssueListScalingTest extends WebTestCase
+{
+    use RouteQueryScalingTrait;
+
+    public function testIssueListDoesNotScaleWithIssues(): void
+    {
+        $client = static::createClient();
+        $this->assertRouteQueriesIndependentOfRows(
+            $client,
+            '/issues',
+            static function (EntityManagerInterface $em, int $from, int $to): void { // persist rows [$from, $to)
+                for ($i = $from; $i < $to; ++$i) {
+                    $em->persist(new Issue('Issue '.$i));
+                }
+            },
+            small: 5,            // rows of the first measurement
+            large: 50,           // rows of the second measurement
+            rowMarker: 'Issue 49', // must render in the second response (no empty-list false pass)
+            tolerance: 0,        // |large - small| allowed
+        );
+    }
+
+    public function testDashboardBudget(): void
+    {
+        $this->assertRouteQueryBudget(static::createClient(), '/dashboard', 60);
+    }
+}
+```
+
+| Method | Returns | Fails when |
+| --- | --- | --- |
+| `measureRouteQueries(KernelBrowser $client, string $path, string $method = 'GET')` | `int` queries of that request | non-2xx response, no profile, no `db` collector |
+| `assertRouteQueryBudget(KernelBrowser $client, string $path, int $max, string $message = '')` | `int` count | more than `$max` queries |
+| `assertRouteQueriesIndependentOfRows(KernelBrowser $client, string $path, Closure $seed, int $small = 5, int $large = 50, ?string $rowMarker = null, int $tolerance = 0)` | `array{int, int}` counts with `$small` / `$large` rows | the counts differ by more than `$tolerance` |
+
+The flow is: seed `[0, small)`, one unmeasured warm-up request (first-visit side effects), measure, seed
+`[small, large)`, measure. `$seed($objectManager, $from, $to)` gets `routeScalingObjectManager()` — the
+`doctrine.orm.entity_manager` service, or `null` without Doctrine ORM; override it for another manager — which is
+flushed and cleared after each call. Invalid sizes or a negative tolerance throw `InvalidArgumentException`.
+
+The trait only needs the test case's `static::getContainer()` (Symfony's `KernelTestCase`). It is independent of
+`QueryBudgetTrait` (DBAL middleware, statement lists): use that one when you need the SQL in the failure message.
+
+## Missing translations of rendered pages (since 1.7.0)
+
+`NowoTech\PhpQualityTools\Testing\MissingTranslationsTrait` reads Profiler → Translation → "Missing messages" of one
+request. Needs `symfony/browser-kit`, `symfony/translation`, `framework.translator` and the profiler in the test
+environment.
+
+```php
+use NowoTech\PhpQualityTools\Testing\MissingTranslationsTrait;
+
+final class PagesAreTranslatedTest extends WebTestCase
+{
+    use MissingTranslationsTrait;
+
+    public function testAdminPagesUseNoMissingMessage(): void
+    {
+        $client = static::createClient();
+        foreach (['/es/admin/users', '/es/admin/settings'] as $url) {
+            $this->assertNoMissingTranslations($client, $url, allowlist: ['validators: *']);
+            // The page stays available: $client->getCrawler()
+        }
+    }
+}
+```
+
+| Method | Returns | Fails when |
+| --- | --- | --- |
+| `collectMissingTranslations(KernelBrowser $client, string $url, string $method = 'GET')` | `list<array{locale, domain, id}>`, unique, in first-use order | non-2xx response, no profile, no `translation` collector |
+| `assertNoMissingTranslations(KernelBrowser $client, string $url, array $allowlist = [], string $method = 'GET')` | `list<string>` allowlisted messages that were ignored | any other missing message (all listed as `locale domain: id`) |
+
+An allowlist entry matches `"locale domain: id"`, `"domain: id"` or `"id"`; a trailing `*` matches a prefix
+(`"validators: *"`, `"es messages: legacy.*"`).
+
+## AI agent co-author trailers (since 1.7.0)
+
+Three POSIX sh scripts (git + awk, no PHP: they run on the host even when PHP lives in a container) keep AI agent
+attribution out of commit messages: `Co-authored-by`, `Made-with`, `Generated-by`, `Generated-with` and
+`Assisted-by` trailers (case-insensitive) naming an agent. Human co-authors are untouched.
+
+| Agent | Matches (in the trailer value) |
+| --- | --- |
+| `cursor` | `cursor` (`@cursor.com`, `Made-with: Cursor`) |
+| `claude` | `claude`, `anthropic.com` |
+| `copilot` | `copilot` |
+| `codex` | `codex`, `openai.com` |
+| `gemini` | `gemini` |
+| `aider` (opt-in) | `aider` |
+| `devin` (opt-in) | `devin-ai`, `devin.ai` |
+
+Default agents: `cursor,claude,copilot,codex,gemini` (`--agents` or `$AGENT_COAUTHOR_AGENTS`); `--pattern` /
+`$AGENT_COAUTHOR_PATTERN` adds an extended regex (lower-case).
+
+```bash
+vendor/bin/check-no-agent-coauthor                         # every commit reachable from HEAD
+vendor/bin/check-no-agent-coauthor origin/main..HEAD       # a range (e.g. the commits of a PR)
+vendor/bin/check-no-agent-coauthor --since-file .scripts/agent-coauthor-baseline   # accepted older history
+vendor/bin/check-no-agent-coauthor --message-file .git/COMMIT_EDITMSG
+vendor/bin/install-git-hooks [--hooks-dir .githooks] [--agents cursor,claude] [--prepare-commit-msg] [--force] [--no-config]
+```
+
+- `check-no-agent-coauthor` exits 0 when clean, 1 listing the offending commits and lines, 2 on a usage or git
+  error. `--since <sha>` / `--since-file <file>` audit only `<sha>..<ref>` when `<sha>` is an ancestor of `<ref>`;
+  after a history rewrite (the baseline is gone) everything is audited again. An explicit range ignores the baseline.
+- `install-git-hooks` copies `strip-agent-coauthor` as `commit-msg` (standalone: works without `vendor/` in the
+  checkout), bakes the agent list in and sets `core.hooksPath` to the hooks directory. A hook it did not install is
+  only replaced with `--force`.
+
+### `git-hygiene` (Makefile snippet)
+
+```make
+GIT_HYGIENE_SINCE_FILE := .scripts/agent-coauthor-baseline   # optional
+-include vendor/nowo-tech/php-quality-tools/resources/make/git-hygiene.mk
+
+release-check: check-no-agent-coauthor
+```
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `GIT_HYGIENE_REF` | `HEAD` | Ref or range checked by `check-no-agent-coauthor` |
+| `GIT_HYGIENE_AGENTS` | (script default) | Comma-separated agents (check and installed hook) |
+| `GIT_HYGIENE_SINCE_FILE` | — | Baseline file (`--since-file`) |
+| `GIT_HYGIENE_HOOKS_DIR` | `.githooks` | Hooks directory of `install-git-hooks` |
+| `GIT_HYGIENE_HOOK_FLAGS` | — | Extra `install-git-hooks` flags (`--force`, `--prepare-commit-msg`, `--no-config`) |
+| `GIT_HYGIENE_BIN` | `vendor/nowo-tech/php-quality-tools/bin` | Where the scripts live |

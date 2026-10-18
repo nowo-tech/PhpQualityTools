@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.7.0](#to-170)
 - [To 1.6.1](#to-161)
 - [To 1.6.0](#to-160)
 - [To 1.5.0](#to-150)
@@ -52,6 +53,17 @@
 - [Related Documentation](#related-documentation)
 
 ## Unreleased
+
+## To 1.7.0
+
+From **1.6.1** — opt-in, no behaviour change for existing gates.
+
+```bash
+composer update nowo-tech/php-quality-tools
+```
+
+- Replace hand-written co-author checks / hooks with `vendor/bin/check-no-agent-coauthor` and `vendor/bin/install-git-hooks` (or `-include vendor/nowo-tech/php-quality-tools/resources/make/git-hygiene.mk`). Keep an accepted-history baseline with `--since-file`. A versioned `commit-msg` you wrote yourself is only replaced with `--force`.
+- `RouteQueryScalingTrait` / `MissingTranslationsTrait` need `symfony/browser-kit` (and `symfony/translation` for the second) plus `framework.profiler` in the test environment.
 
 ## To 1.6.1
 

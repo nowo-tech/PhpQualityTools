@@ -34,6 +34,7 @@ This bundle is **FrankenPHP worker mode friendly**.
 - ✅ Release guard: `assert-latest-tag` refuses to deploy a tag that is not the highest semver release (no rollback when an old tag is pushed), with a `$GITHUB_OUTPUT` mode
 - ✅ `Testing\QueryBudgetTrait`: `assertQueryBudget()` / `assertScalesWith()` on top of a Doctrine DBAL 4 counting middleware
 - ✅ Parallel PHPUnit (ParaTest) isolation: `pid_path` env var processor (one path per test process) and `clean-stale-pid-paths` (removes the paths of dead processes)
+- ✅ Since 1.7.0: `Testing\RouteQueryScalingTrait` (route query budgets / N+1 scaling through the profiler's `db` collector), `Testing\MissingTranslationsTrait` (profiler missing translations with an allowlist), and `check-no-agent-coauthor` / `strip-agent-coauthor` / `install-git-hooks` + `git-hygiene.mk` (no AI agent co-author trailers; POSIX sh)
 - ✅ Front-end and docs gates: no inline SVG in templates / scripts, per-entry Vite JS / CSS size budgets (raw and gzip), broken relative Markdown links and images (optionally GitHub heading anchors), and a Docker Compose `php-worker-reset` Makefile snippet
 
 ## Installation
@@ -335,6 +336,10 @@ vendor/bin/clean-stale-pid-paths '/dev/shm/app-markers-{pid}'
 vendor/bin/check-no-inline-svg --allow=templates/vendor-sprite.html.twig   # no <svg> in templates/, no SVG strings in assets/*.ts
 vendor/bin/check-asset-budgets --budget=assets/app.ts:css=250kB           # or config/quality/asset-budgets.yaml
 vendor/bin/check-doc-links --check-anchors                                 # broken relative links, images and #anchors in *.md
+
+# Git hygiene (since 1.7.0, POSIX sh): no AI agent co-author trailers
+vendor/bin/check-no-agent-coauthor --since-file .scripts/agent-coauthor-baseline
+vendor/bin/install-git-hooks --hooks-dir .githooks                         # commit-msg hook that strips them
 ```
 
 ```yaml
@@ -353,7 +358,7 @@ $this->assertQueryBudget(60, fn () => $client->request('GET', '/issues'));
 $this->assertScalesWith(fn (int $n, int $previous) => $this->seed($previous, $n), fn () => $client->request('GET', '/issues'));
 ```
 
-See [docs/USAGE.md](docs/USAGE.md#gate-scripts-since-120) for every option, exit code, rule type and the Symfony wiring of the DBAL middleware, and [Release guards](docs/USAGE.md#release-guards-since-130) for the deploy workflow and the recommended local `make release-check` gate, and [Parallel PHPUnit isolation](docs/USAGE.md#parallel-phpunit-isolation-since-150) for the `pid_path` processor registration and a ParaTest coverage gate recipe, and [Front-end and docs gates](docs/USAGE.md#front-end-and-docs-gates-since-160) for the SVG, asset budget and doc link gates and the `php-worker-reset` Makefile snippet.
+See [docs/USAGE.md](docs/USAGE.md#gate-scripts-since-120) for every option, exit code, rule type and the Symfony wiring of the DBAL middleware, and [Release guards](docs/USAGE.md#release-guards-since-130) for the deploy workflow and the recommended local `make release-check` gate, and [Parallel PHPUnit isolation](docs/USAGE.md#parallel-phpunit-isolation-since-150) for the `pid_path` processor registration and a ParaTest coverage gate recipe, and [Front-end and docs gates](docs/USAGE.md#front-end-and-docs-gates-since-160) for the SVG, asset budget and doc link gates and the `php-worker-reset` Makefile snippet, and (since 1.7.0) [Route query scaling](docs/USAGE.md#route-query-scaling-through-the-profiler-since-170), [Missing translations](docs/USAGE.md#missing-translations-of-rendered-pages-since-170) and [AI agent co-author trailers](docs/USAGE.md#ai-agent-co-author-trailers-since-170).
 
 ## Customization
 
