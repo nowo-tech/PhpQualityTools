@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.6.1](#to-161)
 - [To 1.6.0](#to-160)
 - [To 1.5.0](#to-150)
 - [To 1.4.0](#to-140)
@@ -51,6 +52,14 @@
 - [Related Documentation](#related-documentation)
 
 ## Unreleased
+
+## To 1.6.1
+
+From **1.6.0**:
+
+```bash
+composer update nowo-tech/php-quality-tools
+```
 
 ## To 1.6.0
 

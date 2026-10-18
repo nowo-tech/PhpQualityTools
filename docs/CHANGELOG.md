@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.6.1] - 2026-10-18](#161---2026-10-18)
 - [[1.6.0] - 2026-10-17](#160---2026-10-17)
 - [[1.5.0] - 2026-10-16](#150---2026-10-16)
 - [[1.4.0] - 2026-10-15](#140---2026-10-15)
@@ -39,9 +40,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-10-18
+
+php-worker-reset restarts PHP_WORKER_RESET_EXTRA_SERVICES (e.g. messenger workers) after php. See [UPGRADING](UPGRADING.md#to-161).
+
 ### Added
 
 - **`PHP_WORKER_RESET_EXTRA_SERVICES`** in `resources/make/php-worker-reset.mk` (default empty = unchanged behaviour): space-separated Compose services restarted after the PHP service, in the main stack and in the extra stack when it is up, without `cache:clear`, then waited for like the PHP service (`healthy`, or at once without a healthcheck). For workers that share `var/cache` with PHP (e.g. Messenger consumers): a worker still holding the old container would rebuild the cache after the clear with unresolved `%parameters%` (e.g. `url_generating_routes.php`), causing intermittent 500s. A failed restart fails the target in the main stack and is ignored in the extra stack.
+
+[1.6.1]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.6.1
 
 ## [1.6.0] - 2026-10-17
 
