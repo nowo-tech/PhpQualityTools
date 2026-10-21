@@ -752,3 +752,122 @@ release-check: check-no-agent-coauthor
 | `GIT_HYGIENE_HOOKS_DIR` | `.githooks` | Hooks directory of `install-git-hooks` |
 | `GIT_HYGIENE_HOOK_FLAGS` | — | Extra `install-git-hooks` flags (`--force`, `--prepare-commit-msg`, `--no-config`) |
 | `GIT_HYGIENE_BIN` | `vendor/nowo-tech/php-quality-tools/bin` | Where the scripts live |
+
+## Quiet runs and focused test runs (since 1.8.0)
+
+Three helpers that keep long gates readable (for humans and AI agents) and give a fast pre-check before the full
+suite. `quiet-run` and `changed-tests` are POSIX sh (they run on the host even when PHP lives in a container);
+`junit-failures` is PHP 8.2+ and needs no dependency.
+
+```bash
+vendor/bin/quiet-run var/quiet/release-check.log -- make release-check
+vendor/bin/junit-failures var/coverage/junit.xml          # only the failed / errored tests
+vendor/bin/phpunit $(vendor/bin/changed-tests)            # tests covering what changed since the last tag
+```
+
+### `quiet-run`
+
+```text
+quiet-run [options] <log> -- <command> [<args>...]
+```
+
+Runs `<command>` with stdout and stderr written to `<log>` (its directory is created; ANSI colour / cursor codes and
+carriage-return progress redraws are stripped, so the log keeps the last state of every progress line) and prints a
+short summary instead of the whole output:
+
+- **Success:** `OK <label> (<seconds>s) — full log: <log>` and the key result lines matched by `--summary`
+  (PHPUnit `OK (…)` / `Tests: …`, coverage, PHPStan `No errors` / `Found N errors`, audits, `release-check OK`).
+- **Failure:** `FAIL <label> (<seconds>s, exit <code>) — full log: <log>`, then the make targets that failed
+  (`make: *** […]` lines, de-duplicated), the failed PHPUnit tests of every JUnit XML file written during the run
+  (through `junit-failures`), and the last `--context` lines before the first error line (blank lines and PHPUnit /
+  ParaTest progress lines skipped; the end of the log when no error line is found).
+
+| Option | Environment | Default | Meaning |
+| --- | --- | --- | --- |
+| `--label NAME` | `QUIET_LABEL` | `<log>` without directory and `.log` | Label of the summary line |
+| `--context N` | `QUIET_CONTEXT` | `15` | Lines shown before the first error (`0` hides them) |
+| `--summary ERE` | `QUIET_SUMMARY` | PHPUnit, coverage, PHPStan, audit and `release-check OK` lines | Result lines kept on success |
+| `--summary-lines N` | `QUIET_SUMMARY_LINES` | `15` | Result lines shown at most on success (`0` hides them) |
+| `--error ERE` | `QUIET_ERROR` | `make: ***`, `FAILURES!`, `ERRORS!`, `[ERROR]`, `ERROR` / `FAIL` / `Fatal error` at line start | First error line (start of the context) |
+| `--junit-dir DIR` (repeatable) | `QUIET_JUNIT_DIRS` (space separated) | `var build` plus the log's directory | Directories searched for `*junit*.xml` files newer than the start of the run (`vendor/`, `node_modules/` skipped) |
+| `--junit-cmd CMD` | `QUIET_JUNIT_CMD` | `php <package>/bin/junit-failures` (skipped without `php`) | Command printing the failures of one JUnit file (the path is appended) |
+
+Exit codes: the exit code of `<command>` (so `make` still fails on a failed gate), `2` on a usage error.
+
+When PHP only runs in a container, point `--junit-cmd` at it:
+`QUIET_JUNIT_CMD='docker compose exec -T php vendor/bin/junit-failures'`. Paths are passed relative to the current
+directory, so the container must mount the project at its working directory.
+
+### `junit-failures`
+
+```text
+junit-failures [--max=<n>] [--lines=<n>] [--strip-prefix=<path>]... <junit.xml> [<max>] [<lines>]
+```
+
+Prints only the failed and errored test cases of a JUnit log (PHPUnit / ParaTest `--log-junit`, nested suites
+included), one block per test: `Class::method (file:line)` and the first `<lines>` non-empty lines of the message.
+
+```text
+Failed tests in var/coverage/junit.xml (2):
+  App\Tests\Billing\InvoiceTest::testTotal (tests/Billing/InvoiceTest.php:42)
+      App\Tests\Billing\InvoiceTest::testTotal
+      Failed asserting that 90 is identical to 100.
+  … and 1 more (see the JUnit log).
+```
+
+- `<max>` / `--max` (default `15`): tests printed at most; the rest are counted.
+- `<lines>` / `--lines` (default `6`): message lines per test.
+- `--strip-prefix` (repeatable; default the current directory, e.g. `/app` inside a container): removed from the
+  test file paths.
+
+Exit codes: `0` no failed test (nothing printed), `1` failed tests listed, `2` usage error or missing / unreadable
+log. In a Makefile recipe that already failed, append `|| true`.
+
+### `changed-tests`
+
+```text
+changed-tests [--base REF] [--src DIR]... [--tests DIR]... [--suffix SUFFIX]
+```
+
+Prints (sorted, one per line, relative to the repository root, existing files only) the test files that cover what
+changed since `<base>`:
+
+- test files changed since `<base>` (committed, staged and working-tree changes) and untracked test files;
+- test files that name, as a whole word, the class (file name without `.php`) of a source file changed since
+  `<base>` or untracked.
+
+Deleted files are ignored. It is a fast pre-check, not a gate: run the whole suite (with coverage) before a release.
+
+| Option | Environment | Default | Meaning |
+| --- | --- | --- | --- |
+| `--base REF` | `BASE` | last tag reachable from `HEAD` (`git describe --tags --abbrev=0`) | Base of the diff |
+| `--src DIR` (repeatable) | `CHANGED_TESTS_SRC` (space separated) | `src` | Source directories |
+| `--tests DIR` (repeatable) | `CHANGED_TESTS_DIRS` (space separated) | `tests` | Test directories |
+| `--suffix SUFFIX` | `CHANGED_TESTS_SUFFIX` | `Test.php` | Test file suffix |
+
+Exit codes: `0` (also when the list is empty), `2` on a usage or git error (outside a repository, no base and no tag,
+unknown ref).
+
+### Makefile recipes
+
+```make
+QUALITY_BIN := vendor/bin
+
+# make quiet T=<target> [VAR=value …]: any target with a short summary; the full log in var/quiet/<target>.log
+quiet:
+	@[ -n "$(T)" ] || { echo "usage: make quiet T=<target>"; exit 2; }
+	@$(QUALITY_BIN)/quiet-run var/quiet/$(T).log -- $(MAKE) --no-print-directory $(T)
+
+# PHPUnit on the tests covering the changes since BASE (default: the last tag); prints only the failures
+test-changed:
+	@tests=$$($(QUALITY_BIN)/changed-tests); \
+	if [ -z "$$tests" ]; then echo "test-changed: no test covers the changes"; exit 0; fi; \
+	mkdir -p var/quiet; \
+	vendor/bin/phpunit --no-coverage --no-progress --log-junit var/quiet/test-changed.junit.xml $$tests > var/quiet/test-changed.log 2>&1; rc=$$?; \
+	tail -n 3 var/quiet/test-changed.log; \
+	$(QUALITY_BIN)/junit-failures var/quiet/test-changed.junit.xml || true; \
+	exit $$rc
+```
+
+With PHP in Docker Compose, run PHPUnit and `junit-failures` through `docker compose exec -T php …` and export
+`QUIET_JUNIT_CMD='docker compose exec -T php vendor/bin/junit-failures'` for `quiet-run`.

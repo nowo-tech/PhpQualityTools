@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.8.0](#to-180)
 - [To 1.7.0](#to-170)
 - [To 1.6.1](#to-161)
 - [To 1.6.0](#to-160)
@@ -53,6 +54,20 @@
 - [Related Documentation](#related-documentation)
 
 ## Unreleased
+
+## To 1.8.0
+
+From **1.7.0** — opt-in, no behaviour change for existing gates.
+
+```bash
+composer update nowo-tech/php-quality-tools
+```
+
+- No breaking changes; nothing runs unless you call the new binaries.
+- **Own `scripts/quiet-run.sh`** (e.g. Symfony Beacon): call `vendor/bin/quiet-run <log> -- <command>` instead. Same `OK` / `FAIL` summary; differences: the command's real exit code is returned (the script always exited 1 on failure), the `FAIL` line also shows it, JUnit files are searched in `var`, `build` and the log's directory (add `--junit-dir=var/coverage` or `QUIET_JUNIT_DIRS` for other places), and the JUnit command is `QUIET_JUNIT_CMD` (e.g. `docker compose exec -T php vendor/bin/junit-failures`) instead of a built-in Docker fallback.
+- **Own `scripts/junit-failures.php`**: call `vendor/bin/junit-failures <junit.xml> [max] [lines]`. It now exits 1 when it lists failures (append `|| true` where the old exit 0 was relied upon) and 2 for a missing log; paths are stripped of the current directory (`--strip-prefix=/app` for the old behaviour outside the container).
+- **Own `scripts/changed-tests.sh`**: call `vendor/bin/changed-tests` (same `BASE` variable and output). Exit 2 (not 1) without a base or tag; `--src`, `--tests` and `--suffix` cover other layouts.
+- See [Usage → Quiet runs and focused test runs](USAGE.md#quiet-runs-and-focused-test-runs-since-180) for `make quiet` / `make test-changed` recipes.
 
 ## To 1.7.0
 

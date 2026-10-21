@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.8.0] - 2026-10-21](#180---2026-10-21)
 - [[1.7.0] - 2026-10-18](#170---2026-10-18)
 - [[1.6.1] - 2026-10-18](#161---2026-10-18)
 - [[1.6.0] - 2026-10-17](#160---2026-10-17)
@@ -40,6 +41,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2024-12-11](#100---2024-12-11)
 
 ## [Unreleased]
+
+## [1.8.0] - 2026-10-21
+
+Quiet gate runs and focused test runs. See [UPGRADING](UPGRADING.md#to-180).
+
+### Added
+
+- **`bin/quiet-run`** (POSIX sh + awk, runs on hosts without PHP): `quiet-run [options] <log> -- <command>` writes the command's full output to `<log>` (directory created; ANSI CSI / OSC / charset codes and carriage-return progress redraws stripped) and prints a summary: `OK <label> (<s>s)` plus the key result lines (`--summary` / `$QUIET_SUMMARY`, at most `--summary-lines` / `$QUIET_SUMMARY_LINES`, default 15), or `FAIL <label> (<s>s, exit <code>)`, the failed make targets, the failed PHPUnit tests of every `*junit*.xml` written during the run (`--junit-dir` / `$QUIET_JUNIT_DIRS`, default `var build` and the log's directory; `--junit-cmd` / `$QUIET_JUNIT_CMD`, e.g. through `docker compose exec`) and the last `--context` / `$QUIET_CONTEXT` (default 15) lines before the first error (`--error` / `$QUIET_ERROR`). `--label` / `$QUIET_LABEL`. Exits with the command's exit code (2 on a usage error). Generalises Symfony Beacon's `scripts/quiet-run.sh`.
+- **`bin/junit-failures`** (`Gate\Junit\JunitFailuresCommand`): `junit-failures <junit.xml> [max] [lines]` (or `--max`, `--lines`) prints only the failed / errored tests of a PHPUnit / ParaTest JUnit log — `Class::method (file:line)` and the head of the message — with `--strip-prefix` (default the current directory). Exit 0 none failed (nothing printed), 1 failures listed, 2 usage error or missing / unreadable log. From Beacon's `scripts/junit-failures.php`.
+- **`bin/changed-tests`** (POSIX sh + git): lists the test files changed since `--base` / `$BASE` (default the last tag) — committed, staged, working-tree and untracked — plus the test files naming (whole word) a changed or new source class; `--src` / `$CHANGED_TESTS_SRC` (default `src`), `--tests` / `$CHANGED_TESTS_DIRS` (default `tests`), `--suffix` / `$CHANGED_TESTS_SUFFIX` (default `Test.php`); works from any subdirectory. Exit 0 (also for an empty list), 2 on a usage or git error. From Beacon's `scripts/changed-tests.sh`.
+- [Usage → Quiet runs and focused test runs](USAGE.md#quiet-runs-and-focused-test-runs-since-180) with `make quiet T=<target>` and `make test-changed` recipes.
+
+[1.8.0]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.8.0
 
 ## [1.7.0] - 2026-10-18
 
