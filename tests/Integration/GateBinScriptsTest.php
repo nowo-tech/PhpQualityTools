@@ -34,7 +34,7 @@ final class GateBinScriptsTest extends TestCase
         $composer = json_decode((string) file_get_contents(self::ROOT . '/composer.json'), true, 512, \JSON_THROW_ON_ERROR);
 
         self::assertIsArray($composer);
-        self::assertSame(['bin/assert-latest-tag', 'bin/assert-release-proof', 'bin/check-asset-budgets', 'bin/check-coverage-threshold', 'bin/check-doc-links', 'bin/check-module-boundaries', 'bin/check-no-agent-coauthor', 'bin/check-no-inline-svg', 'bin/clean-stale-pid-paths', 'bin/install-git-hooks', 'bin/strip-agent-coauthor'], $composer['bin'] ?? null);
+        self::assertSame(['bin/assert-latest-tag', 'bin/assert-release-proof', 'bin/changed-tests', 'bin/check-asset-budgets', 'bin/check-coverage-threshold', 'bin/check-doc-links', 'bin/check-module-boundaries', 'bin/check-no-agent-coauthor', 'bin/check-no-inline-svg', 'bin/clean-stale-pid-paths', 'bin/install-git-hooks', 'bin/junit-failures', 'bin/quiet-run', 'bin/strip-agent-coauthor'], $composer['bin'] ?? null);
         foreach ($composer['bin'] as $script) {
             self::assertTrue(is_executable(self::ROOT . '/' . $script), $script);
         }

@@ -1,0 +1,15 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Print only the failed / errored tests of a JUnit log (PHPUnit / ParaTest --log-junit).
+ * See docs/USAGE.md ("Quiet runs and focused test runs") or run with --help.
+ */
+
+use NowoTech\PhpQualityTools\Gate\Junit\JunitFailuresCommand;
+
+require __DIR__ . '/autoload.php';
+
+exit((new JunitFailuresCommand(\STDOUT, \STDERR, (string) getcwd()))->run(array_slice($argv, 1)));

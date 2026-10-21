@@ -1,0 +1,127 @@
+#!/usr/bin/env sh
+# nowo-tech/php-quality-tools — changed-tests
+#
+# Lists the PHPUnit test files that cover what changed since a base ref (default: the last tag): changed or new test
+# files, plus the test files that name a changed or new source class. A fast pre-check before the full suite, not a
+# gate. POSIX sh + git + grep. Run with --help for the options.
+set -eu
+
+usage() {
+  cat <<'USAGE'
+Usage: changed-tests [options]
+
+Prints one test file per line (sorted, existing files only), relative to the repository root:
+  - test files changed since <base> (committed, staged and working-tree changes) and untracked test files;
+  - test files that name (as a whole word) the class of a source file changed since <base> or untracked.
+Works from any directory of the repository; <dir> options are relative to its root. Prints nothing when no test covers the changes.
+
+Options (environment variable in brackets):
+  --base REF        Base ref of the diff (BASE; default: the last tag reachable from HEAD, git describe --tags).
+  --src DIR         Source directory, repeatable (CHANGED_TESTS_SRC, space separated; default: src).
+  --tests DIR       Test directory, repeatable (CHANGED_TESTS_DIRS, space separated; default: tests).
+  --suffix SUFFIX   Test file suffix (CHANGED_TESTS_SUFFIX; default: Test.php).
+  -h, --help        Show this help.
+
+Exit codes: 0 (also when the list is empty), 2 usage or git error (no base ref and no tag, unknown ref).
+USAGE
+}
+
+need_value() {
+  if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+    echo "ERROR: $1 needs a value." >&2
+    exit 2
+  fi
+}
+
+BASE_REF="${BASE:-}"
+SRC_DIRS="${CHANGED_TESTS_SRC:-}"
+TEST_DIRS="${CHANGED_TESTS_DIRS:-}"
+SUFFIX="${CHANGED_TESTS_SUFFIX:-Test.php}"
+SRC_ARGS=''
+TEST_ARGS=''
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -h|--help) usage; exit 0 ;;
+    --base) need_value "$@"; BASE_REF="$2"; shift 2 ;;
+    --base=*) BASE_REF="${1#*=}"; shift ;;
+    --src) need_value "$@"; SRC_ARGS="$SRC_ARGS $2"; shift 2 ;;
+    --src=*) SRC_ARGS="$SRC_ARGS ${1#*=}"; shift ;;
+    --tests) need_value "$@"; TEST_ARGS="$TEST_ARGS $2"; shift 2 ;;
+    --tests=*) TEST_ARGS="$TEST_ARGS ${1#*=}"; shift ;;
+    --suffix) need_value "$@"; SUFFIX="$2"; shift 2 ;;
+    --suffix=*) SUFFIX="${1#*=}"; shift ;;
+    *) echo "ERROR: unknown option $1 (see --help)." >&2; exit 2 ;;
+  esac
+done
+[ -n "$SRC_ARGS" ] && SRC_DIRS="$SRC_ARGS"
+[ -n "$TEST_ARGS" ] && TEST_DIRS="$TEST_ARGS"
+[ -n "$SRC_DIRS" ] || SRC_DIRS='src'
+[ -n "$TEST_DIRS" ] || TEST_DIRS='tests'
+if [ -z "$SUFFIX" ]; then
+  echo "ERROR: --suffix needs a value." >&2
+  exit 2
+fi
+
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+  echo "ERROR: changed-tests must run inside a git repository." >&2
+  exit 2
+fi
+cd "$(git rev-parse --show-toplevel)"
+if [ -z "$BASE_REF" ]; then
+  BASE_REF=$(git describe --tags --abbrev=0 2>/dev/null || true)
+  if [ -z "$BASE_REF" ]; then
+    echo "ERROR: no BASE given and no tag reachable from HEAD (use --base REF or BASE=REF)." >&2
+    exit 2
+  fi
+fi
+if ! git rev-parse --verify --quiet "$BASE_REF^{commit}" >/dev/null; then
+  echo "ERROR: unknown base ref: $BASE_REF" >&2
+  exit 2
+fi
+
+TMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/changed-tests.XXXXXX")
+trap 'rm -rf "$TMP_DIR"' EXIT
+
+# Pathspecs (git wildcards match across directories): <dir>/*<suffix> for tests, <dir>/*.php for sources.
+set -f
+TEST_SPECS=''
+for dir in $TEST_DIRS; do
+  TEST_SPECS="$TEST_SPECS ${dir%/}/*$SUFFIX"
+done
+SRC_SPECS=''
+for dir in $SRC_DIRS; do
+  SRC_SPECS="$SRC_SPECS ${dir%/}/*.php"
+done
+
+# shellcheck disable=SC2086
+{
+  git diff --name-only --diff-filter=AMR "$BASE_REF" -- $TEST_SPECS
+  git ls-files --others --exclude-standard -- $TEST_SPECS
+} > "$TMP_DIR/tests" || exit 2
+# shellcheck disable=SC2086
+{
+  git diff --name-only --diff-filter=AMR "$BASE_REF" -- $SRC_SPECS
+  git ls-files --others --exclude-standard -- $SRC_SPECS
+} > "$TMP_DIR/src" || exit 2
+set +f
+
+# Existing test directories, for the class-name search.
+: > "$TMP_DIR/dirs"
+for dir in $TEST_DIRS; do
+  [ -d "$dir" ] && printf '%s\n' "${dir%/}" >> "$TMP_DIR/dirs"
+done
+
+while IFS= read -r file; do
+  [ -f "$file" ] || continue
+  class=$(basename "$file" .php)
+  while IFS= read -r dir; do
+    find "$dir" -type f -name "*$SUFFIX" -exec grep -lw -e "$class" {} + 2>/dev/null || true
+  done < "$TMP_DIR/dirs"
+done < "$TMP_DIR/src" >> "$TMP_DIR/tests"
+
+sort -u "$TMP_DIR/tests" | while IFS= read -r test; do
+  if [ -f "$test" ]; then
+    printf '%s\n' "$test"
+  fi
+done

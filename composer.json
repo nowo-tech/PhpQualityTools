@@ -1,6 +1,6 @@
 {
     "name": "nowo-tech/php-quality-tools",
-    "description": "Pre-configured quality tools for PHP projects (Rector, PHP-CS-Fixer, Twig-CS-Fixer) with automatic framework detection, plus CI gate scripts (Clover coverage threshold, module boundaries, latest-release-tag deploy guard), a PHPUnit SQL query-budget trait, ParaTest per-process isolation helpers, profiler-based route query scaling and missing-translation test traits, front-end / docs gates (no inline SVG, Vite asset budgets, Markdown links) and AI agent co-author trailer checks / hooks.",
+    "description": "Pre-configured quality tools for PHP projects (Rector, PHP-CS-Fixer, Twig-CS-Fixer) with automatic framework detection, plus CI gate scripts (Clover coverage threshold, module boundaries, latest-release-tag deploy guard), a PHPUnit SQL query-budget trait, ParaTest per-process isolation helpers, profiler-based route query scaling and missing-translation test traits, front-end / docs gates (no inline SVG, Vite asset budgets, Markdown links) AI agent co-author trailer checks / hooks, and quiet-run / junit-failures / changed-tests helpers (short gate summaries, failed tests of a JUnit log, tests covering the changes).",
     "type": "composer-plugin",
     "license": "MIT",
     "keywords": [
@@ -24,7 +24,9 @@
         "vite",
         "asset-budget",
         "markdown-links",
-        "svg"
+        "svg",
+        "junit",
+        "changed-tests"
     ],
     "homepage": "https://github.com/nowo-tech/PhpQualityTools",
     "support": {
@@ -92,6 +94,7 @@
     "bin": [
         "bin/assert-latest-tag",
         "bin/assert-release-proof",
+        "bin/changed-tests",
         "bin/check-asset-budgets",
         "bin/check-coverage-threshold",
         "bin/check-doc-links",
@@ -100,6 +103,8 @@
         "bin/check-no-inline-svg",
         "bin/clean-stale-pid-paths",
         "bin/install-git-hooks",
+        "bin/junit-failures",
+        "bin/quiet-run",
         "bin/strip-agent-coauthor"
     ],
     "extra": {

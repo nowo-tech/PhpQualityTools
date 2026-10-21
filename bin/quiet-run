@@ -1,0 +1,194 @@
+#!/usr/bin/env sh
+# nowo-tech/php-quality-tools — quiet-run
+#
+# Runs a command with its full output in a log file and prints a short summary instead: humans and AI agents read the
+# summary, the log keeps the details. POSIX sh + awk. Run with --help for the options.
+set -u
+
+DEFAULT_SUMMARY='release-check OK|[Cc]overage:|Threshold:|^OK \(|^OK:|^Tests: |passed \(|failed$|flaky$|No errors|Found [0-9]+ error|No security vulnerability|No known vulnerabilities|no leaks found|leaks found'
+DEFAULT_ERROR='^g?make(\[[0-9]+\])?: \*\*\* |^(FAILURES!|ERRORS!)|\[ERROR\]|^(ERROR|FAIL|Fatal error|PHP Fatal error):? '
+DEFAULT_JUNIT_DIRS='var build'
+
+usage() {
+  cat <<'USAGE'
+Usage: quiet-run [options] <log> -- <command> [<args>...]
+
+Runs <command> with stdout and stderr in <log> (ANSI codes and carriage-return progress redraws stripped; the
+directory is created) and prints a short summary:
+  success  "OK <label> (<seconds>s) — full log: <log>" and the key result lines (coverage, test counts, …)
+  failure  "FAIL <label> (<seconds>s) — full log: <log>", the make targets that failed, the failed PHPUnit tests of
+           every JUnit XML written during the run, and the last lines before the first error.
+
+Options (environment variable in brackets):
+  --label NAME         Label of the summary (QUIET_LABEL; default: <log> without directory and .log).
+  --context N          Lines shown before the first error (QUIET_CONTEXT; default: 15).
+  --summary ERE        Extended regex of the result lines kept on success (QUIET_SUMMARY; default: PHPUnit,
+                       coverage, PHPStan, audit and release-check result lines).
+  --summary-lines N    Result lines shown at most on success (QUIET_SUMMARY_LINES; default: 15).
+  --error ERE          Extended regex of the first error line (QUIET_ERROR; default: make ***, FAILURES!,
+                       ERRORS!, [ERROR], ERROR / FAIL / Fatal error at line start).
+  --junit-dir DIR      Directory searched for JUnit XML files (name containing "junit") newer than the start of the
+                       run, repeatable (QUIET_JUNIT_DIRS, space separated; default: "var build" and the log's directory).
+  --junit-cmd CMD      Command printing the failed tests of one JUnit file, the file is appended (QUIET_JUNIT_CMD;
+                       default: php <this package>/bin/junit-failures, skipped without php). E.g. inside Docker:
+                       'docker compose exec -T php vendor/bin/junit-failures'.
+  -h, --help           Show this help.
+
+Exit codes: the exit code of <command> (0 on success); 2 on a usage error.
+USAGE
+}
+
+need_value() {
+  if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+    echo "ERROR: $1 needs a value." >&2
+    exit 2
+  fi
+}
+
+need_int() {
+  case "$2" in
+    ''|*[!0-9]*) echo "ERROR: $1 must be a non-negative integer." >&2; exit 2 ;;
+  esac
+}
+
+LABEL="${QUIET_LABEL:-}"
+CONTEXT="${QUIET_CONTEXT:-15}"
+SUMMARY="${QUIET_SUMMARY:-$DEFAULT_SUMMARY}"
+SUMMARY_LINES="${QUIET_SUMMARY_LINES:-15}"
+ERROR_RE="${QUIET_ERROR:-$DEFAULT_ERROR}"
+JUNIT_DIRS="${QUIET_JUNIT_DIRS:-$DEFAULT_JUNIT_DIRS}"
+JUNIT_CMD="${QUIET_JUNIT_CMD:-}"
+LOG=''
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -h|--help) usage; exit 0 ;;
+    --label) need_value "$@"; LABEL="$2"; shift 2 ;;
+    --label=*) LABEL="${1#*=}"; shift ;;
+    --context) need_value "$@"; CONTEXT="$2"; shift 2 ;;
+    --context=*) CONTEXT="${1#*=}"; shift ;;
+    --summary) need_value "$@"; SUMMARY="$2"; shift 2 ;;
+    --summary=*) SUMMARY="${1#*=}"; shift ;;
+    --summary-lines) need_value "$@"; SUMMARY_LINES="$2"; shift 2 ;;
+    --summary-lines=*) SUMMARY_LINES="${1#*=}"; shift ;;
+    --error) need_value "$@"; ERROR_RE="$2"; shift 2 ;;
+    --error=*) ERROR_RE="${1#*=}"; shift ;;
+    --junit-dir) need_value "$@"; JUNIT_DIRS="$JUNIT_DIRS $2"; shift 2 ;;
+    --junit-dir=*) JUNIT_DIRS="$JUNIT_DIRS ${1#*=}"; shift ;;
+    --junit-cmd) need_value "$@"; JUNIT_CMD="$2"; shift 2 ;;
+    --junit-cmd=*) JUNIT_CMD="${1#*=}"; shift ;;
+    --) shift; break ;;
+    -*) echo "ERROR: unknown option $1 (see --help)." >&2; exit 2 ;;
+    *)
+      if [ -n "$LOG" ]; then
+        break
+      fi
+      LOG="$1"; shift ;;
+  esac
+done
+
+if [ -z "$LOG" ] || [ "$#" -eq 0 ]; then
+  echo "ERROR: expected <log> -- <command> (see --help)." >&2
+  exit 2
+fi
+need_int --context "$CONTEXT"
+need_int --summary-lines "$SUMMARY_LINES"
+
+[ -n "$LABEL" ] || LABEL=$(basename "$LOG" .log)
+LOG_DIR=$(dirname "$LOG")
+mkdir -p "$LOG_DIR" || exit 2
+JUNIT_DIRS="$JUNIT_DIRS $LOG_DIR"
+
+SELF_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+if [ -z "$JUNIT_CMD" ] && command -v php >/dev/null 2>&1 && [ -f "$SELF_DIR/junit-failures" ]; then
+  JUNIT_CMD="php $SELF_DIR/junit-failures"
+fi
+
+TMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/quiet-run.XXXXXX") || exit 2
+trap 'rm -rf "$TMP_DIR"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+MARKER="$TMP_DIR/marker"
+RC_FILE="$TMP_DIR/rc"
+
+# JUnit XML candidates (name containing "junit") under the JUnit directories, with their checksums.
+junit_files() {
+  for dir in $JUNIT_DIRS; do
+    [ -d "$dir" ] || continue
+    find "$dir" -name node_modules -prune -o -name vendor -prune -o -type f -name '*.xml' -print 2>/dev/null
+  done | grep -i junit | sed 's#^\./##' | awk '!seen[$0]++' | while IFS= read -r file; do
+    cksum "$file" 2>/dev/null
+  done
+}
+
+[ -z "$JUNIT_CMD" ] || junit_files > "$TMP_DIR/junit.before"
+: > "$MARKER"
+START=$(date +%s)
+
+ESC=$(printf '\033')
+CR=$(printf '\r')
+BEL=$(printf '\007')
+
+# Strip ANSI sequences (CSI, OSC, charset selection) and carriage-return redraws (keep the last state of each line).
+# The exit code goes through a file: POSIX sh has no PIPESTATUS.
+{ "$@" 2>&1; echo "$?" > "$RC_FILE"; } | awk -v esc="$ESC" -v cr="$CR" -v bel="$BEL" '
+  BEGIN { csi = esc "\\[[0-9;?<=>]*[ -/]*[@-~]"; osc = esc "\\][^" bel esc "]*(" bel "|" esc "\\\\)"; cs = esc "[()][A-Za-z0-9]"; other = esc "[=>78MDEHc]" }
+  {
+    gsub(osc, ""); gsub(csi, ""); gsub(cs, ""); gsub(other, "")
+    sub(cr "+$", "")
+    n = split($0, parts, cr)
+    if (n > 1) { $0 = parts[n] }
+    print
+    fflush()
+  }' > "$LOG"
+RC=$(cat "$RC_FILE" 2>/dev/null || echo 1)
+SECS=$(( $(date +%s) - START ))
+
+if [ "$RC" -eq 0 ]; then
+  echo "OK $LABEL (${SECS}s) — full log: $LOG"
+  if [ "$SUMMARY_LINES" -gt 0 ]; then
+    grep -E -- "$SUMMARY" "$LOG" | grep -v '^[[:space:]]*$' | tail -n "$SUMMARY_LINES" | sed 's/^/  /'
+  fi
+  exit 0
+fi
+
+echo "FAIL $LABEL (${SECS}s, exit $RC) — full log: $LOG"
+TARGETS=$(grep -E '^g?make(\[[0-9]+\])?: \*\*\* ' "$LOG" | sed -E 's/^g?make(\[[0-9]+\])?: \*\*\* /  /' | awk '!seen[$0]++' | head -n 10)
+if [ -n "$TARGETS" ]; then
+  echo "Failed targets:"
+  printf '%s\n' "$TARGETS"
+fi
+
+# PHPUnit / ParaTest failures from the JUnit logs this run wrote: new or changed files (checksum), or modified after
+# the start (find -newer; some find implementations compare whole seconds only, hence the checksums).
+if [ -n "$JUNIT_CMD" ]; then
+  junit_files > "$TMP_DIR/junit.after"
+  while IFS= read -r line; do
+    file=${line#* }
+    file=${file#* }
+    if ! grep -Fxq -e "$line" "$TMP_DIR/junit.before" || [ -n "$(find "$file" -newer "$MARKER" 2>/dev/null)" ]; then
+      printf '%s\n' "$file"
+    fi
+  done < "$TMP_DIR/junit.after" > "$TMP_DIR/junit"
+  while IFS= read -r junit; do
+    # Word splitting of JUNIT_CMD is intended (a command with arguments).
+    # shellcheck disable=SC2086
+    $JUNIT_CMD "$junit" 2>/dev/null || true
+  done < "$TMP_DIR/junit"
+fi
+
+if [ "$CONTEXT" -gt 0 ]; then
+  FIRST=$(grep -nE -- "$ERROR_RE" "$LOG" | head -n 1 | cut -d: -f1)
+  [ -n "$FIRST" ] || FIRST=$(wc -l < "$LOG" | tr -d ' ')
+  [ "$FIRST" -gt 0 ] || FIRST=1
+  BACK=$(( CONTEXT * 3 > 40 ? CONTEXT * 3 : 40 ))
+  FROM=$(( FIRST > BACK ? FIRST - BACK : 1 ))
+  CONTEXT_LINES=$(sed -n "${FROM},${FIRST}p" "$LOG" \
+    | grep -vE '^[[:space:]]*$|^[[:space:]]*[.SNIRWDEF]+[[:space:]]+[0-9]+ / [0-9]+|^ *[0-9]+/[0-9]+ \[' \
+    | tail -n "$CONTEXT" | sed 's/^/  /')
+  if [ -n "$CONTEXT_LINES" ]; then
+    echo "Last lines before the first error:"
+    printf '%s\n' "$CONTEXT_LINES"
+  fi
+fi
+exit "$RC"
