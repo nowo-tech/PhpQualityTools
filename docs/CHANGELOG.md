@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.8.1] - 2026-10-22](#181---2026-10-22)
 - [[1.8.0] - 2026-10-21](#180---2026-10-21)
 - [[1.7.0] - 2026-10-18](#170---2026-10-18)
 - [[1.6.1] - 2026-10-18](#161---2026-10-18)
@@ -42,6 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-10-22
+
+Wave-2 REQ compliance: full release-check chain with open-PR and Igor gates, Rector on PHP 8.2, pinned CI matrix. See [UPGRADING](UPGRADING.md#to-181).
+
 ### Changed
 
 - `release-check` starts with `ensure-up` and runs `check-open-prs` (new `.scripts/check-open-prs.sh`) and `igor` (REQ-MAKE-002, REQ-CS-008, REQ-REL-003); Igor now also audits `src/Gate` and `src/Testing` (canonical excludes).
@@ -51,6 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docs: coverage-ignore justification in README (REQ-TEST-003); AI-audit row in the 12.4.1 checklist (REQ-SEC-002).
 - Rector PHP 8.2 findings applied (`readonly` value objects in `Gate/`); `@igor-ignore` reasons on the CLI gate and PHPUnit helper state (never worker services).
 - `.scripts/check-no-cursor-coauthor.sh` accepts git worktrees (REQ-GIT-001).
+
+[1.8.1]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.8.1
 
 ## [1.8.0] - 2026-10-21
 

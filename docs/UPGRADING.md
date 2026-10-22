@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.8.1](#to-181)
 - [To 1.8.0](#to-180)
 - [To 1.7.0](#to-170)
 - [To 1.6.1](#to-161)
@@ -54,6 +55,14 @@
 - [Related Documentation](#related-documentation)
 
 ## Unreleased
+
+## To 1.8.1
+
+From **1.8.0**:
+
+```bash
+composer update nowo-tech/php-quality-tools
+```
 
 ## To 1.8.0
 
