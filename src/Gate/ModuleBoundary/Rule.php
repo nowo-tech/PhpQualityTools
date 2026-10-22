@@ -24,7 +24,7 @@ namespace NowoTech\PhpQualityTools\Gate\ModuleBoundary;
  *
  * @see    https://github.com/HecFranco
  */
-final class Rule
+final readonly class Rule
 {
     public const TYPES = ['forbid_path', 'require_path', 'forbid_import', 'forbid_pattern', 'require_pattern', 'require_near'];
 
@@ -37,15 +37,15 @@ final class Rule
      * @param string|null  $requires Compiled regex (with delimiters)
      */
     public function __construct(
-        public readonly string $type,
-        public readonly string $message,
-        public readonly array $paths = [],
-        public readonly array $in = [],
-        public readonly array $except = [],
-        public readonly array $imports = [],
-        public readonly ?string $pattern = null,
-        public readonly ?string $requires = null,
-        public readonly int $withinLines = 0,
+        public string $type,
+        public string $message,
+        public array $paths = [],
+        public array $in = [],
+        public array $except = [],
+        public array $imports = [],
+        public ?string $pattern = null,
+        public ?string $requires = null,
+        public int $withinLines = 0,
     ) {
     }
 }

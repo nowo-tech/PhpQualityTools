@@ -1,7 +1,7 @@
 # Makefile for PHP Quality Tools
 # Simplifies Docker commands for development
 
-.PHONY: help ensure-up up down down-dev build shell install assets test test-coverage cs-check cs-fix rector rector-dry phpstan igor qa docs-links release-check composer-sync clean update validate setup-hooks check-no-cursor-coauthor strip-cursor-coauthor-from-history
+.PHONY: help ensure-up up down down-dev build shell install assets test test-coverage cs-check cs-fix rector rector-dry phpstan igor qa docs-links release-check composer-sync clean update validate setup-hooks check-no-cursor-coauthor strip-cursor-coauthor-from-history check-open-prs
 
 COMPOSER_BIN := /usr/bin/composer
 # Prefer Compose V2 plugin (GitHub Actions / modern Docker Desktop); fall back to docker-compose V1 (REQ-MAKE-010).
@@ -126,15 +126,22 @@ igor: ensure-up
 docs-links: ensure-up
 	$(COMPOSE) exec -T php php bin/check-doc-links --check-anchors
 
-release-check: check-no-cursor-coauthor
+# REQ-MAKE-002 order (Composer plugin: no Twig, no demos).
+release-check:
 	@$(MAKE) ensure-up
+	@$(MAKE) check-no-cursor-coauthor
+	@$(MAKE) check-open-prs
 	@$(MAKE) composer-sync
 	@$(MAKE) cs-fix
 	@$(MAKE) cs-check
 	@$(MAKE) rector-dry
 	@$(MAKE) phpstan
+	@$(MAKE) igor
 	@$(MAKE) docs-links
 	@$(MAKE) test-coverage
+
+check-open-prs:
+	@bash .scripts/check-open-prs.sh
 
 # Update dependencies
 update: ensure-up

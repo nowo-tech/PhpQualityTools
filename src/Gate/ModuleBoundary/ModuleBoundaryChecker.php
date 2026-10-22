@@ -51,8 +51,11 @@ final class ModuleBoundaryChecker
      */
     public function check(ModuleBoundaryConfig $config, string $root): array
     {
+        // @igor-ignore - CLI gate, state reset at the start of check(); never a worker service
         $this->root = rtrim(str_replace('\\', '/', $root), '/');
+        // @igor-ignore - CLI gate, state reset at the start of check(); never a worker service
         $this->contents = [];
+        // @igor-ignore - CLI gate, state reset at the start of check(); never a worker service
         $this->imports = [];
 
         $files = $this->phpFiles($config->paths, [], $config->ignore);
@@ -299,6 +302,7 @@ final class ModuleBoundaryChecker
 
     private function contentOf(string $file): string
     {
+        // @igor-ignore - CLI gate, state reset at the start of check(); never a worker service
         return $this->contents[$file] ??= (string) file_get_contents($this->absolute($file));
     }
 
@@ -307,6 +311,7 @@ final class ModuleBoundaryChecker
      */
     private function importsOf(string $file, bool $includeFullyQualified): array
     {
+        // @igor-ignore - CLI gate, state reset at the start of check(); never a worker service
         return $this->imports[$file] ??= $this->extractor->extract($this->contentOf($file), $includeFullyQualified);
     }
 }

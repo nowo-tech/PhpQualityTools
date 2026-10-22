@@ -14,13 +14,13 @@ namespace NowoTech\PhpQualityTools\Gate\Assets;
  *
  * @see    https://github.com/HecFranco
  */
-final class ViteManifest
+final readonly class ViteManifest
 {
     /**
      * @param array<string, array{file: string, css?: list<string>, imports?: list<string>}> $chunks
      */
     public function __construct(
-        private readonly array $chunks,
+        private array $chunks,
     ) {
     }
 

@@ -744,6 +744,11 @@ composer qa
 - TS/JS: N/A
 - Python: N/A
 
+Justified exclusions (REQ-TEST-003): the `@codeCoverageIgnore` blocks in `src/` only wrap branches the test
+environment cannot reach — filesystem / `file_get_contents` failures in the Composer plugin (`Plugin`), defensive
+returns in Rector / PHP-CS-Fixer rules for AST shapes the engines never hand over, and config value objects'
+fallbacks for invalid YAML already rejected upstream. New markers need the same justification in review.
+
 ## License
 
 The MIT License (MIT). Please see [LICENSE](LICENSE) for more information.

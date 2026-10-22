@@ -9,9 +9,7 @@
     "node_modules",
     "scripts",
     ".scripts",
-    "bin",
-    "src/Gate",
-    "src/Testing"
+    "bin"
   ],
   "safe_namespaces": [
     "Symfony\\",

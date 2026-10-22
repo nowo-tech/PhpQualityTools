@@ -22,11 +22,11 @@ use NowoTech\PhpQualityTools\Testing\QueryCounter;
  *
  * @see    https://github.com/HecFranco
  */
-final class QueryCountingMiddleware implements Middleware
+final readonly class QueryCountingMiddleware implements Middleware
 {
     public function __construct(
-        private readonly QueryCounter $counter,
-        private readonly bool $countTransactions = false,
+        private QueryCounter $counter,
+        private bool $countTransactions = false,
     ) {
     }
 

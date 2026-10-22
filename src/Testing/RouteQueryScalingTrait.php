@@ -163,6 +163,7 @@ trait RouteQueryScalingTrait
             $manager->flush();
         }
         if (method_exists($manager, 'clear')) {
+            // @igor-ignore - PHPUnit helper clearing the test EntityManager between measured requests
             $manager->clear();
         }
     }

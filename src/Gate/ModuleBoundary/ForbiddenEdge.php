@@ -13,7 +13,7 @@ namespace NowoTech\PhpQualityTools\Gate\ModuleBoundary;
  *
  * @see    https://github.com/HecFranco
  */
-final class ForbiddenEdge
+final readonly class ForbiddenEdge
 {
     /**
      * @param list<string> $from   Source module names
@@ -21,10 +21,10 @@ final class ForbiddenEdge
      * @param list<string> $except Path patterns of reviewed exceptions
      */
     public function __construct(
-        public readonly array $from,
-        public readonly array $to,
-        public readonly array $except = [],
-        public readonly string $message = '',
+        public array $from,
+        public array $to,
+        public array $except = [],
+        public string $message = '',
     ) {
     }
 }

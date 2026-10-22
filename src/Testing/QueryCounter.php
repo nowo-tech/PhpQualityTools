@@ -19,6 +19,7 @@ final class QueryCounter
 
     public function record(string $sql): void
     {
+        // @igor-ignore - PHPUnit helper, one instance per test; never a worker service
         $this->queries[] = $sql;
     }
 

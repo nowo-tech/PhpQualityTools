@@ -60,5 +60,6 @@ Before tagging a release, confirm:
 | **Cryptography** | N/A for core package. |
 | **Permissions / exposure** | Tools run locally/CI only. |
 | **Limits / DoS** | Large projects may need CI timeouts; document in CONTRIBUTING. |
+| **AI security audit (REQ-SEC-004)** | Re-run the AI security review when the plugin gains new file writes or command execution paths; record the grade in the monorepo `BUNDLES_SECURITY_ANALYSIS.md`. |
 
 Record confirmation in the release PR or changelog.

@@ -42,6 +42,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `release-check` starts with `ensure-up` and runs `check-open-prs` (new `.scripts/check-open-prs.sh`) and `igor` (REQ-MAKE-002, REQ-CS-008, REQ-REL-003); Igor now also audits `src/Gate` and `src/Testing` (canonical excludes).
+- Rector uses the PHP 8.2 sets (package floor) with at most 2 workers (REQ-CS-003, REQ-SF-001).
+- CI: Symfony 8.0 cell dropped (end of maintenance, advisories) and every `symfony/*` dev package pinned to the cell minor (REQ-SF-002).
+- `composer.json`: author e-mail `@nowo.tech`, keywords trimmed to 10 (REQ-PKG-004).
+- Docs: coverage-ignore justification in README (REQ-TEST-003); AI-audit row in the 12.4.1 checklist (REQ-SEC-002).
+- Rector PHP 8.2 findings applied (`readonly` value objects in `Gate/`); `@igor-ignore` reasons on the CLI gate and PHPUnit helper state (never worker services).
+- `.scripts/check-no-cursor-coauthor.sh` accepts git worktrees (REQ-GIT-001).
+
 ## [1.8.0] - 2026-10-21
 
 Quiet gate runs and focused test runs. See [UPGRADING](UPGRADING.md#to-180).

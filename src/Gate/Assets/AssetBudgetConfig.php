@@ -26,7 +26,7 @@ use Symfony\Component\Yaml\Yaml;
  *
  * @see    https://github.com/HecFranco
  */
-final class AssetBudgetConfig
+final readonly class AssetBudgetConfig
 {
     public const KINDS = ['js', 'css', 'js_gzip', 'css_gzip'];
 
@@ -38,9 +38,9 @@ final class AssetBudgetConfig
      * @param array<string, array<string, int>> $budgets entry => kind => bytes
      */
     public function __construct(
-        public readonly array $budgets = [],
-        public readonly ?string $manifest = null,
-        public readonly ?string $buildDir = null,
+        public array $budgets = [],
+        public ?string $manifest = null,
+        public ?string $buildDir = null,
     ) {
     }
 

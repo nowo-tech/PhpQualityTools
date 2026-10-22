@@ -108,6 +108,7 @@ final class DocLinksCommand
             static fn (string $file): bool => !self::excluded($file, $exclude) && is_file($root . '/' . $file),
         ));
         sort($files);
+        // @igor-ignore - CLI gate, per-run cache reset at the start of run(); never a worker service
         $this->anchors = [];
 
         $broken = [];
@@ -196,6 +197,7 @@ final class DocLinksCommand
 
     private function hasAnchor(string $root, string $file, string $fragment): bool
     {
+        // @igor-ignore - CLI gate, per-run cache reset at the start of run(); never a worker service
         $this->anchors[$file] ??= MarkdownAnchors::fromMarkdown((string) file_get_contents($root . '/' . $file));
         $lower = \function_exists('mb_strtolower') ? mb_strtolower($fragment, 'UTF-8') : strtolower($fragment);
 

@@ -4,29 +4,16 @@
     "type": "composer-plugin",
     "license": "MIT",
     "keywords": [
+        "composer-plugin",
+        "quality",
+        "code-style",
         "rector",
         "php-cs-fixer",
         "twig-cs-fixer",
-        "quality",
-        "code-style",
-        "refactoring",
+        "phpunit",
         "symfony",
         "laravel",
-        "php",
-        "composer-plugin",
-        "psr-12",
-        "coverage",
-        "module-boundaries",
-        "query-budget",
-        "release",
-        "deploy-guard",
-        "paratest",
-        "vite",
-        "asset-budget",
-        "markdown-links",
-        "svg",
-        "junit",
-        "changed-tests"
+        "ci"
     ],
     "homepage": "https://github.com/nowo-tech/PhpQualityTools",
     "support": {
@@ -36,7 +23,7 @@
     "authors": [
         {
             "name": "H\u00e9ctor Franco Aceituno",
-            "email": "hectorfranco@nowo.com",
+            "email": "hectorfranco@nowo.tech",
             "homepage": "https://github.com/HecFranco",
             "role": "Developer"
         },

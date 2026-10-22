@@ -30,14 +30,12 @@ jobs:
       fail-fast: false
       matrix:
         php: ['8.2', '8.3', '8.4', '8.5']
-        symfony: ['7.4', '8.0', '8.1']
+        # REQ-SF-002: Symfony 8.0 reached end of maintenance (July 2026) and every 8.0.x release has security
+        # advisories that Composer refuses to install, so its cell is dropped (composer.json keeps allowing ^8.0).
+        symfony: ['7.4', '8.1']
         exclude:
           - php: '8.2'
-            symfony: '8.0'
-          - php: '8.2'
             symfony: '8.1'
-          - php: '8.3'
-            symfony: '8.0'
           - php: '8.3'
             symfony: '8.1'
           # Symfony 8.1 requires PHP >= 8.4.1; avoid edge cases on PHP 8.4.0 platform resolution
@@ -77,8 +75,10 @@ jobs:
           PHP_VERSION="$(php -r 'echo PHP_VERSION;')"
           echo "Using platform PHP ${PHP_VERSION} (runtime) for dependency resolution"
           composer config platform.php "${PHP_VERSION}"
-          composer require symfony/framework-bundle:^${{ matrix.symfony }} --dev --no-interaction --no-update
-          composer update symfony/* --with-all-dependencies --no-interaction --prefer-dist --no-progress
+          # REQ-SF-002: pin every symfony/* framework package to the cell's minor (contracts / polyfills excluded).
+          DEV_PACKAGES=$(jq -r --arg c '${{ matrix.symfony }}.*' '."require-dev" | keys[] | select(startswith("symfony/") and (contains("-contracts") | not) and (startswith("symfony/polyfill") | not)) | . + ":" + $c' composer.json)
+          composer require --dev $DEV_PACKAGES --no-interaction --no-update
+          composer update --with-all-dependencies --no-interaction --prefer-dist --no-progress
       - name: Composer audit (Critical/High)
         run: composer audit --locked
 

@@ -12,9 +12,9 @@ namespace NowoTech\PhpQualityTools\Tests\Fixtures\ProfilerKernel;
  *
  * @see    https://github.com/HecFranco
  */
-final class RowStore
+final readonly class RowStore
 {
-    public function __construct(private readonly string $file)
+    public function __construct(private string $file)
     {
     }
 

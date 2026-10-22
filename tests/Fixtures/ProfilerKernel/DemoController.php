@@ -15,12 +15,12 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  *
  * @see    https://github.com/HecFranco
  */
-final class DemoController
+final readonly class DemoController
 {
     public function __construct(
-        private readonly RowStore $rows,
-        private readonly QueryLog $log,
-        private readonly TranslatorInterface $translator,
+        private RowStore $rows,
+        private QueryLog $log,
+        private TranslatorInterface $translator,
     ) {
     }
 

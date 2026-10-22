@@ -29,7 +29,7 @@ use Symfony\Component\Yaml\Yaml;
  *
  * @see    https://github.com/HecFranco
  */
-final class ModuleBoundaryConfig
+final readonly class ModuleBoundaryConfig
 {
     private const TOP_LEVEL_KEYS = ['paths', 'ignore', 'references', 'modules', 'allowed_edges', 'forbidden_edges', 'rules'];
 
@@ -60,13 +60,13 @@ final class ModuleBoundaryConfig
      * @param list<string>                                               $paths
      */
     public function __construct(
-        public readonly array $modules = [],
-        public readonly array $allowedEdges = [],
-        public readonly array $forbiddenEdges = [],
-        public readonly array $rules = [],
-        public readonly array $ignore = [],
-        public readonly array $paths = [],
-        public readonly bool $includeFullyQualified = false,
+        public array $modules = [],
+        public array $allowedEdges = [],
+        public array $forbiddenEdges = [],
+        public array $rules = [],
+        public array $ignore = [],
+        public array $paths = [],
+        public bool $includeFullyQualified = false,
     ) {
     }
 

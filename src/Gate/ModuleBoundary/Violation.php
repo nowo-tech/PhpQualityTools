@@ -12,14 +12,14 @@ namespace NowoTech\PhpQualityTools\Gate\ModuleBoundary;
  *
  * @see    https://github.com/HecFranco
  */
-final class Violation
+final readonly class Violation
 {
     /**
      * @param list<string> $details
      */
     public function __construct(
-        public readonly string $message,
-        public readonly array $details = [],
+        public string $message,
+        public array $details = [],
     ) {
     }
 }

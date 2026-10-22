@@ -17,13 +17,13 @@ use function count;
  *
  * @see    https://github.com/HecFranco
  */
-final class CloverReport
+final readonly class CloverReport
 {
     public function __construct(
-        public readonly int $coveredStatements,
-        public readonly int $totalStatements,
-        public readonly int $coveredLines,
-        public readonly int $totalLines,
+        public int $coveredStatements,
+        public int $totalStatements,
+        public int $coveredLines,
+        public int $totalLines,
     ) {
     }
 
