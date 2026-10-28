@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/php-quality-tools`  
-**Last audited**: 2026-10-17
+**Last audited**: 2026-10-28
 
 This file proves that **every production source artifact** under `src/` is referenced by the baseline specification. PHPUnit tests under `tests/` and shipped config templates under `config/` are out of this inventory scope unless promoted in the spec.
 
@@ -58,18 +58,6 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Rector/Rules/.gitkeep` | Directory placeholder | FR-DOC-001 |
 | `Rector/Rules/README.md` | Rector rule authoring guide | FR-DOC-001 |
 
-## Coverage summary
-
-| Category | Files | Mapped |
-| --- | ---: | ---: |
-| Composer plugin (PHP) | 1 | 1 |
-| Process runner (PHP) | 2 | 2 |
-| PHP-CS-Fixer fixers | 3 | 3 |
-| PHP-CS-Fixer set | 1 | 1 |
-| Rector rules | 5 | 5 |
-| Rector set | 1 | 1 |
-| Placeholders & README | 4 | 4 |
-| **Total `src/` artifacts** | **17** | **17** |
 
 ## Gate scripts and query budgets (`src/Gate/`, `src/Testing/`, since 1.2.0)
 
@@ -127,3 +115,29 @@ Specified in [`specs/005-frontend-docs-gates/spec.md`](../005-frontend-docs-gate
 | `Gate/DocLinks/DocLinksCommand.php` | `bin/check-doc-links` | FR-DL-001, FR-DL-002, FR-DL-004 |
 | `Gate/DocLinks/MarkdownAnchors.php` | GitHub heading slugs / HTML anchors | FR-DL-003 |
 | `../resources/make/php-worker-reset.mk` | Makefile snippet | FR-MK-001 |
+
+## Test helpers and CI log tools (`src/Testing/`, `src/Gate/Junit/`, since 1.7.0)
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Testing/RouteQueryScalingTrait.php` | Route query budgets / N+1 scaling | FR-QB-004 |
+| `Testing/MissingTranslationsTrait.php` | Missing translations of a request | FR-I18N-TEST-001 |
+| `Gate/Junit/JunitFailuresCommand.php` | `bin/junit-failures` | FR-JUNIT-001 |
+
+## Coverage summary
+
+| Category | Files | Mapped |
+| --- | ---: | ---: |
+| Composer plugin entry (`src/`) | 1 | 1 |
+| Process runner (`src/Process/`, `@internal`) | 2 | 2 |
+| PHP-CS-Fixer custom fixers (`src/PhpCsFixer/Rules/`) | 3 | 3 |
+| PHP-CS-Fixer set registry (`src/PhpCsFixer/Set/`) | 1 | 1 |
+| Rector custom rules (`src/Rector/Rules/`) | 5 | 5 |
+| Rector set registry (`src/Rector/Set/`) | 1 | 1 |
+| Maintainer placeholders & docs (`src/**`) | 4 | 4 |
+| Gate scripts and query budgets (`src/Gate/`, `src/Testing/`, since 1.2.0) | 17 | 17 |
+| Release guards (`src/Gate/Release/`, since 1.3.0) | 2 | 2 |
+| ParaTest isolation (`src/Testing/`, since 1.5.0) | 2 | 2 |
+| Front-end and docs gates (`src/Gate/Svg/`, `src/Gate/Assets/`, `src/Gate/DocLinks/`, `resources/make/`, since 1.6.0) | 7 | 7 |
+| Test helpers and CI log tools (`src/Testing/`, `src/Gate/Junit/`, since 1.7.0) | 3 | 3 |
+| **Total `src/` artifacts** | **48** | **48** |

@@ -1,6 +1,6 @@
 # PHP Quality Tools
 
-[![CI](https://github.com/nowo-tech/PhpQualityTools/actions/workflows/ci.yml/badge.svg)](https://github.com/nowo-tech/PhpQualityTools/actions/workflows/ci.yml) [![Packagist Version](https://img.shields.io/packagist/v/nowo-tech/php-quality-tools.svg?style=flat)](https://packagist.org/packages/nowo-tech/php-quality-tools) [![Packagist Downloads](https://img.shields.io/packagist/dt/nowo-tech/php-quality-tools.svg)](https://packagist.org/packages/nowo-tech/php-quality-tools) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4?logo=php)](https://php.net) [![Symfony](https://img.shields.io/badge/Symfony-6.0%2B%20%7C%207.4%2B%20%7C%208.0%20%7C%208.1%2B-000000?logo=symfony)](https://symfony.com)
+[![CI](https://github.com/nowo-tech/PhpQualityTools/actions/workflows/ci.yml/badge.svg)](https://github.com/nowo-tech/PhpQualityTools/actions/workflows/ci.yml) [![Packagist Version](https://img.shields.io/packagist/v/nowo-tech/php-quality-tools.svg?style=flat)](https://packagist.org/packages/nowo-tech/php-quality-tools) [![Packagist Downloads](https://img.shields.io/packagist/dt/nowo-tech/php-quality-tools.svg)](https://packagist.org/packages/nowo-tech/php-quality-tools) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4?logo=php)](https://php.net) [![Symfony](https://img.shields.io/badge/Symfony-6.0%2B%20%7C%207.4%2B%20%7C%208.0%20%7C%208.1%2B-000000?logo=symfony)](https://symfony.com) [![GitHub stars](https://img.shields.io/github/stars/nowo-tech/PhpQualityTools.svg?style=social&label=Star)](https://github.com/nowo-tech/PhpQualityTools) [![Coverage](https://img.shields.io/badge/Coverage-100%25-brightgreen)](#tests-and-coverage)
 
 > ⭐ **Found this useful?** Give it a star on GitHub! It helps us maintain and improve the project.
 
@@ -20,6 +20,54 @@ log, a short summary on screen), `vendor/bin/junit-failures` and `vendor/bin/cha
 ![FrankenPHP Friendly Worker Mode](docs/images/frankenphp-friendly.png)
 
 This bundle is **FrankenPHP worker mode friendly**.
+
+## Table of contents
+
+- [Features](#features)
+- [Installation](#installation)
+  - [Automatic Dependency Installation](#automatic-dependency-installation)
+  - [Manual Installation](#manual-installation)
+- [Quick Start](#quick-start)
+  - [Rector](#rector)
+  - [PHP-CS-Fixer](#php-cs-fixer)
+  - [Template Formatters](#template-formatters)
+- [Automatic Framework Detection](#automatic-framework-detection)
+- [Compatibility](#compatibility)
+  - [PHP Versions](#php-versions)
+  - [Symfony Versions](#symfony-versions)
+  - [Laravel Versions](#laravel-versions)
+- [Composer Scripts](#composer-scripts)
+  - [Manual Scripts (Optional)](#manual-scripts-optional)
+  - [Using the Scripts](#using-the-scripts)
+- [Gate Scripts and Query Budgets](#gate-scripts-and-query-budgets)
+- [Customization](#customization)
+  - [Rector Customization](#rector-customization)
+  - [PHP-CS-Fixer Customization](#php-cs-fixer-customization)
+  - [Twig-CS-Fixer Customization](#twig-cs-fixer-customization)
+- [Required Dependencies](#required-dependencies)
+  - [Automatic Installation (Recommended)](#automatic-installation-recommended)
+  - [Manual Installation](#manual-installation-1)
+- [Makefile Integration](#makefile-integration)
+- [CI Integration](#ci-integration)
+  - [GitHub Actions](#github-actions)
+- [Updating](#updating)
+- [Template Engines by Framework](#template-engines-by-framework)
+  - [Supported Template Formatters](#supported-template-formatters)
+  - [Template Engines Without Dedicated Formatters](#template-engines-without-dedicated-formatters)
+  - [Future Template Formatter Support](#future-template-formatter-support)
+- [Custom Rules](#custom-rules)
+  - [Included Custom Rules](#included-custom-rules)
+- [Upgrade Guide](#upgrade-guide)
+- [Development](#development)
+  - [Using Docker (Recommended)](#using-docker-recommended)
+  - [Without Docker](#without-docker)
+- [Documentation](#documentation)
+  - [Additional documentation](#additional-documentation)
+- [Tests and coverage](#tests-and-coverage)
+- [License](#license)
+- [Contributing](#contributing)
+- [Changelog](#changelog)
+- [Author](#author)
 
 ## Features
 
@@ -718,10 +766,8 @@ composer qa
 
 ## Documentation
 
-- [GitHub Actions CI requirements](docs/GITHUB_CI.md)
 - [Installation](docs/INSTALLATION.md)
 - [Configuration](docs/CONFIGURATION.md)
-- [PSR evaluation (REQ-CS-007)](docs/PSR.md)
 - [Usage](docs/USAGE.md)
 - [Contributing](docs/CONTRIBUTING.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
@@ -732,8 +778,11 @@ composer qa
 - [Engram](docs/ENGRAM.md)
 - [Spec-driven development](docs/SPEC-DRIVEN-DEVELOPMENT.md)
 - [GitHub Spec Kit](docs/SPEC-KIT.md)
+
 ### Additional documentation
 
+- [GitHub Actions CI requirements](docs/GITHUB_CI.md)
+- [PSR evaluation (REQ-CS-007)](docs/PSR.md)
 - [Branching](docs/BRANCHING.md)
 - [Custom Rules](docs/CUSTOM_RULES.md)
 

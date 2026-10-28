@@ -10,6 +10,17 @@ There is no separate executable spec language (for example Gherkin); tests and s
 
 ---
 
+## Table of contents
+
+- [User stories](#user-stories)
+- [Bundle functional scope](#bundle-functional-scope)
+- [Validating the functional spec](#validating-the-functional-spec)
+- [Requirement identifiers (`REQ-*`)](#requirement-identifiers-req-)
+- [Suggested workflow for contributors](#suggested-workflow-for-contributors)
+- [GitHub Spec Kit (summary)](#github-spec-kit-summary)
+- [Relationship to Engram / external checklists](#relationship-to-engram--external-checklists)
+- [See also](#see-also)
+
 ## User stories
 
 The sections below state **behavior**; this subsection states **intent** in backlog-friendly form.
@@ -66,7 +77,14 @@ The sections below state **behavior**; this subsection states **intent** in back
 
 | ID | Where | What it marks |
 | --- | --- | --- |
-| *(none yet)* | `Makefile`, `demo/**/Makefile` | Add `REQ-*` comments next to targets when scripted behavior must stay traceable; document each ID here. |
+| `REQ-MAKE-002` | `Makefile` (`release-check`) | Release-check chain order for a Composer plugin (no Twig, no demos). |
+| `REQ-MAKE-008` | `Makefile` (`update-deps`) | Dependency refresh target. |
+| `REQ-MAKE-009` | `Makefile` | Optional monorepo helper, skipped on a standalone checkout (GitHub Actions). |
+| `REQ-MAKE-010` | `Makefile` | Docker Compose V2 plugin first, `docker-compose` V1 fallback. |
+| `REQ-CS-008` | `Makefile` (`igor`) | Igor worker-state audit. |
+| `REQ-GIT-001` | `Makefile` (`install-git-hooks`), `.githooks/commit-msg` | No AI co-author trailers in commits. |
+
+This package has no `demo/` tree.
 
 When you change scripted behavior, **update the existing `REQ-*` comment** if the ID still matches the rule, or **add a new `REQ-*`** and document it here and in the PR description.
 

@@ -1,5 +1,39 @@
 # Usage
 
+## Table of contents
+
+- [Run quality tools](#run-quality-tools)
+- [Typical local flow](#typical-local-flow)
+- [Docker development (this repository)](#docker-development-this-repository)
+- [Gate scripts (since 1.2.0)](#gate-scripts-since-120)
+  - [`check-coverage-threshold`](#check-coverage-threshold)
+  - [`check-module-boundaries`](#check-module-boundaries)
+- [Release guards (since 1.3.0)](#release-guards-since-130)
+  - [`assert-latest-tag`](#assert-latest-tag)
+  - [Local release gate: `make release-check`](#local-release-gate-make-release-check)
+  - [`assert-release-proof`](#assert-release-proof)
+- [Parallel PHPUnit isolation (since 1.5.0)](#parallel-phpunit-isolation-since-150)
+  - [`pid_path` env var processor](#pid_path-env-var-processor)
+  - [`clean-stale-pid-paths`](#clean-stale-pid-paths)
+  - [Parallel coverage gate (Makefile recipe)](#parallel-coverage-gate-makefile-recipe)
+- [Front-end and docs gates (since 1.6.0)](#front-end-and-docs-gates-since-160)
+  - [`check-no-inline-svg`](#check-no-inline-svg)
+  - [`check-asset-budgets`](#check-asset-budgets)
+  - [`check-doc-links`](#check-doc-links)
+  - [`php-worker-reset` (Makefile snippet)](#php-worker-reset-makefile-snippet)
+- [Query budgets in PHPUnit (since 1.2.0)](#query-budgets-in-phpunit-since-120)
+  - [Wiring (Symfony, test environment only)](#wiring-symfony-test-environment-only)
+  - [API](#api)
+- [Route query scaling through the profiler (since 1.7.0)](#route-query-scaling-through-the-profiler-since-170)
+- [Missing translations of rendered pages (since 1.7.0)](#missing-translations-of-rendered-pages-since-170)
+- [AI agent co-author trailers (since 1.7.0)](#ai-agent-co-author-trailers-since-170)
+  - [`git-hygiene` (Makefile snippet)](#git-hygiene-makefile-snippet)
+- [Quiet runs and focused test runs (since 1.8.0)](#quiet-runs-and-focused-test-runs-since-180)
+  - [`quiet-run`](#quiet-run)
+  - [`junit-failures`](#junit-failures)
+  - [`changed-tests`](#changed-tests)
+  - [Makefile recipes](#makefile-recipes)
+
 ## Run quality tools
 
 Use Composer scripts from your project (after enabling `extra.php-quality-tools.auto_add_scripts` or adding scripts manually — see [Configuration](CONFIGURATION.md)):

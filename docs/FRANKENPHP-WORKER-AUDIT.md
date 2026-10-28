@@ -8,6 +8,17 @@
 | Method | Manual review of every file under `src/` (`Plugin.php`, custom Rector rules and set, custom PHP-CS-Fixer fixers and set) |
 | **Verdict** | — **Not applicable** — Composer plugin that installs Rector / PHP-CS-Fixer / Twig-CS-Fixer config files; the custom rules only run inside the Rector and PHP-CS-Fixer CLI processes. No Symfony bundle, no container services, nothing runs inside the HTTP worker |
 
+## Table of contents
+
+- [Execution model assumed](#execution-model-assumed)
+- [Why it does not run in the worker](#why-it-does-not-run-in-the-worker)
+- [Summary](#summary)
+- [Services reviewed](#services-reviewed)
+- [Findings](#findings)
+  - [W-01 — Plugin may spawn `composer require` from a Composer hook (Info)](#w-01--plugin-may-spawn-composer-require-from-a-composer-hook-info)
+- [Usage recommendations in worker mode](#usage-recommendations-in-worker-mode)
+- [Re-audit triggers](#re-audit-triggers)
+
 ## Execution model assumed
 
 FrankenPHP worker mode boots the Symfony kernel once per worker and serves many requests with the same container. This audit assumes the **strict** variant: the kernel is **not** rebooted between requests, so every shared service, static property and PHP global survives from one request to the next. Two scenarios are evaluated:

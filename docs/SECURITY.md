@@ -1,5 +1,16 @@
 # Security — PHP Quality Tools
 
+## Table of contents
+
+- [Scope](#scope)
+- [Attack surface](#attack-surface)
+- [Threats and mitigations](#threats-and-mitigations)
+- [Secrets and cryptography](#secrets-and-cryptography)
+- [Logging](#logging)
+- [Dependencies](#dependencies)
+- [Reporting a vulnerability](#reporting-a-vulnerability)
+- [Release security checklist (12.4.1)](#release-security-checklist-1241)
+
 ## Scope
 
 PHP Quality Tools is a **development-time** meta-package that ships PHP-CS-Fixer, PHPStan, Rector, and related **local** quality tooling. It does not expose HTTP endpoints. It runs as **CLI** in developer machines and CI.

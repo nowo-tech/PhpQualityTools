@@ -82,11 +82,17 @@ As an integrator, I set `extra.php-quality-tools.auto_add_scripts` to `true`, so
 
 - **FR-DOC-001**: README files under `PhpCsFixer/Rules/` and `Rector/Rules/` document how to add project-specific fixers/rules; `.gitkeep` preserves empty rule directories in VCS.
 
+### Test helpers and CI log tools (1.7.0–1.8.0)
+
+- **FR-QB-004**: `Testing\RouteQueryScalingTrait` measures route query counts from the profiler `db` collector (`measureRouteQueries()`, `assertRouteQueryBudget()`) and asserts N+1-free scaling (`assertRouteQueriesIndependentOfRows()`: seed, warm-up, measure small and large data sets, compare within a tolerance).
+- **FR-I18N-TEST-001**: `Testing\MissingTranslationsTrait` returns the profiler's missing messages of one request (`collectMissingTranslations()`) and fails on them unless allowlisted (`assertNoMissingTranslations()`, `locale domain: id` / `domain: id` / `id` entries, trailing `*` prefix).
+- **FR-JUNIT-001**: `bin/junit-failures` (`Gate\Junit\JunitFailuresCommand`) prints only the failed / errored tests of a JUnit log (`Class::method (file:line)` + message head; `--max`, `--lines`, `--strip-prefix`); exit 0 none failed, 1 failures listed, 2 usage error or unreadable log.
+
 ---
 
 ## Success Criteria
 
-- **SC-001**: **17/17** artifacts under `src/` mapped in [`code-inventory.md`](code-inventory.md).
+- **SC-001**: **48/48** artifacts under `src/` mapped (`git ls-files src | wc -l`, 2026-10-28) in [`code-inventory.md`](code-inventory.md).
 - **SC-002**: Shipped templates under `config/` match behaviour described in [`docs/USAGE.md`](../../docs/USAGE.md).
 - **SC-003**: PHPUnit and PHPStan pass in CI (`composer qa`).
 - **SC-004**: No Packagist-visible behaviour change without spec + test updates.
