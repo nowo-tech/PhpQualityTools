@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.9.0] - 2026-10-31](#190---2026-10-31)
 - [[1.8.1] - 2026-10-22](#181---2026-10-22)
 - [[1.8.0] - 2026-10-21](#180---2026-10-21)
 - [[1.7.0] - 2026-10-18](#170---2026-10-18)
@@ -43,6 +44,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-10-31
+
+Developer tooling: heavy-lock (shared machine-wide FIFO lock), release-phase runner, memory-guard, changed-src-tested gate, coverage-gaps and slowest-tests bins plus make snippets. See [UPGRADING](UPGRADING.md#to-190).
+
 Developer tooling for long gates on shared machines (from Symfony Beacon, KIT-58). No change to the existing bins or snippets.
 
 ### Added
@@ -55,6 +60,8 @@ Developer tooling for long gates on shared machines (from Symfony Beacon, KIT-58
 - **`bin/slowest-tests`** (`Gate\Junit\SlowestTestsCommand`): slowest test files of a JUnit log (default `var/coverage/junit.xml`), times summed per file, `--limit` (default 20), `--strip-prefix`. From Beacon's `scripts/slowest-tests.php`.
 - **Makefile snippets** `resources/make/heavy.mk` (`heavy-<target>` through the lock, skipped on CI or with an empty `HEAVY_LOCK`; `heavy-status`; `MEMORY_GUARD`, `HEAVY_PROCESSES`), `resources/make/quiet.mk` (`quiet T=<target>`, `test-changed` with `QUALITY_PHP_EXEC` / `TEST_CHANGED_PHPUNIT`) and `resources/make/release-phases.mk` (`release-phases` over `RELEASE_PHASES` with per-phase `RELEASE_PHASE_FLAGS_<name>`, `check-changed-src-tested`, `coverage-gaps`, `test-slowest`).
 - [Usage → Developer tooling for long gates](USAGE.md#developer-tooling-for-long-gates-since-190).
+
+[1.9.0]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.9.0
 
 ## [1.8.1] - 2026-10-22
 
