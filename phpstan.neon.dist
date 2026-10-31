@@ -7,6 +7,11 @@ parameters:
         - src
         - tests
     ignoreErrors: []
+    # Rector 2.8 defines the former Symplify\RuleDocGenerator classes (used by the custom rules) as class_alias()es
+    # of Rector\RuleDoc\*, registered by its own autoloader: load it so PHPStan sees them (else the result depends
+    # on the analysis order / result cache).
+    bootstrapFiles:
+        - vendor/rector/rector/vendor/autoload.php
 
 includes:
   - vendor/nowo-tech/phpstan-frankenphp/extension.neon
