@@ -33,6 +33,14 @@
   - [`junit-failures`](#junit-failures)
   - [`changed-tests`](#changed-tests)
   - [Makefile recipes](#makefile-recipes)
+- [Developer tooling for long gates (since 1.9.0)](#developer-tooling-for-long-gates-since-190)
+  - [`heavy-lock`](#heavy-lock)
+  - [`memory-guard`](#memory-guard)
+  - [`release-phase`](#release-phase)
+  - [`check-changed-src-tested`](#check-changed-src-tested)
+  - [`coverage-gaps`](#coverage-gaps)
+  - [`slowest-tests`](#slowest-tests)
+  - [Makefile snippets: `heavy.mk`, `quiet.mk`, `release-phases.mk`](#makefile-snippets-heavymk-quietmk-release-phasesmk)
 
 ## Run quality tools
 
@@ -905,3 +913,165 @@ test-changed:
 
 With PHP in Docker Compose, run PHPUnit and `junit-failures` through `docker compose exec -T php …` and export
 `QUIET_JUNIT_CMD='docker compose exec -T php vendor/bin/junit-failures'` for `quiet-run`.
+
+## Developer tooling for long gates (since 1.9.0)
+
+Helpers for long suites and multi-phase release gates on a **shared developer machine** (several projects, agents
+or humans running Docker on one host, e.g. Docker Desktop on WSL2): one heavy job at a time, a memory guard, one log
+per gate phase, and the reports that say where a failed coverage gate needs work. The shell helpers are POSIX sh and
+run on the host; `coverage-gaps` and `slowest-tests` are PHP 8.2+ without dependencies.
+
+```bash
+vendor/bin/heavy-lock run "my-app: release-check" make release-check   # wait the FIFO turn and load < 6, always release
+vendor/bin/memory-guard --kill 'pkill -f paratest' -- vendor/bin/paratest --processes=2
+vendor/bin/release-phase php-coverage make test-coverage                  # log + OK / FAIL line in var/quiet/release/
+vendor/bin/check-changed-src-tested                                       # changed classes no test names (hint)
+vendor/bin/coverage-gaps var/coverage/clover.xml                          # files below 100 % and their lines
+vendor/bin/slowest-tests var/coverage/junit.xml 10                        # slowest test files of the last run
+```
+
+### `heavy-lock`
+
+```text
+heavy-lock acquire <owner> | release | status | run <owner> <cmd> [<args>...]
+```
+
+A machine-wide lock for heavy jobs (coverage suites, e2e, release checks, image builds):
+
+- **FIFO:** every waiter writes a ticket (`<epoch-ns>-<pid>`) in the queue directory; only the oldest live ticket may
+  take the lock, so a job that releases and re-acquires at once queues behind everyone already waiting. Tickets of dead
+  waiters are pruned. `DOCKER_HEAVY_PRIORITY=1` sorts a ticket before every normal one (it never interrupts the holder).
+- **Load threshold:** the lock is taken only while the 1-minute load average is below `DOCKER_HEAVY_MAXLOAD` (default 6).
+- **Stale holders:** `run` records its own PID; a bare `acquire` records `DOCKER_HEAVY_LOCK_PID` (or `-`). The first
+  waiter removes a holder whose PID is gone, or a `-` holder older than `DOCKER_HEAVY_LOCK_MAXAGE` seconds (default
+  3600), and logs it to `DOCKER_HEAVY_STALE_LOG`.
+- **Reentrancy:** `run` sets `DOCKER_HEAVY_LOCK_HELD=1` for the command; nested `acquire` / `release` / `run` are no-ops.
+
+| Environment | Default | Meaning |
+| --- | --- | --- |
+| `DOCKER_HEAVY_LOCK_DIR` | `/tmp/docker-heavy.lock` | Lock directory (`owner`: label, UTC time, PID, epoch) |
+| `DOCKER_HEAVY_QUEUE_DIR` | `/tmp/docker-heavy.queue` | Queue of waiting tickets |
+| `DOCKER_HEAVY_STALE_LOG` | `/tmp/docker-heavy.stale.log` | Removed stale locks |
+| `DOCKER_HEAVY_MAXLOAD` | `MAXLOAD` or `6` | Start only below this load average |
+| `DOCKER_HEAVY_POLL` | `POLL` or `10` | Seconds between checks while waiting |
+| `DOCKER_HEAVY_LOCK_MAXAGE` | `3600` | Age after which a holder without PID is stale |
+
+The directory and variable names are those of the nowo-tech workspace helper `docker-heavy-lock.sh`, so both share one
+lock on the same machine. With the lock in `/tmp`, a reboot clears stale state. Keep each heavy job at **two processes
+at most** (`paratest --processes=2 --max-batch-size=5`, Playwright `--workers=2`; `HEAVY_PROCESSES` in `heavy.mk`).
+Exit codes: `0`; `run` exits with the command's code; `1` acquire failed; `2` usage error.
+
+### `memory-guard`
+
+```text
+memory-guard [--kill '<command>'] [--] <suite command> [<args>...]
+```
+
+Runs the suite and every `MEMGUARD_INTERVAL` seconds (default 20) logs the load average, `MemAvailable` and the three
+largest PHP / ParaTest / Playwright / Chromium / Node processes to stderr. When `MemAvailable` drops below
+`MEMGUARD_MIN_MB` (default 4096) it runs the `--kill` command (e.g. `docker compose exec -T php pkill -f paratest`, to
+stop the workers inside a container) and stops the suite, which then fails cleanly instead of taking the container
+runtime down. `MEMGUARD=0`, or a host without `/proc/meminfo` (`MEMGUARD_MEMINFO`), runs the suite unguarded.
+Exit codes: the suite's (non-zero when it was stopped), `2` on a usage error.
+
+### `release-phase`
+
+```text
+release-phase <phase> <command> [<args>...]  |  --reset  |  --summary [<title>]
+```
+
+Runs one phase of a multi-phase gate: the output is streamed and kept in `$RELEASE_PHASE_DIR/<phase>.log` (default
+`var/quiet/release`), and `OK   <phase> <s>s` or `FAIL <phase> <s>s — log: <path>` is appended to `summary.txt`. On a
+failure it prints the summary so far (title `RELEASE_PHASE_TITLE`, default `release-check`), so the failing phase is
+named at the end of the output. `--reset` starts a new summary; `--summary` prints it.
+
+```text
+release-check phases:
+  OK   check-fast 94s
+  OK   quick 141s
+  FAIL php-coverage 1012s — log: var/quiet/release/php-coverage.log
+```
+
+Exit codes: the command's, `2` on a usage error (no command, phase name other than letters, digits, `.`, `-`, `_`).
+
+### `check-changed-src-tested`
+
+```text
+check-changed-src-tested [--base REF] [--src DIR]... [--tests DIR]... [--strict]
+```
+
+An early hint before the long coverage run: lists the PHP files under the source directories **added, modified or renamed
+in the commits** between `<base>` and `HEAD` (default base: `COVERAGE_HINT_BASE`, `BASE`, then the last tag) whose class
+(file name without `.php`) no PHP file under the test directories names as a whole word. Not a gate by default
+(functional tests cover controllers by route, not by name); `--strict` exits `1` when classes are listed. Outside a
+repository or without a base it prints nothing. `--src` / `--tests` and `CHANGED_TESTS_SRC` / `CHANGED_TESTS_DIRS` are
+shared with `changed-tests`. Exit `2` on a usage error or an unknown base ref.
+
+### `coverage-gaps`
+
+```text
+coverage-gaps [--strip-prefix=<path>]... <report>
+```
+
+Lists the files below 100 % of a **Clover XML** (PHPUnit; statements with `count="0"`) or **LCOV** (Vitest, Jest, c8;
+`DA:<line>,0`) report and their uncovered lines as ranges; the format is detected from the content. Paths lose
+`--strip-prefix` (default: the current directory, e.g. `/app` in a container).
+
+```text
+coverage-gaps: 2 file(s) below 100 % (uncovered lines):
+  src/Billing/Invoice.php                                                          12, 20-22
+  assets/app.ts                                                                    2-3, 5
+```
+
+Exit codes: `0` fully covered, `1` gaps listed, `2` usage error or missing / unreadable report. Typical use after a
+failed threshold: `vendor/bin/check-coverage-threshold var/coverage/clover.xml 100 || { vendor/bin/coverage-gaps var/coverage/clover.xml; exit 1; }`.
+
+### `slowest-tests`
+
+```text
+slowest-tests [--limit=<n>] [--strip-prefix=<path>]... [<junit.xml>] [<limit>]
+```
+
+Sums the test case times of a JUnit log (PHPUnit / ParaTest `--log-junit`; default `var/coverage/junit.xml`) per test
+file (the class when there is no `file` attribute) and prints the slowest `<limit>` files (default 20) with their share
+of the total. Exit codes: `0`, `2` usage error or missing / unreadable log; append `|| true` after a suite.
+
+### Makefile snippets: `heavy.mk`, `quiet.mk`, `release-phases.mk`
+
+Every name is a variable (`?=`); `QUALITY_TOOLS_BIN` defaults to `vendor/nowo-tech/php-quality-tools/bin` and
+`QUALITY_PHP_EXEC` (empty: on the host) prefixes the PHP commands, e.g. `docker compose exec -T php`.
+
+```make
+QUALITY_PHP_EXEC := docker compose exec -T php
+QUIET_JUNIT_CMD := $(QUALITY_PHP_EXEC) vendor/bin/junit-failures
+QUIET_JUNIT_DIRS := var/coverage var/quiet
+RELEASE_PHASES := check-fast tested-src=check-changed-src-tested quick=release-quick php-coverage=test-coverage
+RELEASE_PHASE_FLAGS_check-fast := -j2 --output-sync=target   # make flags of one phase
+RELEASE_PHASE_FLAGS_quick := -k -j2 --output-sync=target
+-include vendor/nowo-tech/php-quality-tools/resources/make/heavy.mk
+-include vendor/nowo-tech/php-quality-tools/resources/make/quiet.mk
+-include vendor/nowo-tech/php-quality-tools/resources/make/release-phases.mk
+
+release-check: release-phases
+
+test-coverage:
+	$(MEMORY_GUARD) --kill '$(QUALITY_PHP_EXEC) pkill -f paratest' -- \
+		$(QUALITY_PHP_EXEC) vendor/bin/paratest --processes=$(HEAVY_PROCESSES) --max-batch-size=5 \
+		--coverage-clover var/coverage/clover.xml --log-junit var/coverage/junit.xml
+	$(QUALITY_PHP_EXEC) vendor/bin/check-coverage-threshold var/coverage/clover.xml 100 || { $(MAKE) coverage-gaps; exit 1; }
+	@$(MAKE) test-slowest N=5 || true
+```
+
+| Snippet | Target | What it does | Variables |
+| --- | --- | --- | --- |
+| `heavy.mk` | `heavy-<target>` | `$(MAKE) <target>` through `heavy-lock run "<label>: <target>[ <T>]"`; nested `heavy-*` calls go straight through. Never dry-run it with `make -n` (make still runs the recursive line). | `HEAVY_LOCK` (empty: no lock), `HEAVY_SKIP` (default `$(CI)`: no lock on CI), `HEAVY_LOCK_LABEL` (directory name) |
+| `heavy.mk` | `heavy-status` | Holder, queue and load | — |
+| `heavy.mk` | — | `$(MEMORY_GUARD)` and `$(HEAVY_PROCESSES)` (2) for recipes | `MEMGUARD_*` (environment) |
+| `quiet.mk` | `quiet T=<target>` | Any target through `quiet-run` (full log in `$(QUIET_LOG_DIR)/<T>.log`); `make heavy-quiet T=release-check` adds the lock | `QUIET_LOG_DIR` (`var/quiet`), `QUIET_JUNIT_CMD`, `QUIET_JUNIT_DIRS` |
+| `quiet.mk` | `test-changed` | PHPUnit (no coverage) on `changed-tests`, then only the failures (`junit-failures`) | `TEST_CHANGED_PHPUNIT` (`--log-junit <file>` and the tests are appended), `BASE` |
+| `release-phases.mk` | `release-phases` | Every `RELEASE_PHASES` entry (`<name>=<target>` or `<target>`) through `release-phase`, in order, stopping at the first failure; then the summary | `RELEASE_PHASE_FLAGS_<name>`, `RELEASE_PHASE_DIR`, `RELEASE_PHASES_TITLE`; `$(call release_phase,<name>,<command>)` in custom recipes |
+| `release-phases.mk` | `check-changed-src-tested` | The hint above | `COVERAGE_HINT_STRICT=1` fails on a hit |
+| `release-phases.mk` | `coverage-gaps`, `test-slowest` | The reports above | `COVERAGE_GAPS_REPORT` (`var/coverage/clover.xml`), `SLOWEST_TESTS_JUNIT` (`var/coverage/junit.xml`), `N` (30) |
+
+A host that already defines one of these targets keeps its own by not including that snippet; the existing bins and
+the 1.8 recipes above are unchanged.

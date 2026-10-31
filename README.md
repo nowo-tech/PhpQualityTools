@@ -85,6 +85,7 @@ This bundle is **FrankenPHP worker mode friendly**.
 - ✅ Parallel PHPUnit (ParaTest) isolation: `pid_path` env var processor (one path per test process) and `clean-stale-pid-paths` (removes the paths of dead processes)
 - ✅ Since 1.7.0: `Testing\RouteQueryScalingTrait` (route query budgets / N+1 scaling through the profiler's `db` collector), `Testing\MissingTranslationsTrait` (profiler missing translations with an allowlist), and `check-no-agent-coauthor` / `strip-agent-coauthor` / `install-git-hooks` + `git-hygiene.mk` (no AI agent co-author trailers; POSIX sh)
 - ✅ Since 1.8.0: `quiet-run` (a command's full output in a log, `OK` / `FAIL` summary with failed make targets, failed PHPUnit tests and the lines before the first error; real exit code), `junit-failures` (only the failed tests of a JUnit log) and `changed-tests` (test files covering the changes since the last tag)
+- ✅ Since 1.9.0: developer tooling for long gates on shared machines — `heavy-lock` (machine-wide FIFO heavy-job lock with a load threshold), `memory-guard` (stops a suite before memory runs out), `release-phase` (one log and an `OK` / `FAIL` summary line per gate phase), `check-changed-src-tested`, `coverage-gaps` (uncovered lines of a Clover / LCOV report) and `slowest-tests`, plus the `heavy.mk`, `quiet.mk` and `release-phases.mk` Makefile snippets
 - ✅ Front-end and docs gates: no inline SVG in templates / scripts, per-entry Vite JS / CSS size budgets (raw and gzip), broken relative Markdown links and images (optionally GitHub heading anchors), and a Docker Compose `php-worker-reset` Makefile snippet
 
 ## Installation
@@ -395,6 +396,11 @@ vendor/bin/install-git-hooks --hooks-dir .githooks                         # com
 vendor/bin/quiet-run var/quiet/release-check.log -- make release-check     # OK / FAIL summary, full log in the file
 vendor/bin/junit-failures var/coverage/junit.xml                           # only the failed / errored tests
 vendor/bin/phpunit $(vendor/bin/changed-tests)                             # tests covering the changes since the last tag
+
+# Developer tooling for long gates (since 1.9.0)
+vendor/bin/heavy-lock run "my-app: release-check" make release-check       # one heavy job at a time on the machine
+vendor/bin/coverage-gaps var/coverage/clover.xml                           # uncovered lines (Clover or LCOV)
+vendor/bin/slowest-tests var/coverage/junit.xml 10                         # slowest test files
 ```
 
 ```yaml
@@ -413,7 +419,7 @@ $this->assertQueryBudget(60, fn () => $client->request('GET', '/issues'));
 $this->assertScalesWith(fn (int $n, int $previous) => $this->seed($previous, $n), fn () => $client->request('GET', '/issues'));
 ```
 
-See [docs/USAGE.md](docs/USAGE.md#gate-scripts-since-120) for every option, exit code, rule type and the Symfony wiring of the DBAL middleware, and [Release guards](docs/USAGE.md#release-guards-since-130) for the deploy workflow and the recommended local `make release-check` gate, and [Parallel PHPUnit isolation](docs/USAGE.md#parallel-phpunit-isolation-since-150) for the `pid_path` processor registration and a ParaTest coverage gate recipe, and [Front-end and docs gates](docs/USAGE.md#front-end-and-docs-gates-since-160) for the SVG, asset budget and doc link gates and the `php-worker-reset` Makefile snippet, and (since 1.7.0) [Route query scaling](docs/USAGE.md#route-query-scaling-through-the-profiler-since-170), [Missing translations](docs/USAGE.md#missing-translations-of-rendered-pages-since-170) and [AI agent co-author trailers](docs/USAGE.md#ai-agent-co-author-trailers-since-170), and (since 1.8.0) [Quiet runs and focused test runs](docs/USAGE.md#quiet-runs-and-focused-test-runs-since-180) for the options, exit codes and `make quiet` / `make test-changed` recipes.
+See [docs/USAGE.md](docs/USAGE.md#gate-scripts-since-120) for every option, exit code, rule type and the Symfony wiring of the DBAL middleware, and [Release guards](docs/USAGE.md#release-guards-since-130) for the deploy workflow and the recommended local `make release-check` gate, and [Parallel PHPUnit isolation](docs/USAGE.md#parallel-phpunit-isolation-since-150) for the `pid_path` processor registration and a ParaTest coverage gate recipe, and [Front-end and docs gates](docs/USAGE.md#front-end-and-docs-gates-since-160) for the SVG, asset budget and doc link gates and the `php-worker-reset` Makefile snippet, and (since 1.7.0) [Route query scaling](docs/USAGE.md#route-query-scaling-through-the-profiler-since-170), [Missing translations](docs/USAGE.md#missing-translations-of-rendered-pages-since-170) and [AI agent co-author trailers](docs/USAGE.md#ai-agent-co-author-trailers-since-170), and (since 1.8.0) [Quiet runs and focused test runs](docs/USAGE.md#quiet-runs-and-focused-test-runs-since-180) for the options, exit codes and `make quiet` / `make test-changed` recipes, and (since 1.9.0) [Developer tooling for long gates](docs/USAGE.md#developer-tooling-for-long-gates-since-190) for `heavy-lock`, `memory-guard`, `release-phase`, the coverage reports and the `heavy.mk` / `quiet.mk` / `release-phases.mk` snippets.
 
 ## Customization
 

@@ -1,0 +1,15 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * List the files below 100 % coverage of a Clover XML or LCOV report, with their uncovered lines.
+ * See docs/USAGE.md ("Developer tooling for long gates") or run with --help.
+ */
+
+use NowoTech\PhpQualityTools\Gate\Coverage\CoverageGapsCommand;
+
+require __DIR__ . '/autoload.php';
+
+exit((new CoverageGapsCommand(\STDOUT, \STDERR, (string) getcwd()))->run(array_slice($argv, 1)));
