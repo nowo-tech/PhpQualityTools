@@ -1,0 +1,96 @@
+#!/usr/bin/env sh
+# nowo-tech/php-quality-tools — check-changed-src-tested
+#
+# Early hint before a long coverage run: lists the source classes changed since a base ref (default: the last tag)
+# that no test file names. Not a gate by default (functional tests cover controllers by route, not by class name):
+# a class listed here is the usual suspect when a 100 % coverage gate fails much later. POSIX sh + git + grep.
+set -eu
+
+usage() {
+  cat <<'USAGE'
+Usage: check-changed-src-tested [options]
+
+Lists the PHP files under the source directories added, modified or renamed between <base> and HEAD whose class name
+(file name without .php) no PHP file under the test directories contains as a whole word.
+
+Options (environment variable in brackets):
+  --base REF   Base ref (COVERAGE_HINT_BASE, then BASE; default: the last tag reachable from HEAD).
+  --src DIR    Source directory, repeatable (CHANGED_TESTS_SRC, space separated; default: src).
+  --tests DIR  Test directory, repeatable (CHANGED_TESTS_DIRS, space separated; default: tests).
+  --strict     Exit 1 when a class is listed (default: hint only, exit 0).
+  -h, --help   Show this help.
+
+Exit codes: 0 (also when classes are listed, or there is no base / no repository: nothing to compare),
+1 classes listed with --strict, 2 usage error or unknown base ref.
+USAGE
+}
+
+need_value() {
+  if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+    echo "ERROR: $1 needs a value." >&2
+    exit 2
+  fi
+}
+
+BASE_REF=${COVERAGE_HINT_BASE:-${BASE:-}}
+SRC_DIRS=${CHANGED_TESTS_SRC:-}
+TEST_DIRS=${CHANGED_TESTS_DIRS:-}
+SRC_ARGS=''
+TEST_ARGS=''
+STRICT=0
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -h|--help) usage; exit 0 ;;
+    --base) need_value "$@"; BASE_REF=$2; shift 2 ;;
+    --base=*) need_value "${1%%=*}" "${1#*=}"; BASE_REF=${1#*=}; shift ;;
+    --src) need_value "$@"; SRC_ARGS="$SRC_ARGS $2"; shift 2 ;;
+    --src=*) need_value "${1%%=*}" "${1#*=}"; SRC_ARGS="$SRC_ARGS ${1#*=}"; shift ;;
+    --tests) need_value "$@"; TEST_ARGS="$TEST_ARGS $2"; shift 2 ;;
+    --tests=*) need_value "${1%%=*}" "${1#*=}"; TEST_ARGS="$TEST_ARGS ${1#*=}"; shift ;;
+    --strict) STRICT=1; shift ;;
+    *) echo "ERROR: unknown option $1 (see --help)." >&2; exit 2 ;;
+  esac
+done
+[ -n "$SRC_ARGS" ] && SRC_DIRS=$SRC_ARGS
+[ -n "$TEST_ARGS" ] && TEST_DIRS=$TEST_ARGS
+[ -n "$SRC_DIRS" ] || SRC_DIRS='src'
+[ -n "$TEST_DIRS" ] || TEST_DIRS='tests'
+
+git rev-parse --git-dir >/dev/null 2>&1 || exit 0
+cd "$(git rev-parse --show-toplevel)"
+[ -n "$BASE_REF" ] || BASE_REF=$(git describe --tags --abbrev=0 2>/dev/null || true)
+[ -n "$BASE_REF" ] || exit 0
+if ! git rev-parse --verify --quiet "$BASE_REF^{commit}" >/dev/null; then
+  echo "ERROR: unknown base ref: $BASE_REF" >&2
+  exit 2
+fi
+
+set -f
+SRC_SPECS=''
+for dir in $SRC_DIRS; do
+  SRC_SPECS="$SRC_SPECS ${dir%/}/*.php"
+done
+EXISTING_TESTS=''
+for dir in $TEST_DIRS; do
+  [ -d "$dir" ] && EXISTING_TESTS="$EXISTING_TESTS ${dir%/}"
+done
+# shellcheck disable=SC2086
+CHANGED=$(git diff --name-only --diff-filter=AMR "$BASE_REF"..HEAD -- $SRC_SPECS)
+set +f
+
+missing=''
+for f in $CHANGED; do
+  [ -f "$f" ] || continue
+  class=$(basename "$f" .php)
+  # shellcheck disable=SC2086
+  if [ -z "$EXISTING_TESTS" ] || [ -z "$(find $EXISTING_TESTS -type f -name '*.php' -exec grep -lw -e "$class" {} + 2>/dev/null)" ]; then
+    missing="$missing
+  $f"
+  fi
+done
+if [ -n "$missing" ]; then
+  printf 'Coverage hint: source classes changed since %s that no test names (check them first if the coverage gate fails):%s\n' "$BASE_REF" "$missing"
+  [ "$STRICT" -eq 0 ] || exit 1
+fi
+exit 0

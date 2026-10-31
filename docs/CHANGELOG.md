@@ -43,6 +43,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Developer tooling for long gates on shared machines (from Symfony Beacon, KIT-58). No change to the existing bins or snippets.
+
+### Added
+
+- **`bin/heavy-lock`** (POSIX sh): machine-wide FIFO lock for heavy jobs — `acquire <owner>` / `release` / `status` / `run <owner> <cmd>` (always releases, keeps the exit code); takes the lock only below a 1-minute load average (`DOCKER_HEAVY_MAXLOAD`, default 6), removes holders whose PID is gone (or without PID after `DOCKER_HEAVY_LOCK_MAXAGE`), priority tickets (`DOCKER_HEAVY_PRIORITY=1`), reentrant through `DOCKER_HEAVY_LOCK_HELD`. Same directories and variables as the workspace `docker-heavy-lock.sh`, so both share one lock.
+- **`bin/memory-guard`** (POSIX sh): runs a suite, samples load / `MemAvailable` / the largest test processes every `MEMGUARD_INTERVAL` seconds and stops it (after a `--kill` command) below `MEMGUARD_MIN_MB` (default 4096); `MEMGUARD=0` or no meminfo runs unguarded. From Beacon's `scripts/memory-guard.sh`.
+- **`bin/release-phase`** (POSIX sh): one phase of a multi-phase gate with its log in `RELEASE_PHASE_DIR` (default `var/quiet/release`) and an `OK` / `FAIL` line in `summary.txt`, printed (title `RELEASE_PHASE_TITLE`) when a phase fails; `--reset`, `--summary`. From Beacon's `scripts/release-phase.sh`.
+- **`bin/check-changed-src-tested`** (POSIX sh + git): source classes changed since the last tag (`--base`, `COVERAGE_HINT_BASE`, `BASE`) that no test names; `--src` / `--tests` like `changed-tests`; hint (exit 0) unless `--strict`. From Beacon's `scripts/check-changed-src-tested.sh`.
+- **`bin/coverage-gaps`** (`Gate\Coverage\CoverageGapsCommand`): files below 100 % of a Clover or LCOV report (detected from the content) with their uncovered lines as ranges, `--strip-prefix` (default the current directory). Exit 0 covered, 1 gaps listed, 2 error. From Beacon's `scripts/coverage-gaps.php`.
+- **`bin/slowest-tests`** (`Gate\Junit\SlowestTestsCommand`): slowest test files of a JUnit log (default `var/coverage/junit.xml`), times summed per file, `--limit` (default 20), `--strip-prefix`. From Beacon's `scripts/slowest-tests.php`.
+- **Makefile snippets** `resources/make/heavy.mk` (`heavy-<target>` through the lock, skipped on CI or with an empty `HEAVY_LOCK`; `heavy-status`; `MEMORY_GUARD`, `HEAVY_PROCESSES`), `resources/make/quiet.mk` (`quiet T=<target>`, `test-changed` with `QUALITY_PHP_EXEC` / `TEST_CHANGED_PHPUNIT`) and `resources/make/release-phases.mk` (`release-phases` over `RELEASE_PHASES` with per-phase `RELEASE_PHASE_FLAGS_<name>`, `check-changed-src-tested`, `coverage-gaps`, `test-slowest`).
+- [Usage → Developer tooling for long gates](USAGE.md#developer-tooling-for-long-gates-since-190).
+
 ## [1.8.1] - 2026-10-22
 
 Wave-2 REQ compliance: full release-check chain with open-PR and Igor gates, Rector on PHP 8.2, pinned CI matrix. See [UPGRADING](UPGRADING.md#to-181).

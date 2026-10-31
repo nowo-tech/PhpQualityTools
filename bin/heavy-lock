@@ -1,0 +1,154 @@
+#!/usr/bin/env sh
+# nowo-tech/php-quality-tools — heavy-lock
+#
+# Machine-wide FIFO lock for heavy jobs (test suites with coverage, e2e, release checks, Docker builds) on a shared
+# developer machine: one heavy job at a time, started only while the 1-minute load average is below a threshold.
+# Every waiter takes a ticket; only the oldest live ticket may take the lock, so a job that releases and immediately
+# re-acquires queues behind everyone already waiting. POSIX sh. Run with --help for the commands and variables.
+#
+# The lock and queue directories (and the variable names) are those of the nowo-tech workspace helper
+# docker-heavy-lock.sh, so both helpers share one lock on the same machine.
+set -u
+
+usage() {
+  cat <<'USAGE'
+Usage: heavy-lock acquire <owner>          wait for the FIFO turn, a free lock and load < max, then take the lock
+       heavy-lock release                  release the lock
+       heavy-lock status                   holder, queue and load average
+       heavy-lock run <owner> <cmd> [...]  acquire, run <cmd>, always release; exit code of <cmd>
+
+<owner> is a free-text label shown by status (e.g. "my-app: release-check").
+
+Environment:
+  DOCKER_HEAVY_LOCK_DIR     lock directory (default: /tmp/docker-heavy.lock)
+  DOCKER_HEAVY_QUEUE_DIR    queue directory (default: /tmp/docker-heavy.queue)
+  DOCKER_HEAVY_STALE_LOG    log of removed stale locks (default: /tmp/docker-heavy.stale.log)
+  DOCKER_HEAVY_MAXLOAD      start only below this 1-minute load average (default: MAXLOAD or 6)
+  DOCKER_HEAVY_POLL         seconds between checks while waiting (default: POLL or 10)
+  DOCKER_HEAVY_LOCK_MAXAGE  seconds after which a holder without a known PID is stale (default: 3600)
+  DOCKER_HEAVY_PRIORITY     1: queue before every normal ticket (never interrupts the current holder)
+  DOCKER_HEAVY_LOCK_PID     long-lived PID recorded by a bare acquire (run records its own)
+  DOCKER_HEAVY_LOCK_HELD    set by run for <cmd>: nested acquire / release / run are no-ops
+
+A holder whose PID is gone (killed job, closed session) is removed by the first waiter and logged.
+Exit codes: 0 success (run: the exit code of <cmd>), 1 acquire failed, 2 usage error.
+USAGE
+}
+
+L=${DOCKER_HEAVY_LOCK_DIR:-/tmp/docker-heavy.lock}
+Q=${DOCKER_HEAVY_QUEUE_DIR:-/tmp/docker-heavy.queue}
+STALE_LOG=${DOCKER_HEAVY_STALE_LOG:-/tmp/docker-heavy.stale.log}
+MAXLOAD=${DOCKER_HEAVY_MAXLOAD:-${MAXLOAD:-6}}
+MAXAGE=${DOCKER_HEAVY_LOCK_MAXAGE:-3600}
+POLL=${DOCKER_HEAVY_POLL:-${POLL:-10}}
+SELF=$0
+
+case "${1:-}" in
+  -h|--help) usage; exit 0 ;;
+esac
+
+if [ -n "${DOCKER_HEAVY_LOCK_HELD:-}" ]; then
+  case "${1:-}" in
+    acquire|release) echo "lock already held by an outer run (DOCKER_HEAVY_LOCK_HELD)"; exit 0 ;;
+    run)
+      [ "$#" -ge 3 ] || { echo "ERROR: run needs <owner> <cmd> (see --help)." >&2; exit 2; }
+      shift 2; exec "$@" ;;
+  esac
+fi
+
+now_ns() {
+  ns=$(date +%s%N 2>/dev/null)
+  case "$ns" in
+    *N|'') printf '%s000000000\n' "$(date +%s)" ;;
+    *) printf '%s\n' "$ns" ;;
+  esac
+}
+
+load1() {
+  cut -d' ' -f1 /proc/loadavg 2>/dev/null || uptime | sed -E 's/.*load averages?: *([0-9.]+).*/\1/'
+}
+
+prune_stale() {
+  for t in "$Q"/*; do
+    [ -e "$t" ] || continue
+    pid=${t##*-}
+    kill -0 "$pid" 2>/dev/null || rm -f "$t"
+  done
+}
+
+# Prints a reason and returns 0 when the current holder is stale; returns 1 otherwise (or when there is no holder).
+holder_stale() {
+  [ -d "$L" ] || return 1
+  hpid=$(sed -n 3p "$L/owner" 2>/dev/null)
+  since=$(sed -n 4p "$L/owner" 2>/dev/null)
+  if [ -n "$hpid" ] && [ "$hpid" != "-" ]; then
+    kill -0 "$hpid" 2>/dev/null && return 1
+    echo "pid $hpid gone"
+    return 0
+  fi
+  [ -n "$since" ] || since=$(stat -c %Y "$L" 2>/dev/null) || return 1
+  now=$(date +%s)
+  [ $((now - since)) -ge "$MAXAGE" ] || return 1
+  echo "held $(( (now - since) / 60 )) min without a live PID"
+  return 0
+}
+
+case "${1:-}" in
+  run)
+    [ "$#" -ge 3 ] || { echo "ERROR: run needs <owner> <cmd> (see --help)." >&2; exit 2; }
+    owner=$2
+    shift 2
+    DOCKER_HEAVY_LOCK_PID=$$ sh "$SELF" acquire "$owner" || exit 1
+    trap 'sh "$SELF" release >/dev/null' EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    DOCKER_HEAVY_LOCK_HELD=1 "$@"
+    exit $? ;;
+  acquire)
+    [ -n "${2:-}" ] || { echo "ERROR: acquire needs <owner> (see --help)." >&2; exit 2; }
+    owner=$2
+    mkdir -p "$Q" || exit 1
+    ticket="$Q/${DOCKER_HEAVY_PRIORITY:+0-}$(now_ns)-$$"
+    printf '%s\n' "$owner" > "$ticket" || exit 1
+    trap 'rm -f "$ticket"' EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    while :; do
+      prune_stale
+      first=$(ls -1 "$Q" 2>/dev/null | sort | head -n 1)
+      if [ "$Q/$first" = "$ticket" ]; then
+        # Only the first waiter clears a stale holder, right before trying to take the lock itself.
+        if reason=$(holder_stale); then
+          old=$(sed -n 1p "$L/owner" 2>/dev/null)
+          rm -rf "$L"
+          msg="$(date -u +%FT%TZ) stale lock of \"$old\" removed by \"$owner\" ($reason)"
+          echo "$msg" >&2
+          echo "$msg" >> "$STALE_LOG" 2>/dev/null
+        fi
+        load=$(load1)
+        if awk "BEGIN{exit !(${load:-0} < $MAXLOAD)}" && mkdir "$L" 2>/dev/null; then
+          printf '%s\n%s\n%s\n%s\n' "$owner" "$(date -u +%FT%TZ)" "${DOCKER_HEAVY_LOCK_PID:--}" "$(date +%s)" > "$L/owner"
+          echo "acquired by $owner"
+          exit 0
+        fi
+      fi
+      sleep "$POLL"
+    done ;;
+  release) rm -rf "$L"; echo released ;;
+  status)
+    if [ -d "$L" ]; then
+      echo "held:"
+      sed -n 1,2p "$L/owner"
+      pid=$(sed -n 3p "$L/owner" 2>/dev/null)
+      if reason=$(holder_stale); then echo "pid ${pid:--} (stale: $reason)"; else echo "pid ${pid:--}"; fi
+    else
+      echo free
+    fi
+    prune_stale 2>/dev/null
+    if [ -d "$Q" ] && [ -n "$(ls -A "$Q" 2>/dev/null)" ]; then
+      echo "queue (oldest first):"
+      for t in $(ls -1 "$Q" | sort); do echo "  $(cat "$Q/$t" 2>/dev/null) [$t]"; done
+    fi
+    echo "load: $(cut -d' ' -f1-3 /proc/loadavg 2>/dev/null || load1)" ;;
+  *) echo "ERROR: expected acquire <owner> | release | status | run <owner> <cmd...> (see --help)." >&2; exit 2 ;;
+esac

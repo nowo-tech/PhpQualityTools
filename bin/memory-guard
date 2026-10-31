@@ -1,0 +1,78 @@
+#!/usr/bin/env sh
+# nowo-tech/php-quality-tools — memory-guard
+#
+# Runs a long suite (PHPUnit / ParaTest coverage, e2e) and stops it cleanly when the machine runs out of memory,
+# instead of letting it take the container runtime (e.g. Docker Desktop on WSL2) and every other stack down.
+# Every MEMGUARD_INTERVAL seconds it logs the load average, MemAvailable and the largest PHP / test-runner / browser
+# processes to stderr. POSIX sh, Linux /proc/meminfo. Run with --help for the options.
+set -u
+
+usage() {
+  cat <<'USAGE'
+Usage: memory-guard [--kill '<command>'] [--] <suite command> [<args>...]
+
+Runs the suite and, when MemAvailable drops below MEMGUARD_MIN_MB, runs the --kill command (e.g.
+"docker compose exec -T php pkill -f paratest", to stop the workers inside a container), then stops the suite.
+
+Environment:
+  MEMGUARD           0: run the suite unguarded (also without a readable meminfo file, e.g. macOS)
+  MEMGUARD_MIN_MB    minimum MemAvailable in MB (default: 4096)
+  MEMGUARD_INTERVAL  seconds between samples (default: 20)
+  MEMGUARD_MEMINFO   meminfo file (default: /proc/meminfo)
+
+Exit codes: the exit code of the suite (non-zero when it was stopped); 2 on a usage error.
+USAGE
+}
+
+kill_cmd=''
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -h|--help) usage; exit 0 ;;
+    --kill)
+      [ "$#" -ge 2 ] || { echo "ERROR: --kill needs a value." >&2; exit 2; }
+      kill_cmd=$2; shift 2 ;;
+    --kill=*) kill_cmd=${1#*=}; shift ;;
+    --) shift; break ;;
+    *) break ;;
+  esac
+done
+if [ "$#" -eq 0 ]; then
+  echo "ERROR: expected <suite command> (see --help)." >&2
+  exit 2
+fi
+
+meminfo=${MEMGUARD_MEMINFO:-/proc/meminfo}
+if [ "${MEMGUARD:-1}" = "0" ] || [ ! -r "$meminfo" ]; then
+  exec "$@"
+fi
+
+min_mb=${MEMGUARD_MIN_MB:-4096}
+interval=${MEMGUARD_INTERVAL:-20}
+case "$min_mb$interval" in
+  *[!0-9]*) echo "ERROR: MEMGUARD_MIN_MB and MEMGUARD_INTERVAL must be non-negative integers." >&2; exit 2 ;;
+esac
+
+"$@" &
+suite=$!
+
+(
+  while kill -0 "$suite" 2>/dev/null; do
+    avail=$(awk '/^MemAvailable:/ { print int($2 / 1024) }' "$meminfo")
+    load=$(cut -d' ' -f1-3 /proc/loadavg 2>/dev/null)
+    top=$(ps -eo rss=,comm= 2>/dev/null | awk '$2 ~ /php|paratest|playwright|chrom|node/ { printf "%s:%dMB\n", $2, $1 / 1024 }' | sort -t: -k2 -rn | head -n 3 | tr '\n' ' ')
+    echo "[memory-guard] load ${load:-?} · MemAvailable ${avail:-?} MB · ${top}" >&2
+    if [ -n "$avail" ] && [ "$avail" -lt "$min_mb" ]; then
+      echo "[memory-guard] MemAvailable ${avail} MB < ${min_mb} MB: stopping the suite." >&2
+      [ -n "$kill_cmd" ] && sh -c "$kill_cmd" >/dev/null 2>&1
+      kill "$suite" 2>/dev/null
+      exit 0
+    fi
+    sleep "$interval"
+  done
+) &
+watchdog=$!
+
+wait "$suite"
+rc=$?
+kill "$watchdog" 2>/dev/null
+exit "$rc"

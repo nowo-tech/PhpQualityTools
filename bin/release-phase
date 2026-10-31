@@ -1,0 +1,71 @@
+#!/usr/bin/env sh
+# nowo-tech/php-quality-tools — release-phase
+#
+# One phase of a multi-phase gate (e.g. `make release-check`): runs a command, streams its output and keeps it in
+# <dir>/<phase>.log, appends "OK|FAIL <phase> <seconds>s" to <dir>/summary.txt and, when the command fails, prints the
+# summary so far with the failing phase's log path, so the failing phase is named at the end of the output instead of
+# being buried in it. POSIX sh. Run with --help for the options.
+set -u
+
+usage() {
+  cat <<'USAGE'
+Usage: release-phase <phase> <command> [<args>...]   run one phase
+       release-phase --reset                         start a new summary
+       release-phase --summary [<title>]             print the summary (title default: RELEASE_PHASE_TITLE)
+
+Environment:
+  RELEASE_PHASE_DIR     directory of the phase logs and summary.txt (default: var/quiet/release)
+  RELEASE_PHASE_TITLE   title of the printed summary (default: release-check)
+
+<phase> is a file name (letters, digits, dot, dash, underscore). Exit codes: the exit code of <command>
+(0 on success); 2 on a usage error.
+USAGE
+}
+
+dir=${RELEASE_PHASE_DIR:-var/quiet/release}
+title=${RELEASE_PHASE_TITLE:-release-check}
+
+print_summary() {
+  echo "$1 phases:"
+  sed 's/^/  /' "$dir/summary.txt" 2>/dev/null
+}
+
+case "${1:-}" in
+  -h|--help) usage; exit 0 ;;
+  '') echo "ERROR: expected <phase> <command> (see --help)." >&2; exit 2 ;;
+esac
+mkdir -p "$dir" || exit 2
+case "$1" in
+  --reset) : > "$dir/summary.txt"; exit 0 ;;
+  --summary) print_summary "${2:-$title}"; exit 0 ;;
+  -*) echo "ERROR: unknown option $1 (see --help)." >&2; exit 2 ;;
+esac
+phase=$1
+case "$phase" in
+  *[!A-Za-z0-9._-]*) echo "ERROR: invalid phase name: $phase" >&2; exit 2 ;;
+esac
+shift
+if [ "$#" -eq 0 ]; then
+  echo "ERROR: expected <phase> <command> (see --help)." >&2
+  exit 2
+fi
+
+log="$dir/$phase.log"
+start=$(date +%s)
+status_file=$(mktemp "${TMPDIR:-/tmp}/release-phase.XXXXXX") || exit 2
+# The exit code goes through a file: POSIX sh has no PIPESTATUS.
+{ "$@"; echo $? > "$status_file"; } 2>&1 | tee "$log"
+status=$(cat "$status_file" 2>/dev/null)
+rm -f "$status_file"
+[ -n "$status" ] || status=1
+seconds=$(( $(date +%s) - start ))
+
+if [ "$status" -eq 0 ]; then
+  echo "OK   $phase ${seconds}s" >> "$dir/summary.txt"
+  exit 0
+fi
+
+echo "FAIL $phase ${seconds}s — log: $log" >> "$dir/summary.txt"
+echo
+print_summary "$title"
+exit "$status"

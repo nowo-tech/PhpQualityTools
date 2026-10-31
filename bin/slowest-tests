@@ -1,0 +1,15 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Print the slowest test files of a JUnit log (PHPUnit / ParaTest --log-junit), summed per file.
+ * See docs/USAGE.md ("Developer tooling for long gates") or run with --help.
+ */
+
+use NowoTech\PhpQualityTools\Gate\Junit\SlowestTestsCommand;
+
+require __DIR__ . '/autoload.php';
+
+exit((new SlowestTestsCommand(\STDOUT, \STDERR, (string) getcwd()))->run(array_slice($argv, 1)));
