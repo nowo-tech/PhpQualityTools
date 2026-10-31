@@ -60,17 +60,20 @@ final class SlowestTestsCommandTest extends TestCase
 
     public function testEmptyLog(): void
     {
-        $root = $this->makeTree(['junit.xml' => '<testsuites/>']);
+        $root = $this->makeTree(['junit.xml' => '<testsuites/>', 'single.xml' => '<testsuite name="s"/>']);
+        self::assertSame([0, "Slowest test files (0 files, 0.0s of test time in total):\n", ''], $this->runCommand($root, ['single.xml']));
 
         self::assertSame([0, "Slowest test files (0 files, 0.0s of test time in total):\n", ''], $this->runCommand($root, ['junit.xml']));
     }
 
     public function testMissingAndUnreadableLogs(): void
     {
-        $root = $this->makeTree(['broken.xml' => '<testsuites><testcase']);
+        $root = $this->makeTree(['broken.xml' => '<testsuites><testcase', 'clover.xml' => '<?xml version="1.0"?><coverage><project/></coverage>']);
 
         self::assertSame([2, '', "ERROR: no JUnit log at missing.xml\n"], $this->runCommand($root, ['missing.xml']));
         self::assertSame([2, '', "ERROR: unreadable JUnit log broken.xml\n"], $this->runCommand($root, ['broken.xml']));
+        // A well-formed report that is not a JUnit log (e.g. Clover) is not an empty suite.
+        self::assertSame([2, '', "ERROR: unreadable JUnit log clover.xml\n"], $this->runCommand($root, ['clover.xml']));
     }
 
     public function testUsage(): void

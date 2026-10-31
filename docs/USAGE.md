@@ -923,7 +923,7 @@ run on the host; `coverage-gaps` and `slowest-tests` are PHP 8.2+ without depend
 
 ```bash
 vendor/bin/heavy-lock run "my-app: release-check" make release-check   # wait the FIFO turn and load < 6, always release
-vendor/bin/memory-guard --kill 'pkill -f paratest' -- vendor/bin/paratest --processes=2
+vendor/bin/memory-guard -- vendor/bin/paratest --processes=2                # stops the suite below 4 GB MemAvailable
 vendor/bin/release-phase php-coverage make test-coverage                  # log + OK / FAIL line in var/quiet/release/
 vendor/bin/check-changed-src-tested                                       # changed classes no test names (hint)
 vendor/bin/coverage-gaps var/coverage/clover.xml                          # files below 100 % and their lines
@@ -970,7 +970,8 @@ memory-guard [--kill '<command>'] [--] <suite command> [<args>...]
 Runs the suite and every `MEMGUARD_INTERVAL` seconds (default 20) logs the load average, `MemAvailable` and the three
 largest PHP / ParaTest / Playwright / Chromium / Node processes to stderr. When `MemAvailable` drops below
 `MEMGUARD_MIN_MB` (default 4096) it runs the `--kill` command (e.g. `docker compose exec -T php pkill -f paratest`, to
-stop the workers inside a container) and stops the suite, which then fails cleanly instead of taking the container
+stop the workers inside the project's own container; never a host-wide `pkill` on a shared machine, it would stop other
+projects' suites too) and stops the suite, which then fails cleanly instead of taking the container
 runtime down. `MEMGUARD=0`, or a host without `/proc/meminfo` (`MEMGUARD_MEMINFO`), runs the suite unguarded.
 Exit codes: the suite's (non-zero when it was stopped), `2` on a usage error.
 

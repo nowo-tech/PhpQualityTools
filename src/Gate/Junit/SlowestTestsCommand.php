@@ -28,7 +28,7 @@ final class SlowestTestsCommand
           <limit>, --limit=<n>     files printed at most (default: 20)
           --strip-prefix=<path>    prefix removed from test file paths, repeatable
                                    (default: the current directory, e.g. /app inside a container)
-        Exit codes: 0 report printed, 2 usage error or missing / unreadable log.
+        Exit codes: 0 report printed, 2 usage error or missing / unreadable log (root not testsuites / testsuite).
         TXT;
 
     public const DEFAULT_LOG = 'var/coverage/junit.xml';
@@ -96,7 +96,7 @@ final class SlowestTestsCommand
         $xml = simplexml_load_file($path);
         libxml_clear_errors();
         libxml_use_internal_errors($previous);
-        if (false === $xml) {
+        if (false === $xml || !\in_array($xml->getName(), ['testsuites', 'testsuite'], true)) {
             fwrite($this->stderr, "ERROR: unreadable JUnit log {$file}\n");
 
             return 2;
