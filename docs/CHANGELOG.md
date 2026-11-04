@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.10.0] - 2026-11-04](#1100---2026-11-04)
 - [[1.9.0] - 2026-10-31](#190---2026-10-31)
 - [[1.8.1] - 2026-10-22](#181---2026-10-22)
 - [[1.8.0] - 2026-10-21](#180---2026-10-21)
@@ -44,7 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Multi-slot `heavy-lock` with resource gates and one job per group, interoperable with the workspace `docker-heavy-lock.sh`. See [UPGRADING](UPGRADING.md#unreleased).
+## [1.10.0] - 2026-11-04
+
+Multi-slot `heavy-lock` with resource gates and one job per group, interoperable with the workspace `docker-heavy-lock.sh`. See [UPGRADING](UPGRADING.md#to-1100).
 
 ### Changed
 
@@ -66,6 +69,8 @@ Multi-slot `heavy-lock` with resource gates and one job per group, interoperable
 - **`bin/heavy-lock`**: control characters (CR, LF, ESC, ...) in labels and groups are replaced before they are written, so a multi-line label can no longer shift the owner file and get a live holder removed; PID and epoch lines are validated (PIDs above 1 only; `EPERM` counts as alive) and never reach shell or awk arithmetic, so a forged owner file cannot run commands where `/bin/sh` is bash; threshold variables are passed to awk with `-v`.
 - **`bin/heavy-lock`**: only the current user's legacy directories are removed, and only those that hold nothing but their `owner` file (a lock directory pointed at real data is no longer deleted); `status` and waiters only prune files named like tickets; queue and lock-file directories that are symlinks or another user's are refused, lock files that are symlinks or another user's are never opened, and the stale log is never written through a symlink (pre-existing since 1.9.0).
 - **`resources/make/heavy.mk`**: the label and target reach the shell in single quotes, so a checkout directory, `HEAVY_LOCK_LABEL` or `T` holding `$(...)` or backticks no longer runs commands (pre-existing since 1.9.0).
+
+[1.10.0]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.10.0
 
 ## [1.9.0] - 2026-10-31
 

@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.10.0](#to-1100)
 - [To 1.9.0](#to-190)
 - [To 1.8.1](#to-181)
 - [To 1.8.0](#to-180)
@@ -56,6 +57,8 @@
 - [Related Documentation](#related-documentation)
 
 ## Unreleased
+
+## To 1.10.0
 
 From **1.9.0** — `heavy-lock` becomes multi-slot (minor release).
 
