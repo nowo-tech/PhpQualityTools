@@ -478,7 +478,9 @@ case "${1:-}" in
     # bash, when present, closes them all before starting the holder (shells that can do it close them in __hold).
     set -- sh "$SELF" __hold "$owner" "$watch" "$st" "$$"
     if ! (eval 'exec 98>&-') 2>/dev/null && command -v bash >/dev/null 2>&1; then
-      set -- bash -c 'for f in /proc/$$/fd/*; do n=${f##*/}; case $n in *[!0-9]*) continue ;; esac; [ "$n" -gt 2 ] && eval "exec $n>&-"; done 2>/dev/null; exec "$@"' heavy-lock-hold "$@"
+      # No redirection on the loop: bash would save fd 2 on a high fd, the loop would close that copy, and the restore
+      # would leave the holder without stderr.
+      set -- bash -c 'for f in /proc/$$/fd/*; do n=${f##*/}; case $n in *[!0-9]*) continue ;; esac; [ "$n" -gt 2 ] && eval "exec $n>&-"; done; exec "$@"' heavy-lock-hold "$@"
     fi
     DOCKER_HEAVY_GROUP=$group "$@" </dev/null >/dev/null 2>"$st.err" 3>&- 4>&- 5>&- 6>&- 7>&- 8>&- 9>&- &
     hp=$!
@@ -516,7 +518,7 @@ case "${1:-}" in
         is_uint "$n" && [ "$n" -gt 9 ] || continue
         # Never the descriptor this shell reads the script from.
         [ "$(readlink -f "/proc/$$/fd/$n" 2>/dev/null)" = "$me" ] && continue
-        eval "exec $n>&-" 2>/dev/null
+        eval "exec $n>&-"
       done
     fi
     SLOT_DIR=
