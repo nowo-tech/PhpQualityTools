@@ -58,6 +58,18 @@
 
 ## Unreleased
 
+Planned as **1.10.1** (patch) from **1.10.0**; no configuration change.
+
+```bash
+composer update nowo-tech/php-quality-tools
+```
+
+- **Bare `acquire` from bash on a dash `sh`:** the holder no longer keeps the caller's descriptors above 9 open, so a
+  pipe read by another process now ends when `acquire` returns. Copies of the workspace helper `docker-heavy-lock.sh`
+  should be regenerated from this version (`tests/Fixtures/heavy-lock/docker-heavy-lock.sh`).
+- **Group-writable lock directories:** the refusal message now prints the command to run, e.g.
+  `chmod go-w '/tmp/docker-heavy.queue'`; nothing else changes (such directories are still refused).
+
 ## To 1.10.0
 
 From **1.9.0** — `heavy-lock` becomes multi-slot (minor release).
