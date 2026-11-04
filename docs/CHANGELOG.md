@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.10.1] - 2026-11-04](#1101---2026-11-04)
 - [[1.10.0] - 2026-11-04](#1100---2026-11-04)
 - [[1.9.0] - 2026-10-31](#190---2026-10-31)
 - [[1.8.1] - 2026-10-22](#181---2026-10-22)
@@ -45,7 +46,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Planned as **1.10.1** (patch). See [UPGRADING](UPGRADING.md#unreleased).
+## [1.10.1] - 2026-11-04
+
+Patch release. See [UPGRADING](UPGRADING.md#to-1101).
 
 ### Fixed
 
@@ -54,6 +57,8 @@ Planned as **1.10.1** (patch). See [UPGRADING](UPGRADING.md#unreleased).
 ### Changed
 
 - **`bin/heavy-lock`**: a queue or lock-file directory refused for being writable by other users (for example one created by an older copy under `umask 002`) now names the exact fix in the message: `run: chmod go-w '<dir>'`.
+
+[1.10.1]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.10.1
 
 ## [1.10.0] - 2026-11-04
 
