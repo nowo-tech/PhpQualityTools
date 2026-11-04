@@ -44,6 +44,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Multi-slot `heavy-lock` with resource gates and one job per group, interoperable with the workspace `docker-heavy-lock.sh`. See [UPGRADING](UPGRADING.md#unreleased).
+
+### Changed
+
+- **`bin/heavy-lock`**: up to `DOCKER_HEAVY_SLOTS` heavy jobs (default 4) run at once instead of one; slot 1 is `DOCKER_HEAVY_LOCK_DIR`, slot N is `DOCKER_HEAVY_LOCK_DIR.N`. A slot is handed out only while the 1-minute load average is below `DOCKER_HEAVY_MAXLOAD` (default now 10, was 6) and `MemAvailable` is at least `DOCKER_HEAVY_MIN_MEM_MB` (default 6144).
+- **`bin/heavy-lock`**: groups — at most one job per group holds a slot. The group is `DOCKER_HEAVY_GROUP`, else the git repository of the current directory (worktrees resolve to the main repository; names in `DOCKER_HEAVY_IGNORE_REPOS` are skipped), else the label prefix before `:`. Tickets record label and group; slot `owner` files add the group as line 5. A holder without a group line is grouped by its PID's working directory, else its label.
+- **`bin/heavy-lock`**: queue order — FIFO with priority tickets as before; a later ticket may pass tickets whose group is busy, and may take slots 2..N past tickets of older single-slot copies (no group line).
+- **`bin/heavy-lock`**: `release [<pid>]` frees the slot held by `<pid>` (default: the parent process; `run` passes its own PID), else the oldest slot held without a PID. Output of `acquire`, `release` and `status` now names the slot and group; `status` also shows the memory gate.
+- **`resources/make/heavy.mk`**: `heavy-<target>` and `heavy-status` use the slots and groups.
+- **`bin/heavy-lock`**: mutual exclusion is now kernel locks (`flock(1)`, required by `run` and `acquire`): a job holds a lock on its group's file and one on a slot's file in the new `DOCKER_HEAVY_GROUP_DIR` (default `/tmp/docker-heavy.group`) for its whole life, so one job per group is guaranteed and a killed job (SIGKILL, OOM) frees both at once; there is no stale-holder logic for them. The queue only orders waiters. A bare `acquire` is kept by a background holder until `release`, until `DOCKER_HEAVY_LOCK_PID` exits, or for `DOCKER_HEAVY_LOCK_MAXAGE`.
+- **`bin/heavy-lock`**: older mkdir-based copies (1.9, the previous workspace script) are honoured both ways: their slot directories with a live holder count as occupied slots of that holder's group, and every holder also creates `$DOCKER_HEAVY_LOCK_DIR(.N)` with its owner file (plus line 6, `run` / `bare:<pid>`) so older copies see it.
+- **`bin/heavy-lock`**: a bare `acquire` hands over to its holder with an explicit acknowledgement written after `acquired by …` is printed; a caller that dies or is interrupted before it makes the holder give the slot up at once, and a caller that acknowledged never loses it. The holder keeps none of the caller's descriptors (above 9 through bash on dash) and cleans up its report files.
+- **`bin/heavy-lock`**: the queue and lock-file directories are created `0700` and refused when other users can write to them; a live holder keeps its slot even when its slot lock file was unlinked (e.g. by a `/tmp` cleaner).
+- **`bin/heavy-lock`**: every slot in use counts, whatever the local `DOCKER_HEAVY_SLOTS`; that setting only limits the slots this copy takes.
+- **`bin/heavy-lock`**: an unknown load average or `MemAvailable` keeps the gates closed (set `DOCKER_HEAVY_MIN_MEM_MB=0` where `/proc/meminfo` is missing); invalid numbers in the `DOCKER_HEAVY_*` variables fall back to their defaults with a warning; `release <pid>` for a PID that holds nothing frees nothing; `release` of a `run` job is a no-op (it releases by ending).
+- The workspace helper `docker-heavy-lock.sh` is now generated from `bin/heavy-lock` (vendored as `tests/Fixtures/heavy-lock/docker-heavy-lock.sh`, run by the interop tests).
+
+### Security
+
+- **`bin/heavy-lock`**: control characters (CR, LF, ESC, ...) in labels and groups are replaced before they are written, so a multi-line label can no longer shift the owner file and get a live holder removed; PID and epoch lines are validated (PIDs above 1 only; `EPERM` counts as alive) and never reach shell or awk arithmetic, so a forged owner file cannot run commands where `/bin/sh` is bash; threshold variables are passed to awk with `-v`.
+- **`bin/heavy-lock`**: only the current user's legacy directories are removed, and only those that hold nothing but their `owner` file (a lock directory pointed at real data is no longer deleted); `status` and waiters only prune files named like tickets; queue and lock-file directories that are symlinks or another user's are refused, lock files that are symlinks or another user's are never opened, and the stale log is never written through a symlink (pre-existing since 1.9.0).
+- **`resources/make/heavy.mk`**: the label and target reach the shell in single quotes, so a checkout directory, `HEAVY_LOCK_LABEL` or `T` holding `$(...)` or backticks no longer runs commands (pre-existing since 1.9.0).
+
 ## [1.9.0] - 2026-10-31
 
 Developer tooling: heavy-lock (shared machine-wide FIFO lock), release-phase runner, memory-guard, changed-src-tested gate, coverage-gaps and slowest-tests bins plus make snippets. See [UPGRADING](UPGRADING.md#to-190).

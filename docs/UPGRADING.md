@@ -57,6 +57,45 @@
 
 ## Unreleased
 
+From **1.9.0** — `heavy-lock` becomes multi-slot (minor release).
+
+```bash
+composer update nowo-tech/php-quality-tools
+```
+
+- **Several heavy jobs at once:** up to 4 jobs of different groups now run in parallel, while two jobs of one group (by
+  default one git repository, so one test database, coverage files and e2e stack) never overlap. To keep the 1.9
+  behaviour of one heavy job per machine, set `DOCKER_HEAVY_SLOTS=1` for **every** copy on the machine (the shared
+  environment, not one project): a copy honours every slot that exists, so `DOCKER_HEAVY_SLOTS=1` in one project only
+  stops that project from taking slots 2..N, while others still run beside it.
+- **New gates:** the default load threshold is now 10 (was 6); set `DOCKER_HEAVY_MAXLOAD=6` to keep the old one. A slot
+  also needs 6144 MB of `MemAvailable` (`DOCKER_HEAVY_MIN_MEM_MB`, `0` disables it). Where `MemAvailable` is unknown
+  (macOS, no `/proc/meminfo`) the gate stays closed: set `DOCKER_HEAVY_MIN_MEM_MB=0` there.
+- **`flock(1)` required:** `run` and `acquire` now use kernel locks and exit 1 without `flock` (util-linux on Linux,
+  busybox `flock` on Alpine; `brew install flock` on macOS). The lock files live in `DOCKER_HEAVY_GROUP_DIR` (default
+  `/tmp/docker-heavy.group`), created on first use.
+- **Bare `acquire`:** it now leaves a background holder process that keeps the slot until `release`, until the process in
+  `DOCKER_HEAVY_LOCK_PID` exits, or for `DOCKER_HEAVY_LOCK_MAXAGE` seconds (default 3600). Prefer
+  `heavy-lock run <owner> <cmd>`, which releases however the command ends; `release` of a `run` job is a no-op.
+- **Private lock directories:** `DOCKER_HEAVY_QUEUE_DIR` and `DOCKER_HEAVY_GROUP_DIR` are created `0700`, and an
+  existing one that other users can write to is refused (`chmod go-w` it).
+- **Stricter input:** invalid numbers in the `DOCKER_HEAVY_*` variables now fall back to their defaults with a warning
+  (`DOCKER_HEAVY_SLOTS` and `DOCKER_HEAVY_MIN_MEM_MB` used to exit 2). `release <pid>` with a PID that holds nothing no
+  longer frees another bare `acquire`'s slot, and `release` needs a PID above 1. Lock directories that hold more than
+  an `owner` file, other users' entries and files of the queue directory that are not tickets are never removed.
+- **`heavy.mk`:** the label and the target are passed in single quotes, so a directory name, `HEAVY_LOCK_LABEL` or `T`
+  holding `$(...)`, backticks or quotes is only text.
+- **Groups:** jobs started outside a git repository are grouped by the label prefix before `:` (`HEAVY_LOCK_LABEL` in
+  `heavy.mk`). Set `DOCKER_HEAVY_GROUP` to force a group, and `DOCKER_HEAVY_IGNORE_REPOS` for a repository (e.g. a
+  workspace of clones) whose directory must not group the jobs started from it.
+- **Output:** scripts that parse `heavy-lock` output must expect `acquired by <owner> (slot N/M, group G)`,
+  `released slot N`, `free (0/M slots held)` and one `held (slot N/M, group G): <owner> since <time> pid <pid>` line per
+  slot in `status`.
+- **Mixed versions:** 1.10 honours the slot directories of 1.9.x and of the previous workspace `docker-heavy-lock.sh`,
+  and writes its own so they see 1.10 jobs. An older copy still decides by check-then-act and a 1.9.x copy knows no
+  groups, so two jobs of one group can overlap while an older copy runs on the machine: update every project that shares
+  it (`composer update nowo-tech/php-quality-tools`) and the workspace script.
+
 ## To 1.9.0
 
 From **1.8.1**:
