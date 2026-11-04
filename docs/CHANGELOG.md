@@ -45,6 +45,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Planned as **1.10.1** (patch). See [UPGRADING](UPGRADING.md#unreleased).
+
+### Fixed
+
+- **`bin/heavy-lock`**: the holder left by a bare `acquire` again drops every caller descriptor above 9 when `acquire` runs under a shell other than `sh`. The holder always runs under `sh`, but whether `bash` had to close those descriptors first was decided from the calling shell: with `bash heavy-lock acquire …` on a host where `sh` is dash (Debian, Ubuntu, and the workspace's `bash docker-heavy-lock.sh acquire`), the dash holder kept them open for its whole life (up to `DOCKER_HEAVY_LOCK_MAXAGE`), so a pipe reader on such a descriptor never saw EOF. The check now asks `sh` itself. Locking was not affected. The vendored workspace copy `tests/Fixtures/heavy-lock/docker-heavy-lock.sh` is regenerated.
+
+### Changed
+
+- **`bin/heavy-lock`**: a queue or lock-file directory refused for being writable by other users (for example one created by an older copy under `umask 002`) now names the exact fix in the message: `run: chmod go-w '<dir>'`.
+
 ## [1.10.0] - 2026-11-04
 
 Multi-slot `heavy-lock` with resource gates and one job per group, interoperable with the workspace `docker-heavy-lock.sh`. See [UPGRADING](UPGRADING.md#to-1100).

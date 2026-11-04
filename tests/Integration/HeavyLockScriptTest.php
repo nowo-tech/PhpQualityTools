@@ -346,7 +346,7 @@ final class HeavyLockScriptTest extends TestCase
         chmod($this->dir . '/heavy.group', 0o777);
         $process = $this->pqt(['acquire', 'U: y']);
         self::assertSame(1, $process->getExitCode());
-        self::assertStringContainsString('heavy.group is writable by other users; refusing to use it', $process->getErrorOutput());
+        self::assertStringContainsString('heavy.group is writable by other users; refusing to use it (run: chmod go-w \'' . $this->dir . '/heavy.group\', or set DOCKER_HEAVY_GROUP_DIR)', $process->getErrorOutput());
         chmod($this->dir . '/heavy.group', 0o700);
 
         // A tmp cleaner unlinks the slot lock file while A runs: B must not take A's slot.
@@ -376,6 +376,25 @@ final class HeavyLockScriptTest extends TestCase
         self::assertSame("returned\n", $process->getOutput(), $process->getErrorOutput());
         self::assertLessThan(5.0, microtime(true) - $started);
         $this->exec(['sh', '-c', 'sh "$0" release; true', self::ROOT . '/bin/heavy-lock']);
+    }
+
+    public function testABashCallerWithAnotherShAsHolderLeavesNoDescriptorAbove9Open(): void
+    {
+        if (!$this->has('bash')) {
+            self::markTestSkipped('needs bash');
+        }
+        // The workspace runs `bash docker-heavy-lock.sh acquire`: bash can name fd 12, but the holder runs under sh
+        // (dash on Debian), which cannot. cat must see EOF as soon as acquire returns, for both copies.
+        foreach ([self::ROOT . '/bin/heavy-lock', $this->reference()] as $script) {
+            $started = microtime(true);
+            $process = $this->exec(
+                ['bash', '-c', 'bash -c "$INNER" "$0" | cat', $script],
+                ['INNER' => 'exec 12>&1; bash "$0" acquire "F: bash" >/dev/null 2>&1 && echo returned']
+            );
+            self::assertSame("returned\n", $process->getOutput(), $script . "\n" . $process->getErrorOutput());
+            self::assertLessThan(5.0, microtime(true) - $started, $script);
+            $this->exec(['sh', '-c', 'sh "$0" release; true', self::ROOT . '/bin/heavy-lock']);
+        }
     }
 
     private function reference(): string

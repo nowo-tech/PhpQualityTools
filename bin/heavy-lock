@@ -207,7 +207,10 @@ need_own_dir() {
   owned_dir "$1" || { warn "cannot create $1"; exit 1; }
   # Another account that can write here could unlink or replace the lock files or tickets.
   case "$(ls -ld "$1" 2>/dev/null)" in
-    ?????w*|????????w*) warn "$1 is writable by other users; refusing to use it (chmod go-w it, or set $2)"; exit 1 ;;
+    ?????w*|????????w*)
+      # The suggested command quotes the path for a POSIX shell (each ' becomes '\'').
+      warn "$1 is writable by other users; refusing to use it (run: chmod go-w '$(printf '%s' "$1" | sed "s/'/'\\\\''/g")', or set $2)"
+      exit 1 ;;
   esac
 }
 
@@ -475,11 +478,12 @@ case "${1:-}" in
     # The holder waits and then keeps the kernel locks open; this process only reports its outcome. It must not keep
     # the caller's descriptors (a pipe would never see EOF): 3-9 are closed here; dash cannot name higher ones, so
     # bash, when present, closes them all before starting the holder (shells that can do it close them in __hold).
+    # The holder always runs under sh, whatever shell runs this: ask sh, not this shell (bash here, dash as sh).
     set -- sh "$SELF" __hold "$owner" "$watch" "$st" "$$"
-    if ! (eval 'exec 98>&-') 2>/dev/null && command -v bash >/dev/null 2>&1; then
+    if ! sh -c 'exec 98>&-' 2>/dev/null && command -v bash >/dev/null 2>&1; then
       # No redirection on the loop: bash would save fd 2 on a high fd, the loop would close that copy, and the restore
       # would leave the holder without stderr.
-      set -- bash -c 'for f in /proc/$$/fd/*; do n=${f##*/}; case $n in *[!0-9]*) continue ;; esac; [ "$n" -gt 2 ] && eval "exec $n>&-"; done; exec "$@"' heavy-lock-hold "$@"
+      set -- bash -c 'set +f; for f in /proc/$$/fd/*; do n=${f##*/}; case $n in *[!0-9]*) continue ;; esac; [ "$n" -gt 2 ] && eval "exec $n>&-"; done; exec "$@"' heavy-lock-hold "$@"
     fi
     DOCKER_HEAVY_GROUP=$group "$@" </dev/null >/dev/null 2>"$st.err" 3>&- 4>&- 5>&- 6>&- 7>&- 8>&- 9>&- &
     hp=$!
