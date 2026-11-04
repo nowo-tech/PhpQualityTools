@@ -86,6 +86,7 @@ This bundle is **FrankenPHP worker mode friendly**.
 - ✅ Since 1.7.0: `Testing\RouteQueryScalingTrait` (route query budgets / N+1 scaling through the profiler's `db` collector), `Testing\MissingTranslationsTrait` (profiler missing translations with an allowlist), and `check-no-agent-coauthor` / `strip-agent-coauthor` / `install-git-hooks` + `git-hygiene.mk` (no AI agent co-author trailers; POSIX sh)
 - ✅ Since 1.8.0: `quiet-run` (a command's full output in a log, `OK` / `FAIL` summary with failed make targets, failed PHPUnit tests and the lines before the first error; real exit code), `junit-failures` (only the failed tests of a JUnit log) and `changed-tests` (test files covering the changes since the last tag)
 - ✅ Since 1.9.0: developer tooling for long gates on shared machines — `heavy-lock` (machine-wide FIFO heavy-job lock with a load threshold), `memory-guard` (stops a suite before memory runs out), `release-phase` (one log and an `OK` / `FAIL` summary line per gate phase), `check-changed-src-tested`, `coverage-gaps` (uncovered lines of a Clover / LCOV report) and `slowest-tests`, plus the `heavy.mk`, `quiet.mk` and `release-phases.mk` Makefile snippets
+- ✅ Since 1.10.0: `heavy-lock` hands out up to `DOCKER_HEAVY_SLOTS` (4) slots, one job per group (the git repository, so two jobs of one project never share its test database), gated by load (`DOCKER_HEAVY_MAXLOAD`, 10) and free memory (`DOCKER_HEAVY_MIN_MEM_MB`, 6144); see [`heavy-lock`](docs/USAGE.md#heavy-lock)
 - ✅ Front-end and docs gates: no inline SVG in templates / scripts, per-entry Vite JS / CSS size budgets (raw and gzip), broken relative Markdown links and images (optionally GitHub heading anchors), and a Docker Compose `php-worker-reset` Makefile snippet
 
 ## Installation
@@ -398,7 +399,7 @@ vendor/bin/junit-failures var/coverage/junit.xml                           # onl
 vendor/bin/phpunit $(vendor/bin/changed-tests)                             # tests covering the changes since the last tag
 
 # Developer tooling for long gates (since 1.9.0)
-vendor/bin/heavy-lock run "my-app: release-check" make release-check       # one heavy job at a time on the machine
+vendor/bin/heavy-lock run "my-app: release-check" make release-check       # FIFO slots, one heavy job per repository
 vendor/bin/coverage-gaps var/coverage/clover.xml                           # uncovered lines (Clover or LCOV)
 vendor/bin/slowest-tests var/coverage/junit.xml 10                         # slowest test files
 ```

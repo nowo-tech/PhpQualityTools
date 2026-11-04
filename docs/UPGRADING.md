@@ -57,6 +57,26 @@
 
 ## Unreleased
 
+From **1.9.0** — `heavy-lock` becomes multi-slot (minor release).
+
+```bash
+composer update nowo-tech/php-quality-tools
+```
+
+- **Several heavy jobs at once:** up to 4 jobs of different groups now run in parallel, while two jobs of one group (by
+  default one git repository, so one test database, coverage files and e2e stack) never overlap. Set
+  `DOCKER_HEAVY_SLOTS=1` to keep the 1.9 behaviour of one heavy job per machine.
+- **New gates:** the default load threshold is now 10 (was 6); set `DOCKER_HEAVY_MAXLOAD=6` to keep the old one. A slot
+  also needs 6144 MB of `MemAvailable` (`DOCKER_HEAVY_MIN_MEM_MB`, `0` disables it).
+- **Groups:** jobs started outside a git repository are grouped by the label prefix before `:` (`HEAVY_LOCK_LABEL` in
+  `heavy.mk`). Set `DOCKER_HEAVY_GROUP` to force a group, and `DOCKER_HEAVY_IGNORE_REPOS` for a repository (e.g. a
+  workspace of clones) whose directory must not group the jobs started from it.
+- **Output:** scripts that parse `heavy-lock` output must expect `acquired by <owner> (slot N/M, group G)`,
+  `released slot N`, `free (0/M slots held)` and one `held (slot N/M, group G): <owner> since <time> pid <pid>` line per
+  slot in `status`.
+- **Mixed versions:** the files stay compatible with 1.9.x and with the workspace `docker-heavy-lock.sh`. A 1.9.x copy
+  still only uses slot 1 and knows no groups, so update every project that shares the machine.
+
 ## To 1.9.0
 
 From **1.8.1**:

@@ -44,6 +44,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Multi-slot `heavy-lock` with resource gates and one job per group, interoperable with the workspace `docker-heavy-lock.sh`. See [UPGRADING](UPGRADING.md#unreleased).
+
+### Changed
+
+- **`bin/heavy-lock`**: up to `DOCKER_HEAVY_SLOTS` heavy jobs (default 4) run at once instead of one; slot 1 is `DOCKER_HEAVY_LOCK_DIR`, slot N is `DOCKER_HEAVY_LOCK_DIR.N`. A slot is handed out only while the 1-minute load average is below `DOCKER_HEAVY_MAXLOAD` (default now 10, was 6) and `MemAvailable` is at least `DOCKER_HEAVY_MIN_MEM_MB` (default 6144).
+- **`bin/heavy-lock`**: groups — at most one job per group holds a slot. The group is `DOCKER_HEAVY_GROUP`, else the git repository of the current directory (worktrees resolve to the main repository; names in `DOCKER_HEAVY_IGNORE_REPOS` are skipped), else the label prefix before `:`. Tickets record label and group; slot `owner` files add the group as line 5. A holder without a group line is grouped by its PID's working directory, else its label.
+- **`bin/heavy-lock`**: queue order — FIFO with priority tickets as before; a later ticket may pass tickets whose group is busy, and may take slots 2..N past tickets of older single-slot copies (no group line).
+- **`bin/heavy-lock`**: `release [<pid>]` frees the slot held by `<pid>` (default: the parent process; `run` passes its own PID), else the oldest slot held without a PID. Output of `acquire`, `release` and `status` now names the slot and group; `status` also shows the memory gate.
+- **`resources/make/heavy.mk`**: `heavy-<target>` and `heavy-status` use the slots and groups (docs only; the recipe is unchanged).
+
 ## [1.9.0] - 2026-10-31
 
 Developer tooling: heavy-lock (shared machine-wide FIFO lock), release-phase runner, memory-guard, changed-src-tested gate, coverage-gaps and slowest-tests bins plus make snippets. See [UPGRADING](UPGRADING.md#to-190).

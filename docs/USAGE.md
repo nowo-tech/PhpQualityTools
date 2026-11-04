@@ -922,7 +922,7 @@ per gate phase, and the reports that say where a failed coverage gate needs work
 run on the host; `coverage-gaps` and `slowest-tests` are PHP 8.2+ without dependencies.
 
 ```bash
-vendor/bin/heavy-lock run "my-app: release-check" make release-check   # wait the FIFO turn and load < 6, always release
+vendor/bin/heavy-lock run "my-app: release-check" make release-check   # wait the turn, the group and the gates; always release
 vendor/bin/memory-guard -- vendor/bin/paratest --processes=2                # stops the suite below 4 GB MemAvailable
 vendor/bin/release-phase php-coverage make test-coverage                  # log + OK / FAIL line in var/quiet/release/
 vendor/bin/check-changed-src-tested                                       # changed classes no test names (hint)
@@ -933,31 +933,52 @@ vendor/bin/slowest-tests var/coverage/junit.xml 10                        # slow
 ### `heavy-lock`
 
 ```text
-heavy-lock acquire <owner> | release | status | run <owner> <cmd> [<args>...]
+heavy-lock acquire <owner> | release [<pid>] | status | run <owner> <cmd> [<args>...]
 ```
 
 A machine-wide lock for heavy jobs (coverage suites, e2e, release checks, image builds):
 
-- **FIFO:** every waiter writes a ticket (`<epoch-ns>-<pid>`) in the queue directory; only the oldest live ticket may
-  take the lock, so a job that releases and re-acquires at once queues behind everyone already waiting. Tickets of dead
-  waiters are pruned. `DOCKER_HEAVY_PRIORITY=1` sorts a ticket before every normal one (it never interrupts the holder).
-- **Load threshold:** the lock is taken only while the 1-minute load average is below `DOCKER_HEAVY_MAXLOAD` (default 6).
-- **Stale holders:** `run` records its own PID; a bare `acquire` records `DOCKER_HEAVY_LOCK_PID` (or `-`). The first
-  waiter removes a holder whose PID is gone, or a `-` holder older than `DOCKER_HEAVY_LOCK_MAXAGE` seconds (default
+- **Slots (since 1.10.0):** up to `DOCKER_HEAVY_SLOTS` jobs (default 4) run at once. Slot 1 is `DOCKER_HEAVY_LOCK_DIR`,
+  slot N is `DOCKER_HEAVY_LOCK_DIR.N`.
+- **Resource gates (since 1.10.0):** a slot is handed out only while the 1-minute load average is below
+  `DOCKER_HEAVY_MAXLOAD` (default 10) and `MemAvailable` is at least `DOCKER_HEAVY_MIN_MEM_MB` (default 6144; `0`
+  disables the memory gate, which is also skipped where `/proc/meminfo` does not exist), so extra slots fill only when
+  the machine has room.
+- **Groups (since 1.10.0):** at most one job per group holds a slot; different groups share the slots. Jobs of one
+  repository share its test database, coverage files and stacks, so they must never overlap. The group is
+  `DOCKER_HEAVY_GROUP`; else the git repository of the current directory (the main repository's directory name, so its
+  worktrees agree), unless that name is listed in `DOCKER_HEAVY_IGNORE_REPOS`; else the label prefix before `:` (or its
+  first word).
+- **FIFO:** every waiter writes a ticket (`<epoch-ns>-<pid>`: label, group) in the queue directory; the oldest live
+  ticket goes first, so a job that releases and re-acquires at once queues behind everyone already waiting. A later
+  ticket may pass tickets whose group already holds a slot (they cannot start anyway), and may take slots 2..N past a
+  ticket without a group line (an older single-slot copy, which only ever takes slot 1). Tickets of dead waiters are
+  pruned. `DOCKER_HEAVY_PRIORITY=1` sorts a ticket before every normal one (it never interrupts a holder).
+- **Stale holders:** `run` records its own PID; a bare `acquire` records `DOCKER_HEAVY_LOCK_PID` (or `-`). A waiter whose
+  turn it is removes a holder whose PID is gone, or a `-` holder older than `DOCKER_HEAVY_LOCK_MAXAGE` seconds (default
   3600), and logs it to `DOCKER_HEAVY_STALE_LOG`.
+- **Release:** `release [<pid>]` frees the slot held by `<pid>` (default: the caller's parent process; `run` passes its
+  own PID); without one, the oldest slot held without a PID (a bare `acquire`).
+- **Status:** each held slot with its group, label, start time and PID (`stale` when it would be removed), the queue
+  with each ticket's group, and the load and memory gates.
 - **Reentrancy:** `run` sets `DOCKER_HEAVY_LOCK_HELD=1` for the command; nested `acquire` / `release` / `run` are no-ops.
 
 | Environment | Default | Meaning |
 | --- | --- | --- |
-| `DOCKER_HEAVY_LOCK_DIR` | `/tmp/docker-heavy.lock` | Lock directory (`owner`: label, UTC time, PID, epoch) |
-| `DOCKER_HEAVY_QUEUE_DIR` | `/tmp/docker-heavy.queue` | Queue of waiting tickets |
+| `DOCKER_HEAVY_LOCK_DIR` | `/tmp/docker-heavy.lock` | Slot 1 directory, slot N is `<dir>.N` (`owner`: label, UTC time, PID, epoch, group) |
+| `DOCKER_HEAVY_QUEUE_DIR` | `/tmp/docker-heavy.queue` | Queue of waiting tickets (label, group) |
 | `DOCKER_HEAVY_STALE_LOG` | `/tmp/docker-heavy.stale.log` | Removed stale locks |
-| `DOCKER_HEAVY_MAXLOAD` | `MAXLOAD` or `6` | Start only below this load average |
+| `DOCKER_HEAVY_SLOTS` | `4` | Heavy jobs that may run at once (`1`: the single lock of 1.9) |
+| `DOCKER_HEAVY_MAXLOAD` | `MAXLOAD` or `10` | Hand out a slot only below this load average |
+| `DOCKER_HEAVY_MIN_MEM_MB` | `6144` | Hand out a slot only with this much `MemAvailable` (MB; `0` disables) |
+| `DOCKER_HEAVY_GROUP` | git repository, else label prefix | Group of the job; one job per group holds a slot |
+| `DOCKER_HEAVY_IGNORE_REPOS` | — | Space-separated repository names never used as a group (e.g. a workspace that runs no stack) |
 | `DOCKER_HEAVY_POLL` | `POLL` or `10` | Seconds between checks while waiting |
 | `DOCKER_HEAVY_LOCK_MAXAGE` | `3600` | Age after which a holder without PID is stale |
 
-The directory and variable names are those of the nowo-tech workspace helper `docker-heavy-lock.sh`, so both share one
-lock on the same machine. With the lock in `/tmp`, a reboot clears stale state. Keep each heavy job at **two processes
+The directories, file formats and variable names are those of the nowo-tech workspace helper `docker-heavy-lock.sh`,
+so both share one set of slots on the same machine. A holder written by an older copy (no group line) is grouped by its
+PID's working directory, else by its label. With the lock in `/tmp`, a reboot clears stale state. Keep each heavy job at **two processes
 at most** (`paratest --processes=2 --max-batch-size=5`, Playwright `--workers=2`; `HEAVY_PROCESSES` in `heavy.mk`).
 Exit codes: `0`; `run` exits with the command's code; `1` acquire failed; `2` usage error.
 
@@ -1066,7 +1087,7 @@ test-coverage:
 | Snippet | Target | What it does | Variables |
 | --- | --- | --- | --- |
 | `heavy.mk` | `heavy-<target>` | `$(MAKE) <target>` through `heavy-lock run "<label>: <target>[ <T>]"`; nested `heavy-*` calls go straight through. Never dry-run it with `make -n` (make still runs the recursive line). | `HEAVY_LOCK` (empty: no lock), `HEAVY_SKIP` (default `$(CI)`: no lock on CI), `HEAVY_LOCK_LABEL` (directory name) |
-| `heavy.mk` | `heavy-status` | Holder, queue and load | — |
+| `heavy.mk` | `heavy-status` | Slots with their groups, queue, load and memory gates | — |
 | `heavy.mk` | — | `$(MEMORY_GUARD)` and `$(HEAVY_PROCESSES)` (2) for recipes | `MEMGUARD_*` (environment) |
 | `quiet.mk` | `quiet T=<target>` | Any target through `quiet-run` (full log in `$(QUIET_LOG_DIR)/<T>.log`); `make heavy-quiet T=release-check` adds the lock | `QUIET_LOG_DIR` (`var/quiet`), `QUIET_JUNIT_CMD`, `QUIET_JUNIT_DIRS` |
 | `quiet.mk` | `test-changed` | PHPUnit (no coverage) on `changed-tests`, then only the failures (`junit-failures`) | `TEST_CHANGED_PHPUNIT` (`--log-junit <file>` and the tests are appended), `BASE` |

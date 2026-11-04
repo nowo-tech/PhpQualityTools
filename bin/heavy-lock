@@ -1,36 +1,50 @@
 #!/usr/bin/env sh
 # nowo-tech/php-quality-tools — heavy-lock
 #
-# Machine-wide FIFO lock for heavy jobs (test suites with coverage, e2e, release checks, Docker builds) on a shared
-# developer machine: one heavy job at a time, started only while the 1-minute load average is below a threshold.
-# Every waiter takes a ticket; only the oldest live ticket may take the lock, so a job that releases and immediately
-# re-acquires queues behind everyone already waiting. POSIX sh. Run with --help for the commands and variables.
+# Machine-wide lock for heavy jobs (test suites with coverage, e2e, release checks, Docker builds) on a shared developer
+# machine. Up to DOCKER_HEAVY_SLOTS jobs run at once, at most one per group (the jobs of one repository share its test
+# database, coverage files and stacks), and a slot is handed out only while the 1-minute load average is low and enough
+# memory is available. Every waiter takes a ticket; the oldest live ticket goes first, so a job that releases and
+# immediately re-acquires queues behind everyone already waiting. POSIX sh. Run with --help for the commands and variables.
 #
-# The lock and queue directories (and the variable names) are those of the nowo-tech workspace helper
-# docker-heavy-lock.sh, so both helpers share one lock on the same machine.
+# The lock and queue directories, the file formats and the variable names are those of the nowo-tech workspace helper
+# docker-heavy-lock.sh, so both helpers share one set of slots on the same machine:
+#   - slot 1 is $DOCKER_HEAVY_LOCK_DIR, slot N is $DOCKER_HEAVY_LOCK_DIR.N;
+#   - <slot>/owner: label, acquired-at (UTC), holder PID ("-" when unknown), acquired-at epoch, group;
+#   - <queue>/[0-]<epoch-ns>-<pid>: label, group.
+# A holder without a group line (written by an older copy) is grouped by its PID's working directory, else by its label.
+# A ticket without a group line belongs to an older single-slot copy, which only ever takes slot 1: later tickets may
+# take slots 2..N past it.
 set -u
 
 usage() {
   cat <<'USAGE'
-Usage: heavy-lock acquire <owner>          wait for the FIFO turn, a free lock and load < max, then take the lock
-       heavy-lock release                  release the lock
-       heavy-lock status                   holder, queue and load average
+Usage: heavy-lock acquire <owner>          wait for the turn, a free slot for the group and the load / memory gates
+       heavy-lock release [<pid>]          release the slot held by <pid> (default: the parent process)
+       heavy-lock status                   slots, queue, load average and available memory
        heavy-lock run <owner> <cmd> [...]  acquire, run <cmd>, always release; exit code of <cmd>
 
-<owner> is a free-text label shown by status (e.g. "my-app: release-check").
+<owner> is a free-text label shown by status (e.g. "my-app: release-check"). Its prefix before ":" is the group of last
+resort.
 
 Environment:
-  DOCKER_HEAVY_LOCK_DIR     lock directory (default: /tmp/docker-heavy.lock)
+  DOCKER_HEAVY_LOCK_DIR     slot 1 directory; slot N is <dir>.N (default: /tmp/docker-heavy.lock)
   DOCKER_HEAVY_QUEUE_DIR    queue directory (default: /tmp/docker-heavy.queue)
   DOCKER_HEAVY_STALE_LOG    log of removed stale locks (default: /tmp/docker-heavy.stale.log)
-  DOCKER_HEAVY_MAXLOAD      start only below this 1-minute load average (default: MAXLOAD or 6)
+  DOCKER_HEAVY_SLOTS        heavy jobs that may run at once (default: 4)
+  DOCKER_HEAVY_MAXLOAD      hand out a slot only below this 1-minute load average (default: MAXLOAD or 10)
+  DOCKER_HEAVY_MIN_MEM_MB   hand out a slot only with this much MemAvailable, in MB (default: 6144; 0 disables)
+  DOCKER_HEAVY_GROUP        group of this job (default: the git repository of the current directory, else the label
+                            prefix before ":"); at most one job per group holds a slot
+  DOCKER_HEAVY_IGNORE_REPOS space-separated repository names never used as a group (e.g. a workspace that runs no stack)
   DOCKER_HEAVY_POLL         seconds between checks while waiting (default: POLL or 10)
   DOCKER_HEAVY_LOCK_MAXAGE  seconds after which a holder without a known PID is stale (default: 3600)
-  DOCKER_HEAVY_PRIORITY     1: queue before every normal ticket (never interrupts the current holder)
+  DOCKER_HEAVY_PRIORITY     1: queue before every normal ticket (never interrupts a holder)
   DOCKER_HEAVY_LOCK_PID     long-lived PID recorded by a bare acquire (run records its own)
   DOCKER_HEAVY_LOCK_HELD    set by run for <cmd>: nested acquire / release / run are no-ops
 
-A holder whose PID is gone (killed job, closed session) is removed by the first waiter and logged.
+A holder whose PID is gone (killed job, closed session) is removed by a waiter and logged. Without a slot held by
+<pid>, release frees the oldest slot held without a PID (a bare acquire).
 Exit codes: 0 success (run: the exit code of <cmd>), 1 acquire failed, 2 usage error.
 USAGE
 }
@@ -38,13 +52,23 @@ USAGE
 L=${DOCKER_HEAVY_LOCK_DIR:-/tmp/docker-heavy.lock}
 Q=${DOCKER_HEAVY_QUEUE_DIR:-/tmp/docker-heavy.queue}
 STALE_LOG=${DOCKER_HEAVY_STALE_LOG:-/tmp/docker-heavy.stale.log}
-MAXLOAD=${DOCKER_HEAVY_MAXLOAD:-${MAXLOAD:-6}}
+SLOTS=${DOCKER_HEAVY_SLOTS:-4}
+MAXLOAD=${DOCKER_HEAVY_MAXLOAD:-${MAXLOAD:-10}}
+MINMEM_MB=${DOCKER_HEAVY_MIN_MEM_MB:-6144}
+IGNORE_REPOS=${DOCKER_HEAVY_IGNORE_REPOS:-}
 MAXAGE=${DOCKER_HEAVY_LOCK_MAXAGE:-3600}
 POLL=${DOCKER_HEAVY_POLL:-${POLL:-10}}
 SELF=$0
 
 case "${1:-}" in
   -h|--help) usage; exit 0 ;;
+esac
+
+case "$SLOTS" in
+  ''|*[!0-9]*|0) echo "ERROR: DOCKER_HEAVY_SLOTS must be a positive integer (got \"$SLOTS\")." >&2; exit 2 ;;
+esac
+case "$MINMEM_MB" in
+  ''|*[!0-9]*) echo "ERROR: DOCKER_HEAVY_MIN_MEM_MB must be a whole number of MB (got \"$MINMEM_MB\")." >&2; exit 2 ;;
 esac
 
 if [ -n "${DOCKER_HEAVY_LOCK_HELD:-}" ]; then
@@ -68,6 +92,61 @@ load1() {
   cut -d' ' -f1 /proc/loadavg 2>/dev/null || uptime | sed -E 's/.*load averages?: *([0-9.]+).*/\1/'
 }
 
+# MemAvailable in MB; empty when the system does not expose it (the memory gate is then skipped).
+mem_available_mb() {
+  awk '/^MemAvailable:/{print int($2/1024)}' /proc/meminfo 2>/dev/null
+}
+
+# True when the load and memory gates let a slot be handed out.
+gates_open() {
+  load=$(load1)
+  mem=$(mem_available_mb)
+  awk "BEGIN{exit !(${load:-0} < $MAXLOAD)}" || return 1
+  [ -z "$mem" ] || [ "$mem" -ge "$MINMEM_MB" ]
+}
+
+slot_path() {
+  if [ "$1" -eq 1 ]; then echo "$L"; else echo "$L.$1"; fi
+}
+
+# Group of directory $1: the main repository's directory name (git common dir), so worktrees and clones of one
+# repository agree. Fails outside a repository and for the names in DOCKER_HEAVY_IGNORE_REPOS.
+dir_group() {
+  c=$(cd "$1" 2>/dev/null && c=$(git rev-parse --git-common-dir 2>/dev/null) && cd "$c" 2>/dev/null && pwd -P) || return 1
+  case "$c" in */.git) c=${c%/.git} ;; esac
+  g=$(basename "$c")
+  for i in $IGNORE_REPOS; do
+    [ "$i" = "$g" ] && return 1
+  done
+  echo "$g"
+}
+
+# Label prefix before ":" (or its first word).
+label_group() {
+  g=${1%%:*}
+  echo "${g%% *}"
+}
+
+# Group of the holder of slot directory $1: line 5; else the holder PID's working directory; else its label prefix.
+holder_group() {
+  hg=$(sed -n 5p "$1/owner" 2>/dev/null)
+  if [ -n "$hg" ]; then echo "$hg"; return 0; fi
+  hp=$(sed -n 3p "$1/owner" 2>/dev/null)
+  if [ -n "$hp" ] && [ "$hp" != "-" ] && hg=$(dir_group "/proc/$hp/cwd"); then echo "$hg"; return 0; fi
+  label_group "$(sed -n 1p "$1/owner" 2>/dev/null)"
+}
+
+# True when a slot is held by group $1.
+group_busy() {
+  b=1
+  while [ "$b" -le "$SLOTS" ]; do
+    bs=$(slot_path "$b")
+    if [ -d "$bs" ] && [ "$(holder_group "$bs")" = "$1" ]; then return 0; fi
+    b=$((b + 1))
+  done
+  return 1
+}
+
 prune_stale() {
   for t in "$Q"/*; do
     [ -e "$t" ] || continue
@@ -76,21 +155,39 @@ prune_stale() {
   done
 }
 
-# Prints a reason and returns 0 when the current holder is stale; returns 1 otherwise (or when there is no holder).
+# Prints a reason and returns 0 when the holder of slot directory $1 is stale; returns 1 otherwise (or when it is free).
 holder_stale() {
-  [ -d "$L" ] || return 1
-  hpid=$(sed -n 3p "$L/owner" 2>/dev/null)
-  since=$(sed -n 4p "$L/owner" 2>/dev/null)
+  [ -d "$1" ] || return 1
+  hpid=$(sed -n 3p "$1/owner" 2>/dev/null)
+  since=$(sed -n 4p "$1/owner" 2>/dev/null)
   if [ -n "$hpid" ] && [ "$hpid" != "-" ]; then
     kill -0 "$hpid" 2>/dev/null && return 1
     echo "pid $hpid gone"
     return 0
   fi
-  [ -n "$since" ] || since=$(stat -c %Y "$L" 2>/dev/null) || return 1
+  [ -n "$since" ] || since=$(stat -c %Y "$1" 2>/dev/null) || return 1
   now=$(date +%s)
   [ $((now - since)) -ge "$MAXAGE" ] || return 1
   echo "held $(( (now - since) / 60 )) min without a live PID"
   return 0
+}
+
+# Prints the first slot number this ticket may take; fails while it has to wait for older tickets. The first ticket
+# may take any slot. A later ticket may pass tickets whose group already holds a slot (they cannot start anyway), and
+# may take slots 2..N past tickets without a group line (older single-slot copies, which only ever take slot 1).
+first_slot() {
+  from=
+  for t in $(ls -1 "$Q" 2>/dev/null | sort); do
+    if [ "$Q/$t" = "$ticket" ]; then
+      echo "${from:-1}"
+      return 0
+    fi
+    tg=$(sed -n 2p "$Q/$t" 2>/dev/null)
+    if [ -z "$tg" ]; then from=2; continue; fi
+    group_busy "$tg" && continue
+    return 1
+  done
+  return 1
 }
 
 case "${1:-}" in
@@ -99,7 +196,7 @@ case "${1:-}" in
     owner=$2
     shift 2
     DOCKER_HEAVY_LOCK_PID=$$ sh "$SELF" acquire "$owner" || exit 1
-    trap 'sh "$SELF" release >/dev/null' EXIT
+    trap 'sh "$SELF" release $$ >/dev/null' EXIT
     trap 'exit 130' INT
     trap 'exit 143' TERM
     DOCKER_HEAVY_LOCK_HELD=1 "$@"
@@ -107,48 +204,77 @@ case "${1:-}" in
   acquire)
     [ -n "${2:-}" ] || { echo "ERROR: acquire needs <owner> (see --help)." >&2; exit 2; }
     owner=$2
+    group=${DOCKER_HEAVY_GROUP:-}
+    [ -n "$group" ] || group=$(dir_group "$PWD") || group=$(label_group "$owner")
     mkdir -p "$Q" || exit 1
     ticket="$Q/${DOCKER_HEAVY_PRIORITY:+0-}$(now_ns)-$$"
-    printf '%s\n' "$owner" > "$ticket" || exit 1
+    printf '%s\n%s\n' "$owner" "$group" > "$ticket" || exit 1
     trap 'rm -f "$ticket"' EXIT
     trap 'exit 130' INT
     trap 'exit 143' TERM
     while :; do
       prune_stale
-      first=$(ls -1 "$Q" 2>/dev/null | sort | head -n 1)
-      if [ "$Q/$first" = "$ticket" ]; then
-        # Only the first waiter clears a stale holder, right before trying to take the lock itself.
-        if reason=$(holder_stale); then
-          old=$(sed -n 1p "$L/owner" 2>/dev/null)
-          rm -rf "$L"
-          msg="$(date -u +%FT%TZ) stale lock of \"$old\" removed by \"$owner\" ($reason)"
-          echo "$msg" >&2
-          echo "$msg" >> "$STALE_LOG" 2>/dev/null
-        fi
-        load=$(load1)
-        if awk "BEGIN{exit !(${load:-0} < $MAXLOAD)}" && mkdir "$L" 2>/dev/null; then
-          printf '%s\n%s\n%s\n%s\n' "$owner" "$(date -u +%FT%TZ)" "${DOCKER_HEAVY_LOCK_PID:--}" "$(date +%s)" > "$L/owner"
-          echo "acquired by $owner"
-          exit 0
-        fi
+      if from=$(first_slot) && ! group_busy "$group" && gates_open; then
+        n=$from
+        while [ "$n" -le "$SLOTS" ]; do
+          s=$(slot_path "$n")
+          # Only a waiter whose turn it is clears a stale holder, right before trying to take the slot itself.
+          if reason=$(holder_stale "$s"); then
+            old=$(sed -n 1p "$s/owner" 2>/dev/null)
+            rm -rf "$s"
+            msg="$(date -u +%FT%TZ) stale lock of \"$old\" (slot $n) removed by \"$owner\" ($reason)"
+            echo "$msg" >&2
+            echo "$msg" >> "$STALE_LOG" 2>/dev/null
+          fi
+          if mkdir "$s" 2>/dev/null; then
+            printf '%s\n%s\n%s\n%s\n%s\n' "$owner" "$(date -u +%FT%TZ)" "${DOCKER_HEAVY_LOCK_PID:--}" "$(date +%s)" "$group" > "$s/owner"
+            echo "acquired by $owner (slot $n/$SLOTS, group $group)"
+            exit 0
+          fi
+          n=$((n + 1))
+        done
       fi
       sleep "$POLL"
     done ;;
-  release) rm -rf "$L"; echo released ;;
+  release)
+    want=${2:-$PPID}
+    n=1
+    while [ "$n" -le "$SLOTS" ]; do
+      s=$(slot_path "$n")
+      if [ "$(sed -n 3p "$s/owner" 2>/dev/null)" = "$want" ]; then rm -rf "$s"; echo "released slot $n"; exit 0; fi
+      n=$((n + 1))
+    done
+    # No slot held by that PID: the oldest slot held without a PID (a bare acquire).
+    oldest=
+    n=1
+    while [ "$n" -le "$SLOTS" ]; do
+      s=$(slot_path "$n")
+      if [ -d "$s" ] && [ "$(sed -n 3p "$s/owner" 2>/dev/null)" = "-" ]; then
+        if [ -z "$oldest" ] || [ "$(sed -n 4p "$s/owner" 2>/dev/null)" -lt "$(sed -n 4p "$oldest/owner" 2>/dev/null)" ] 2>/dev/null; then oldest=$s; fi
+      fi
+      n=$((n + 1))
+    done
+    if [ -n "$oldest" ]; then rm -rf "$oldest"; echo "released $(basename "$oldest")"; else echo "nothing to release"; fi ;;
   status)
-    if [ -d "$L" ]; then
-      echo "held:"
-      sed -n 1,2p "$L/owner"
-      pid=$(sed -n 3p "$L/owner" 2>/dev/null)
-      if reason=$(holder_stale); then echo "pid ${pid:--} (stale: $reason)"; else echo "pid ${pid:--}"; fi
-    else
-      echo free
-    fi
+    held=0
+    n=1
+    while [ "$n" -le "$SLOTS" ]; do
+      s=$(slot_path "$n")
+      if [ -d "$s" ]; then
+        held=$((held + 1))
+        pid=$(sed -n 3p "$s/owner" 2>/dev/null)
+        if reason=$(holder_stale "$s"); then st=" (stale: $reason)"; else st=; fi
+        echo "held (slot $n/$SLOTS, group $(holder_group "$s")): $(sed -n 1p "$s/owner" 2>/dev/null) since $(sed -n 2p "$s/owner" 2>/dev/null) pid ${pid:--}$st"
+      fi
+      n=$((n + 1))
+    done
+    [ "$held" -gt 0 ] || echo "free (0/$SLOTS slots held)"
     prune_stale 2>/dev/null
     if [ -d "$Q" ] && [ -n "$(ls -A "$Q" 2>/dev/null)" ]; then
       echo "queue (oldest first):"
-      for t in $(ls -1 "$Q" | sort); do echo "  $(cat "$Q/$t" 2>/dev/null) [$t]"; done
+      for t in $(ls -1 "$Q" | sort); do echo "  $(sed -n 1p "$Q/$t" 2>/dev/null) [group $(sed -n 2p "$Q/$t" 2>/dev/null)] [$t]"; done
     fi
-    echo "load: $(cut -d' ' -f1-3 /proc/loadavg 2>/dev/null || load1)" ;;
-  *) echo "ERROR: expected acquire <owner> | release | status | run <owner> <cmd...> (see --help)." >&2; exit 2 ;;
+    mem=$(mem_available_mb)
+    echo "load: $(cut -d' ' -f1-3 /proc/loadavg 2>/dev/null || load1) (max $MAXLOAD), mem available: ${mem:-unknown} MB (min $MINMEM_MB)" ;;
+  *) echo "ERROR: expected acquire <owner> | release [<pid>] | status | run <owner> <cmd...> (see --help)." >&2; exit 2 ;;
 esac
