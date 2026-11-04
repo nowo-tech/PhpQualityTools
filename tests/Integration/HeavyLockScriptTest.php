@@ -67,7 +67,9 @@ final class HeavyLockScriptTest extends TestCase
         $holder = $this->start([$this->reference(), 'run', 'beacon: release-check', 'sleep', '4'], ['DOCKER_HEAVY_GROUP' => 'beacon']);
         $this->waitFor(fn (): bool => is_file($this->dir . '/heavy.lock/owner') && 6 === \count(file($this->dir . '/heavy.lock/owner') ?: []));
         $waiter = $this->start(['sh', self::ROOT . '/bin/heavy-lock', 'acquire', 'pqt: beacon'], ['DOCKER_HEAVY_GROUP' => 'beacon']);
-        $this->waitFor(fn (): bool => [] !== glob($this->dir . '/heavy.queue/*'));
+        // Generous ceiling: a loaded CI runner once took over 10 s to start the waiter's holder.
+        $this->waitFor(fn (): bool => [] !== glob($this->dir . '/heavy.queue/*'), 60.0, fn (): string => 'waiter running: ' . var_export($waiter->isRunning(), true)
+            . "\nwaiter out: " . $waiter->getOutput() . $waiter->getErrorOutput() . "\nstatus:\n" . $this->pqt(['status'])->getOutput());
         $other = $this->pqt(['acquire', 'pqt: other'], ['DOCKER_HEAVY_GROUP' => 'other']);
         self::assertSame("acquired by pqt: other (slot 2/4, group other)\n", $other->getOutput(), $other->getErrorOutput());
 
@@ -223,7 +225,7 @@ final class HeavyLockScriptTest extends TestCase
         // The job is killed: run notices, removes its legacy directory and exits; the next job of the group starts.
         $run = $this->start(['sh', self::ROOT . '/bin/heavy-lock', 'run', 'K: victim', ...$job], $env);
         $this->waitFor(fn (): bool => is_file($this->dir . '/job.pid') && '' !== trim((string) file_get_contents($this->dir . '/job.pid')));
-        $this->exec(['kill', '-9', trim((string) file_get_contents($this->dir . '/job.pid'))]);
+        $this->kill9((string) file_get_contents($this->dir . '/job.pid'));
         $run->wait();
         self::assertSame(137, $run->getExitCode());
         self::assertDirectoryDoesNotExist($this->dir . '/heavy.lock');
@@ -247,9 +249,11 @@ final class HeavyLockScriptTest extends TestCase
         $started = microtime(true);
         $process = $this->pqt(['acquire', 'K: after'], [...$env, 'DOCKER_HEAVY_LOCK_PID' => (string) getmypid()]);
         self::assertSame("acquired by K: after (slot 1/4, group K)\n", $process->getOutput());
-        self::assertMatchesRegularExpression('#stale lock of "K: victim" \(slot 1\) removed by "K: after" \(pid \d+ gone\)#', $process->getErrorOutput());
+        // Whoever reached the slot first cleared the victim's directory: this job, or the killed waiter's holder before it
+        // noticed its caller was gone (it then gives the slot up at once). Both log to the stale log.
+        self::assertMatchesRegularExpression('#stale lock of "K: victim" \(slot 1\) removed by "K: (after|killed waiter)" \(pid \d+ gone\)#', (string) @file_get_contents($this->dir . '/heavy.stale.log'));
         self::assertLessThan(4.0, microtime(true) - $started);
-        $this->exec(['kill', '-9', trim((string) file_get_contents($this->dir . '/job.pid'))]);
+        $this->kill9((string) file_get_contents($this->dir . '/job.pid'));
         $this->pqt(['release', (string) getmypid()]);
         $this->waitFor(fn (): bool => [] === glob($this->dir . '/heavy.queue/*'));
     }
@@ -320,6 +324,60 @@ final class HeavyLockScriptTest extends TestCase
         return (string) preg_replace('#^load: .*\n#m', '', $status);
     }
 
+    public function testABareAcquireKeepsItsSlotAfterReportingIt(): void
+    {
+        // The hand-over is acknowledged: an acquire that printed "acquired" always leaves its slot held.
+        for ($i = 1; $i <= 20; ++$i) {
+            $process = $this->pqt(['acquire', 'A: ' . $i], ['DOCKER_HEAVY_SLOTS' => '1', 'DOCKER_HEAVY_GROUP' => 'A']);
+            self::assertSame("acquired by A: {$i} (slot 1/1, group A)\n", $process->getOutput(), $process->getErrorOutput());
+            usleep(300_000);
+            self::assertDirectoryExists($this->dir . '/heavy.lock', 'cycle ' . $i);
+            self::assertNotSame(0, $this->exec(['flock', '-n', $this->dir . '/heavy.group/slot.1.lock', 'true'])->getExitCode(), 'slot 1 unlocked in cycle ' . $i);
+            $this->exec(['sh', '-c', 'sh "$0" release; true', self::ROOT . '/bin/heavy-lock']);
+        }
+        self::assertSame([], glob($this->dir . '/heavy.group/.acquire.*') ?: []);
+    }
+
+    public function testLockDirectoriesArePrivateAndALiveHolderSurvivesAnUnlinkedLockFile(): void
+    {
+        $process = $this->exec(['sh', '-c', 'umask 000 && sh "$0" run "U: x" true', self::ROOT . '/bin/heavy-lock']);
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertSame(['0700', '0700'], [substr(\sprintf('%o', fileperms($this->dir . '/heavy.group')), -4), substr(\sprintf('%o', fileperms($this->dir . '/heavy.queue')), -4)]);
+        chmod($this->dir . '/heavy.group', 0o777);
+        $process = $this->pqt(['acquire', 'U: y']);
+        self::assertSame(1, $process->getExitCode());
+        self::assertStringContainsString('heavy.group is writable by other users; refusing to use it', $process->getErrorOutput());
+        chmod($this->dir . '/heavy.group', 0o700);
+
+        // A tmp cleaner unlinks the slot lock file while A runs: B must not take A's slot.
+        $a = $this->start(['sh', self::ROOT . '/bin/heavy-lock', 'run', 'A: job', 'sleep', '4'], ['DOCKER_HEAVY_GROUP' => 'A']);
+        $this->waitFor(fn (): bool => is_file($this->dir . '/heavy.lock/owner') && 6 === \count(file($this->dir . '/heavy.lock/owner') ?: []));
+        unlink($this->dir . '/heavy.group/slot.1.lock');
+        $process = $this->pqt(['run', 'B: job', 'true'], ['DOCKER_HEAVY_GROUP' => 'B']);
+        self::assertSame("acquired by B: job (slot 2/4, group B)\n", $process->getOutput(), $process->getErrorOutput());
+        self::assertTrue($a->isRunning());
+        self::assertSame('A: job', explode("\n", (string) file_get_contents($this->dir . '/heavy.lock/owner'))[0]);
+        $a->wait();
+        self::assertFileDoesNotExist($this->dir . '/heavy.stale.log');
+    }
+
+    public function testTheBareHolderKeepsNoneOfTheCallersDescriptors(): void
+    {
+        if (!$this->has('bash') && 0 !== $this->exec(['sh', '-c', 'eval "exec 98>&-"'])->getExitCode()) {
+            self::markTestSkipped('needs bash, or a sh that can close descriptors above 9');
+        }
+        // fd 12 is the write end of the pipe to cat: cat ends only once every holder of it is gone.
+        $shell = $this->has('bash') ? 'bash' : 'sh';
+        $started = microtime(true);
+        $process = $this->exec(
+            ['sh', '-c', '"$0" -c "$INNER" "$1" | cat', $shell, self::ROOT . '/bin/heavy-lock'],
+            ['INNER' => 'exec 12>&1; sh "$0" acquire "F: c" >/dev/null 2>&1; echo returned']
+        );
+        self::assertSame("returned\n", $process->getOutput(), $process->getErrorOutput());
+        self::assertLessThan(5.0, microtime(true) - $started);
+        $this->exec(['sh', '-c', 'sh "$0" release; true', self::ROOT . '/bin/heavy-lock']);
+    }
+
     private function reference(): string
     {
         $reference = getenv('HEAVY_LOCK_REFERENCE');
@@ -369,13 +427,23 @@ final class HeavyLockScriptTest extends TestCase
         return $process;
     }
 
-    private function waitFor(callable $condition): void
+    /**
+     * @param (callable(): string)|null $diagnostics what to show when the condition is not reached
+     */
+    private function waitFor(callable $condition, float $seconds = 10.0, ?callable $diagnostics = null): void
     {
-        for ($i = 0; $i < 200 && !$condition(); ++$i) {
+        $deadline = microtime(true) + $seconds;
+        while (!$condition() && microtime(true) < $deadline) {
             usleep(50_000);
             clearstatcache();
         }
-        self::assertTrue($condition(), 'condition not reached');
+        self::assertTrue($condition(), 'condition not reached in ' . $seconds . ' s' . (null === $diagnostics ? '' : "\n" . $diagnostics()));
+    }
+
+    private function kill9(string $pid): void
+    {
+        // The shell builtin: slim images have no kill binary.
+        $this->exec(['sh', '-c', 'kill -9 "$0"', trim($pid)]);
     }
 
     private function deadPid(): int

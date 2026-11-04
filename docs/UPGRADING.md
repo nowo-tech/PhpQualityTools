@@ -77,6 +77,8 @@ composer update nowo-tech/php-quality-tools
 - **Bare `acquire`:** it now leaves a background holder process that keeps the slot until `release`, until the process in
   `DOCKER_HEAVY_LOCK_PID` exits, or for `DOCKER_HEAVY_LOCK_MAXAGE` seconds (default 3600). Prefer
   `heavy-lock run <owner> <cmd>`, which releases however the command ends; `release` of a `run` job is a no-op.
+- **Private lock directories:** `DOCKER_HEAVY_QUEUE_DIR` and `DOCKER_HEAVY_GROUP_DIR` are created `0700`, and an
+  existing one that other users can write to is refused (`chmod go-w` it).
 - **Stricter input:** invalid numbers in the `DOCKER_HEAVY_*` variables now fall back to their defaults with a warning
   (`DOCKER_HEAVY_SLOTS` and `DOCKER_HEAVY_MIN_MEM_MB` used to exit 2). `release <pid>` with a PID that holds nothing no
   longer frees another bare `acquire`'s slot, and `release` needs a PID above 1. Lock directories that hold more than

@@ -964,7 +964,9 @@ that message.
 - **`run`** waits, runs the command holding the locks and releases them when the command ends; its exit code is the
   command's. **`acquire`** (bare, for scripts that cannot wrap a command) starts a background holder that keeps the
   locks until `release`, until the process named by `DOCKER_HEAVY_LOCK_PID` exits, or for `DOCKER_HEAVY_LOCK_MAXAGE`
-  seconds (default 3600) without either. Prefer `run`.
+  seconds (default 3600) without either. The holder keeps the slot only once `acquire` has printed `acquired by …` and
+  acknowledged it; if `acquire` dies or is interrupted before that, the holder gives the slot up at once. The holder
+  keeps none of the caller's descriptors (on dash, bash closes those above 9 when it is installed). Prefer `run`.
 - **`release [<pid>]`** stops the bare `acquire` holder watching `<pid>` (default: the caller's parent process), else,
   without an argument, the oldest bare `acquire` without a watched PID. An explicit PID that holds nothing frees
   nothing. A `run` job is released by ending; `release` only says so.
@@ -979,7 +981,9 @@ that message.
   epoch lines are validated and never reach shell or awk arithmetic (a malformed older holder is judged by its age only;
   a PID of another user counts as alive). Only the current user's legacy directories are removed, and only when they
   hold nothing but their `owner` file; other files of the queue directory are ignored. A queue or lock-file directory
-  that is a symlink or belongs to another user is refused, lock files that are symlinks or another user's are never
+  that is a symlink, belongs to another user or is writable by other users is refused (new ones are created `0700`),
+  a live holder keeps its slot even if a `/tmp` cleaner unlinked the slot's lock file, lock files that are symlinks or
+  another user's are never
   opened, and the stale log is never written through a symlink. A non-numeric `DOCKER_HEAVY_SLOTS`,
   `DOCKER_HEAVY_MAXLOAD`, `DOCKER_HEAVY_MIN_MEM_MB`, `DOCKER_HEAVY_POLL` (must be above 0) or `DOCKER_HEAVY_LOCK_MAXAGE`
   falls back to its default with a warning.

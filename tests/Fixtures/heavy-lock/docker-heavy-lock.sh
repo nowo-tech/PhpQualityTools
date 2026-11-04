@@ -204,7 +204,12 @@ need_own_dir() {
     warn "$1 is a symlink or belongs to another user; refusing to use it (set $2)"
     exit 1
   fi
-  mkdir -p "$1" 2>/dev/null && owned_dir "$1" || { warn "cannot create $1"; exit 1; }
+  [ -d "$1" ] || (umask 077 && mkdir -p "$1") 2>/dev/null
+  owned_dir "$1" || { warn "cannot create $1"; exit 1; }
+  # Another account that can write here could unlink or replace the lock files or tickets.
+  case "$(ls -ld "$1" 2>/dev/null)" in
+    ?????w*|????????w*) warn "$1 is writable by other users; refusing to use it (chmod go-w it, or set $2)"; exit 1 ;;
+  esac
 }
 
 slot_path() {
@@ -358,7 +363,9 @@ clear_legacy() {
   snap=$(cat "$1/owner" 2>/dev/null)
   sp=$(printf '%s\n' "$snap" | sed -n 3p)
   if [ -n "$(printf '%s\n' "$snap" | sed -n 6p)" ]; then
-    if valid_pid "$sp" && ! alive "$sp"; then reason="pid $sp gone"; else reason="slot $2 not locked"; fi
+    # Its holder would hold this kernel lock, unless the lock file was unlinked and re-created meanwhile (a /tmp
+    # cleaner, rm): a live PID still owns the slot.
+    if valid_pid "$sp"; then alive "$sp" && return 1; reason="pid $sp gone"; else reason="slot $2 not locked"; fi
   else
     reason=$(judge "$1" "$sp" "$(printf '%s\n' "$snap" | sed -n 4p)") || return 1
   fi
@@ -465,20 +472,28 @@ case "${1:-}" in
     watch=${DOCKER_HEAVY_LOCK_PID:-}
     valid_pid "$watch" || watch=-
     st="$GD/.acquire.$$"
-    rm -f "$st" "$st.err" "$st.fail"
-    # The holder waits and then keeps the kernel locks open; this process only reports its outcome.
-    DOCKER_HEAVY_GROUP=$group sh "$SELF" __hold "$owner" "$watch" "$st" "$$" </dev/null >/dev/null 2>"$st.err" \
-      3>&- 4>&- 5>&- 6>&- 7>&- 8>&- 9>&- &
+    rm -f "$st" "$st.err" "$st.fail" "$st.ack"
+    # The holder waits and then keeps the kernel locks open; this process only reports its outcome. It must not keep
+    # the caller's descriptors (a pipe would never see EOF): 3-9 are closed here; dash cannot name higher ones, so
+    # bash, when present, closes them all before starting the holder (shells that can do it close them in __hold).
+    set -- sh "$SELF" __hold "$owner" "$watch" "$st" "$$"
+    if ! (eval 'exec 98>&-') 2>/dev/null && command -v bash >/dev/null 2>&1; then
+      set -- bash -c 'for f in /proc/$$/fd/*; do n=${f##*/}; case $n in *[!0-9]*) continue ;; esac; [ "$n" -gt 2 ] && eval "exec $n>&-"; done 2>/dev/null; exec "$@"' heavy-lock-hold "$@"
+    fi
+    DOCKER_HEAVY_GROUP=$group "$@" </dev/null >/dev/null 2>"$st.err" 3>&- 4>&- 5>&- 6>&- 7>&- 8>&- 9>&- &
     hp=$!
     done=
+    # Until the hand-over is acknowledged, leaving (any signal included) takes the holder down with it.
     trap '[ -n "$done" ] || kill "$hp" 2>/dev/null; rm -f "$st" "$st.err" "$st.fail"' EXIT
     trap 'exit 130' INT
     trap 'exit 143' TERM
     while :; do
       if [ -s "$st" ]; then
-        done=1
         cat "$st.err" >&2 2>/dev/null
-        cat "$st"
+        cat "$st" || exit 1
+        # The acknowledgement tells the holder that the caller has been told it holds the slot.
+        : > "$st.ack" || exit 1
+        done=1
         exit 0
       fi
       # The holder is gone (or a zombie, as nothing here waits for it) without reporting a slot.
@@ -494,21 +509,36 @@ case "${1:-}" in
     watch=$3
     st=$4
     compute_group
+    # Inherited descriptors above 9 (dash cannot name them; acquire then started this through bash, which closed them).
+    if (eval 'exec 98>&-') 2>/dev/null; then
+      me=$(readlink -f "$SELF" 2>/dev/null)
+      for n in $(ls /proc/$$/fd 2>/dev/null); do
+        is_uint "$n" && [ "$n" -gt 9 ] || continue
+        # Never the descriptor this shell reads the script from.
+        [ "$(readlink -f "/proc/$$/fd/$n" 2>/dev/null)" = "$me" ] && continue
+        eval "exec $n>&-" 2>/dev/null
+      done
+    fi
     SLOT_DIR=
     ticket=
     reported=
-    trap 'rm -f "$ticket"; release_own $$; [ -n "$reported" ] || : > "$st.fail"' EXIT
+    trap 'rm -f "$ticket"; release_own $$; if alive "$5"; then [ -n "$reported" ] || : > "$st.fail"; else rm -f "$st" "$st.tmp" "$st.err" "$st.fail" "$st.ack"; fi' EXIT
     trap 'exit 130' INT
     trap 'exit 143' TERM
     take_locks "$$" "bare:$watch" "$5"
     printf 'acquired by %s (slot %s/%s, group %s)\n' "$owner" "$SLOT_N" "$SLOTS" "$group" > "$st.tmp" && mv "$st.tmp" "$st"
     reported=1
-    # Hand-over: the acquire process removes the report once it has printed it. If it died first (killed while
-    # waiting), nobody will ever release this slot, so give it up at once.
-    while [ -e "$st" ]; do
-      alive "$5" || { rm -f "$st"; exit 0; }
+    # Hand-over: acquire writes $st.ack once it has printed the report. A caller gone without it (killed while
+    # waiting, or before it could print) will never release this slot: give it up at once. The ack is looked at again
+    # after the caller is found gone, since a caller that acknowledged may exit at any moment.
+    while [ ! -e "$st.ack" ]; do
+      if ! alive "$5"; then
+        [ -e "$st.ack" ] && break
+        exit 0
+      fi
       sleep 0.1 7>&- 8>&-
     done
+    rm -f "$st" "$st.ack" "$st.err" "$st.fail"
     exec 2>/dev/null
     since=$(date +%s)
     while :; do
