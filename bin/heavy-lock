@@ -502,6 +502,12 @@ case "${1:-}" in
     take_locks "$$" "bare:$watch" "$5"
     printf 'acquired by %s (slot %s/%s, group %s)\n' "$owner" "$SLOT_N" "$SLOTS" "$group" > "$st.tmp" && mv "$st.tmp" "$st"
     reported=1
+    # Hand-over: the acquire process removes the report once it has printed it. If it died first (killed while
+    # waiting), nobody will ever release this slot, so give it up at once.
+    while [ -e "$st" ]; do
+      alive "$5" || { rm -f "$st"; exit 0; }
+      sleep 0.1 7>&- 8>&-
+    done
     exec 2>/dev/null
     since=$(date +%s)
     while :; do
