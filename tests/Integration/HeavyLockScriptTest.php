@@ -65,7 +65,7 @@ final class HeavyLockScriptTest extends TestCase
     {
         // A workspace-copy job holds group beacon: a heavy-lock waiter of that group waits, another group runs beside it.
         $holder = $this->start([$this->reference(), 'run', 'beacon: release-check', 'sleep', '4'], ['DOCKER_HEAVY_GROUP' => 'beacon']);
-        $this->waitFor(fn (): bool => is_file($this->dir . '/heavy.lock/owner') && 5 === \count(file($this->dir . '/heavy.lock/owner') ?: []));
+        $this->waitFor(fn (): bool => is_file($this->dir . '/heavy.lock/owner') && 6 === \count(file($this->dir . '/heavy.lock/owner') ?: []));
         $waiter = $this->start(['sh', self::ROOT . '/bin/heavy-lock', 'acquire', 'pqt: beacon'], ['DOCKER_HEAVY_GROUP' => 'beacon']);
         $this->waitFor(fn (): bool => [] !== glob($this->dir . '/heavy.queue/*'));
         $other = $this->pqt(['acquire', 'pqt: other'], ['DOCKER_HEAVY_GROUP' => 'other']);
@@ -73,9 +73,9 @@ final class HeavyLockScriptTest extends TestCase
 
         // Each copy reads the other's slots, group tokens and tickets.
         $status = $this->ref(['status'])->getOutput();
-        self::assertMatchesRegularExpression('#^held \(slot 1/4, group beacon\): beacon: release-check since \S+ pid \d+\nheld \(slot 2/4, group other\): pqt: other since \S+ pid -\nqueue \(oldest first\):\n  pqt: beacon \[group beacon\] \[\d+-\d+\]\n#', $status);
+        self::assertMatchesRegularExpression('#^held \(slot 1/4, group beacon\): beacon: release-check since \S+ pid \d+\nheld \(slot 2/4, group other\): pqt: other since \S+ pid \d+\nqueue \(oldest first\):\n  pqt: beacon \[group beacon\] \[\d+-\d+\]\n#', $status);
         self::assertSame($this->withoutLoad($status), $this->withoutLoad($this->pqt(['status'])->getOutput()));
-        self::assertCount(2, glob($this->dir . '/heavy.group/*') ?: []);
+        self::assertFileExists($this->dir . '/heavy.group/slot.2.lock');
 
         usleep(1_000_000);
         self::assertTrue($waiter->isRunning());
@@ -94,7 +94,6 @@ final class HeavyLockScriptTest extends TestCase
         self::assertSame("acquired by ref: beacon (slot 1/4, group beacon)\n", $refWaiter->getOutput());
         self::assertSame("released heavy.lock\n", $this->exec(['sh', '-c', '"$0" release; true', $this->reference()])->getOutput());
         self::assertSame([], glob($this->dir . '/heavy.lock*'));
-        self::assertSame([], glob($this->dir . '/heavy.group/*'));
     }
 
     public function testOneGroupNeverOverlapsUnderConcurrentWaitersOfBothCopies(): void
@@ -124,14 +123,13 @@ final class HeavyLockScriptTest extends TestCase
         self::assertSame(0, substr_count($out, 'OVERLAP'), $out);
         self::assertStringNotContainsString('stale', $out);
         self::assertSame([], glob($this->dir . '/heavy.lock*'));
-        self::assertSame([], glob($this->dir . '/heavy.group/*'));
     }
 
     public function testControlCharactersInLabelsCannotShiftTheOwnerFile(): void
     {
         foreach ([['sh', self::ROOT . '/bin/heavy-lock'], [$this->reference()]] as $copy) {
             $holder = $this->start([...$copy, 'run', "app: build\nfrom a commit\n-\nL[\$(touch PWNED)]\r\e[2J", 'sleep', '3']);
-            $this->waitFor(fn (): bool => is_file($this->dir . '/heavy.lock/owner') && 5 === \count(file($this->dir . '/heavy.lock/owner') ?: []));
+            $this->waitFor(fn (): bool => is_file($this->dir . '/heavy.lock/owner') && 6 === \count(file($this->dir . '/heavy.lock/owner') ?: []));
             $owner = explode("\n", (string) file_get_contents($this->dir . '/heavy.lock/owner'));
             self::assertSame(['app: build from a commit - L[$(touch PWNED)]  [2J', (string) $holder->getPid(), 'app'], [$owner[0], $owner[2], $owner[4]]);
 
@@ -197,25 +195,63 @@ final class HeavyLockScriptTest extends TestCase
         self::assertSame("acquired by G: short (slot 1/2, group G)\n", $waiter->getOutput());
     }
 
-    public function testGroupTokensBlockTheGroupAndStaleOnesAreCleared(): void
+    public function testTheGroupKernelLockBlocksTheGroupUntilItsHolderDies(): void
     {
-        $token = $this->dir . '/heavy.group/G-' . trim($this->exec(['sh', '-c', "printf %s G | cksum | cut -d' ' -f1"])->getOutput());
-        (new Filesystem())->mkdir($token);
-        file_put_contents($token . '/owner', "G\n" . getmypid() . "\n" . time() . "\n\n");
+        (new Filesystem())->mkdir($this->dir . '/heavy.group');
+        $groupLock = $this->dir . '/heavy.group/G-' . trim($this->exec(['sh', '-c', "printf %s G | cksum | cut -d' ' -f1"])->getOutput()) . '.lock';
+        // The locked descriptor lives in the process itself (no child inherits it), as in heavy-lock.
+        $holder = $this->start(['sh', '-c', 'exec 9>>"$0" && flock 9 && exec sleep 60', $groupLock]);
+        $this->waitFor(fn (): bool => 0 !== $this->exec(['flock', '-n', $groupLock, 'true'])->getExitCode());
+
         $waiter = $this->start(['sh', self::ROOT . '/bin/heavy-lock', 'acquire', 'G: next']);
         usleep(1_500_000);
-        self::assertTrue($waiter->isRunning());
-        self::assertStringContainsString('group token without a slot: G pid ' . getmypid() . "\n", $this->pqt(['status'])->getOutput());
-        self::assertSame("acquired by H: other (slot 1/4, group H)\n", $this->pqt(['acquire', 'H: other'])->getOutput());
+        self::assertTrue($waiter->isRunning(), $waiter->getOutput() . $waiter->getErrorOutput() . $this->pqt(['status'])->getOutput());
+        self::assertSame("free (0/4 slots held)\n", strtok($this->pqt(['status'])->getOutput(), "\n") . "\n");
 
-        // The token's PID goes away: the group's waiter clears it and takes a slot.
-        file_put_contents($token . '/owner', "G\n" . $this->deadPid() . "\n" . time() . "\n\n");
+        // SIGKILL of whoever holds the group lock frees it: no stale state is left to judge.
+        $holder->signal(9);
         $waiter->wait();
-        self::assertSame("acquired by G: next (slot 2/4, group G)\n", $waiter->getOutput());
-        self::assertMatchesRegularExpression('#stale group token of "G" removed by "G: next" \(pid \d+ gone\)#', $waiter->getErrorOutput());
-        $groups = array_map(static fn (string $o): string => explode("\n", (string) file_get_contents($o))[0], glob($this->dir . '/heavy.group/*/owner') ?: []);
-        sort($groups);
-        self::assertSame(['G', 'H'], $groups);
+        self::assertSame("acquired by G: next (slot 1/4, group G)\n", $waiter->getOutput());
+        self::assertSame('', $waiter->getErrorOutput());
+    }
+
+    public function testSigkillOfTheJobOrOfTheHolderFreesItsLocksAtOnce(): void
+    {
+        $job = ['sh', '-c', 'echo $$ > "$0"; exec sleep 60', $this->dir . '/job.pid'];
+        $env = ['DOCKER_HEAVY_GROUP' => 'K'];
+
+        // The job is killed: run notices, removes its legacy directory and exits; the next job of the group starts.
+        $run = $this->start(['sh', self::ROOT . '/bin/heavy-lock', 'run', 'K: victim', ...$job], $env);
+        $this->waitFor(fn (): bool => is_file($this->dir . '/job.pid') && '' !== trim((string) file_get_contents($this->dir . '/job.pid')));
+        $this->exec(['kill', '-9', trim((string) file_get_contents($this->dir . '/job.pid'))]);
+        $run->wait();
+        self::assertSame(137, $run->getExitCode());
+        self::assertDirectoryDoesNotExist($this->dir . '/heavy.lock');
+        $started = microtime(true);
+        self::assertSame("acquired by K: next (slot 1/4, group K)\n", $this->pqt(['acquire', 'K: next'], [...$env, 'DOCKER_HEAVY_LOCK_PID' => (string) getmypid()])->getOutput());
+        self::assertLessThan(2.0, microtime(true) - $started);
+        $this->pqt(['release', (string) getmypid()]);
+        unlink($this->dir . '/job.pid');
+
+        // The run process itself is killed (no trap runs): the kernel drops its locks; the legacy directory it left
+        // is cleared by the next holder of that slot, which starts without waiting for any age.
+        $run = $this->start(['sh', self::ROOT . '/bin/heavy-lock', 'run', 'K: victim', ...$job], $env);
+        $this->waitFor(fn (): bool => is_file($this->dir . '/job.pid') && '' !== trim((string) file_get_contents($this->dir . '/job.pid')));
+        // A waiter of the group, killed while it waits, leaves nothing that blocks the queue.
+        $waiter = $this->start(['sh', self::ROOT . '/bin/heavy-lock', 'acquire', 'K: killed waiter'], $env);
+        $runWaiter = $this->start(['sh', self::ROOT . '/bin/heavy-lock', 'run', 'K: killed run waiter', 'true'], $env);
+        $this->waitFor(fn (): bool => 2 === \count(glob($this->dir . '/heavy.queue/*') ?: []));
+        $waiter->signal(9);
+        $runWaiter->signal(9);
+        $run->signal(9);
+        $started = microtime(true);
+        $process = $this->pqt(['acquire', 'K: after'], [...$env, 'DOCKER_HEAVY_LOCK_PID' => (string) getmypid()]);
+        self::assertSame("acquired by K: after (slot 1/4, group K)\n", $process->getOutput());
+        self::assertMatchesRegularExpression('#stale lock of "K: victim" \(slot 1\) removed by "K: after" \(pid \d+ gone\)#', $process->getErrorOutput());
+        self::assertLessThan(4.0, microtime(true) - $started);
+        $this->exec(['kill', '-9', trim((string) file_get_contents($this->dir . '/job.pid'))]);
+        $this->pqt(['release', (string) getmypid()]);
+        $this->waitFor(fn (): bool => [] === glob($this->dir . '/heavy.queue/*'));
     }
 
     public function testMisconfiguredDirectoriesAndForeignFilesAreNeverDeleted(): void

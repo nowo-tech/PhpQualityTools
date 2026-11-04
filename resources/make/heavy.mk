@@ -23,8 +23,8 @@
 #   heavy-status       slots and their groups, queue, load average and available memory.
 #   HEAVY_PROCESSES    suggested process count for parallel suites on the shared machine (default 2).
 #   MEMORY_GUARD       bin/memory-guard (stops the suite below MEMGUARD_MIN_MB of MemAvailable, default 4096).
-# The slots live in DOCKER_HEAVY_LOCK_DIR (default /tmp/docker-heavy.lock, slot N in <dir>.N), group tokens in
-# DOCKER_HEAVY_GROUP_DIR (/tmp/docker-heavy.group); DOCKER_HEAVY_SLOTS (4),
+# Kernel locks (flock) of the groups and slots live in DOCKER_HEAVY_GROUP_DIR (default /tmp/docker-heavy.group); the
+# legacy slot directories in DOCKER_HEAVY_LOCK_DIR (/tmp/docker-heavy.lock, slot N in <dir>.N); DOCKER_HEAVY_SLOTS (4),
 # load threshold DOCKER_HEAVY_MAXLOAD (10), DOCKER_HEAVY_MIN_MEM_MB (6144). The group is DOCKER_HEAVY_GROUP, else the
 # git repository of the directory make runs in, else HEAVY_LOCK_LABEL: two heavy-* jobs of one repository never overlap.
 

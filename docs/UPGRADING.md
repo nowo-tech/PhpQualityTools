@@ -71,8 +71,12 @@ composer update nowo-tech/php-quality-tools
 - **New gates:** the default load threshold is now 10 (was 6); set `DOCKER_HEAVY_MAXLOAD=6` to keep the old one. A slot
   also needs 6144 MB of `MemAvailable` (`DOCKER_HEAVY_MIN_MEM_MB`, `0` disables it). Where `MemAvailable` is unknown
   (macOS, no `/proc/meminfo`) the gate stays closed: set `DOCKER_HEAVY_MIN_MEM_MB=0` there.
-- **Group tokens:** a new directory, `DOCKER_HEAVY_GROUP_DIR` (default `/tmp/docker-heavy.group`), holds one token per
-  running group. Nothing to do; it is created on first use.
+- **`flock(1)` required:** `run` and `acquire` now use kernel locks and exit 1 without `flock` (util-linux on Linux,
+  busybox `flock` on Alpine; `brew install flock` on macOS). The lock files live in `DOCKER_HEAVY_GROUP_DIR` (default
+  `/tmp/docker-heavy.group`), created on first use.
+- **Bare `acquire`:** it now leaves a background holder process that keeps the slot until `release`, until the process in
+  `DOCKER_HEAVY_LOCK_PID` exits, or for `DOCKER_HEAVY_LOCK_MAXAGE` seconds (default 3600). Prefer
+  `heavy-lock run <owner> <cmd>`, which releases however the command ends; `release` of a `run` job is a no-op.
 - **Stricter input:** invalid numbers in the `DOCKER_HEAVY_*` variables now fall back to their defaults with a warning
   (`DOCKER_HEAVY_SLOTS` and `DOCKER_HEAVY_MIN_MEM_MB` used to exit 2). `release <pid>` with a PID that holds nothing no
   longer frees another bare `acquire`'s slot, and `release` needs a PID above 1. Lock directories that hold more than
@@ -85,8 +89,10 @@ composer update nowo-tech/php-quality-tools
 - **Output:** scripts that parse `heavy-lock` output must expect `acquired by <owner> (slot N/M, group G)`,
   `released slot N`, `free (0/M slots held)` and one `held (slot N/M, group G): <owner> since <time> pid <pid>` line per
   slot in `status`.
-- **Mixed versions:** the files stay compatible with 1.9.x and with the workspace `docker-heavy-lock.sh`. A 1.9.x copy
-  still only uses slot 1 and knows no groups, so update every project that shares the machine.
+- **Mixed versions:** 1.10 honours the slot directories of 1.9.x and of the previous workspace `docker-heavy-lock.sh`,
+  and writes its own so they see 1.10 jobs. An older copy still decides by check-then-act and a 1.9.x copy knows no
+  groups, so two jobs of one group can overlap while an older copy runs on the machine: update every project that shares
+  it (`composer update nowo-tech/php-quality-tools`) and the workspace script.
 
 ## To 1.9.0
 

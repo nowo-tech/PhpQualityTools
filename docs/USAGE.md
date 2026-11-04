@@ -933,74 +933,83 @@ vendor/bin/slowest-tests var/coverage/junit.xml 10                        # slow
 ### `heavy-lock`
 
 ```text
-heavy-lock acquire <owner> | release [<pid>] | status | run <owner> <cmd> [<args>...]
+heavy-lock run <owner> <cmd> [<args>...] | acquire <owner> | release [<pid>] | status
 ```
 
-A machine-wide lock for heavy jobs (coverage suites, e2e, release checks, image builds):
+A machine-wide lock for heavy jobs (coverage suites, e2e, release checks, image builds). `run` and `acquire` need
+`flock(1)` (util-linux on Linux, busybox `flock` on Alpine, `brew install flock` on macOS); without it they exit 1 with
+that message.
 
-- **Slots (since 1.10.0):** up to `DOCKER_HEAVY_SLOTS` jobs (default 4) run at once. Slot 1 is `DOCKER_HEAVY_LOCK_DIR`,
-  slot N is `DOCKER_HEAVY_LOCK_DIR.N`. Every slot directory present counts (for the group check, `status` and
-  `release`), whatever this copy's `DOCKER_HEAVY_SLOTS` is: the setting only limits which slots this copy takes.
-- **Resource gates (since 1.10.0):** a slot is handed out only while the 1-minute load average is below
-  `DOCKER_HEAVY_MAXLOAD` (default 10) and `MemAvailable` is at least `DOCKER_HEAVY_MIN_MEM_MB` (default 6144), so extra
-  slots fill only when the machine has room. An unknown load or `MemAvailable` (no `/proc/meminfo`, e.g. macOS) keeps
-  the gate closed; set `DOCKER_HEAVY_MIN_MEM_MB=0` there (the first wait says so on stderr). The 1-minute load lags, so
-  several slots may be handed out before it reflects them.
-- **Groups (since 1.10.0):** at most one job per group holds a slot; different groups share the slots. Jobs of one
-  repository share its test database, coverage files and stacks, so they must never overlap. The group is
-  `DOCKER_HEAVY_GROUP`; else the git repository of the current directory (the main repository's directory name: its
-  worktrees agree, a separate clone has its own `.git` and so its own group), unless that name is listed in
-  `DOCKER_HEAVY_IGNORE_REPOS`; else the label prefix before `:` (or its first word). The promise is enforced by a group
-  token: a waiter takes `<DOCKER_HEAVY_GROUP_DIR>/<name>-<cksum>` with `mkdir` (atomic) before the slot, removes it
-  when no slot is free, and `release` removes it with the slot. A stale token (its PID gone, or a bare `acquire`'s token
-  whose slot is gone) is cleared by the next waiter of that group.
-- **FIFO:** every waiter writes a ticket (`<epoch-ns>-<pid>`: label, group) in the queue directory; the oldest live
-  ticket goes first, so a job that releases and re-acquires at once queues behind everyone already waiting. A later
-  ticket may pass tickets whose group already holds a slot (they cannot start anyway), and may take slots 2..N past a
-  ticket without a group line (an older single-slot copy, which only ever takes slot 1). Tickets of dead waiters are
-  pruned. `DOCKER_HEAVY_PRIORITY=1` sorts a ticket before every normal one (it never interrupts a holder).
-- **Stale holders:** `run` records its own PID; a bare `acquire` records `DOCKER_HEAVY_LOCK_PID` (or `-`). A waiter whose
-  turn it is removes a holder whose PID is gone, or a holder without a valid PID older than `DOCKER_HEAVY_LOCK_MAXAGE`
-  seconds (default 3600), and logs it to `DOCKER_HEAVY_STALE_LOG`. A PID line that is not an integer above 1, or an
-  epoch line that is not a number, makes the holder malformed: it is judged by its directory's age only, never as "pid
-  gone", and file contents never reach shell arithmetic. A PID of another user (`EPERM`) counts as alive. The stale
-  directory is renamed before it is deleted, and put back if it turns out to be a fresh one.
-- **Hardening (since 1.10.0):** labels and groups lose their control characters (CR, LF, ESC, ...) before they are
-  written. Only entries of the current user are ever removed, and only lock directories that hold nothing but their
-  `owner` file; other files of the queue directory are ignored. A queue or group directory that is a symlink or belongs
-  to another user is refused (`acquire` exits 1), and the stale log is never written through a symlink or into another
-  user's file. A non-numeric `DOCKER_HEAVY_SLOTS`, `DOCKER_HEAVY_MAXLOAD`, `DOCKER_HEAVY_MIN_MEM_MB`,
-  `DOCKER_HEAVY_POLL` (must be above 0) or `DOCKER_HEAVY_LOCK_MAXAGE` falls back to its default with a warning.
-- **Release:** `release [<pid>]` frees the slot and group token held by `<pid>` (`run` passes its own PID); an explicit
-  PID that holds nothing frees nothing. Without an argument it frees the slot of the caller's parent process, else the
-  oldest slot held without a PID (a bare `acquire`).
-- **Status:** each held slot with its group, label, start time and PID (`stale` when it would be removed), group tokens
-  without a slot, the queue with each ticket's group, and the load and memory gates.
-- **Fairness:** there is no acquire timeout. The head ticket waits for the gates, and a 1.9.x copy (slot 1 only, load
-  below 6) may wait long beside 1.10 copies that keep the other slots busy.
+- **Kernel locks (since 1.10.0):** mutual exclusion is `flock`. A job holds, for its whole life, an open descriptor
+  locked on its group's lock file (`<DOCKER_HEAVY_GROUP_DIR>/<name>-<cksum>.lock`) and one on a slot's lock file
+  (`<DOCKER_HEAVY_GROUP_DIR>/slot.<n>.lock`), the group first. The kernel drops both when the job's process ends, however
+  it ends (exit, Ctrl-C, SIGKILL, OOM), so a killed job never leaves a lock behind and there is nothing to judge stale.
+  The command run by `run` does not inherit those descriptors, so a daemon it leaves behind cannot keep the slot.
+- **Slots:** up to `DOCKER_HEAVY_SLOTS` jobs (default 4) run at once; the setting limits which slot locks this copy
+  takes, while every slot in use counts for everyone.
+- **Groups:** at most one job per group holds a slot; different groups share the slots. Jobs of one repository share
+  its test database, coverage files and stacks, so they must never overlap. The group is `DOCKER_HEAVY_GROUP`; else the
+  git repository of the current directory (the main repository's directory name: its worktrees agree, a separate clone
+  has its own `.git` and so its own group), unless that name is listed in `DOCKER_HEAVY_IGNORE_REPOS`; else the label
+  prefix before `:` (or its first word).
+- **Resource gates:** a slot is handed out only while the 1-minute load average is below `DOCKER_HEAVY_MAXLOAD` (default
+  10) and `MemAvailable` is at least `DOCKER_HEAVY_MIN_MEM_MB` (default 6144). An unknown load or `MemAvailable` (no
+  `/proc/meminfo`, e.g. macOS) keeps the gate closed; set `DOCKER_HEAVY_MIN_MEM_MB=0` there (the first wait says so on
+  stderr). The 1-minute load lags, so several slots may be handed out before it reflects them.
+- **Queue (fairness only):** every waiter writes a ticket (`<epoch-ns>-<pid>`: label, group) in the queue directory;
+  the oldest live ticket goes first, so a job that releases and re-acquires at once queues behind everyone already
+  waiting. A later ticket may pass tickets whose group already holds a slot, and may take slots 2..N past a ticket
+  without a group line (an older single-slot copy). Tickets of dead waiters are pruned. `DOCKER_HEAVY_PRIORITY=1` sorts
+  a ticket before every normal one (it never interrupts a holder). The locks never depend on the queue.
+- **`run`** waits, runs the command holding the locks and releases them when the command ends; its exit code is the
+  command's. **`acquire`** (bare, for scripts that cannot wrap a command) starts a background holder that keeps the
+  locks until `release`, until the process named by `DOCKER_HEAVY_LOCK_PID` exits, or for `DOCKER_HEAVY_LOCK_MAXAGE`
+  seconds (default 3600) without either. Prefer `run`.
+- **`release [<pid>]`** stops the bare `acquire` holder watching `<pid>` (default: the caller's parent process), else,
+  without an argument, the oldest bare `acquire` without a watched PID. An explicit PID that holds nothing frees
+  nothing. A `run` job is released by ending; `release` only says so.
+- **Older copies:** php-quality-tools 1.9 and the previous workspace script lock by `mkdir` of `DOCKER_HEAVY_LOCK_DIR`
+  (slot 1) and `DOCKER_HEAVY_LOCK_DIR.N`, with an `owner` file (label, UTC time, PID, epoch, group). This version honours
+  them both ways: such a directory with a live holder (or, without a PID, younger than `DOCKER_HEAVY_LOCK_MAXAGE`) is an
+  occupied slot of that holder's group, and a holder of slot N also creates that directory, with its owner file plus a
+  sixth line (`run` or `bare:<watched pid>`), and removes it when it ends. That owner file is what `status` shows. An
+  older copy decides by check-then-act on those directories, so two jobs of one group can still overlap while an older
+  copy is waiting on the machine; that risk ends once every copy is 1.10.
+- **Hardening:** labels and groups lose their control characters (CR, LF, ESC, ...) before they are written; PID and
+  epoch lines are validated and never reach shell or awk arithmetic (a malformed older holder is judged by its age only;
+  a PID of another user counts as alive). Only the current user's legacy directories are removed, and only when they
+  hold nothing but their `owner` file; other files of the queue directory are ignored. A queue or lock-file directory
+  that is a symlink or belongs to another user is refused, lock files that are symlinks or another user's are never
+  opened, and the stale log is never written through a symlink. A non-numeric `DOCKER_HEAVY_SLOTS`,
+  `DOCKER_HEAVY_MAXLOAD`, `DOCKER_HEAVY_MIN_MEM_MB`, `DOCKER_HEAVY_POLL` (must be above 0) or `DOCKER_HEAVY_LOCK_MAXAGE`
+  falls back to its default with a warning.
+- **Status:** each held slot with its group, label, start time and holder PID (`stale` for an older copy's dead
+  holder), the queue with each ticket's group, and the load and memory gates.
 - **Reentrancy:** `run` sets `DOCKER_HEAVY_LOCK_HELD=1` for the command; nested `acquire` / `release` / `run` are no-ops.
+- **Fairness limits:** there is no acquire timeout; the head ticket waits for the gates, and a 1.9.x copy (slot 1 only,
+  load below 6) may wait long beside 1.10 copies that keep the other slots busy.
 
 | Environment | Default | Meaning |
 | --- | --- | --- |
-| `DOCKER_HEAVY_LOCK_DIR` | `/tmp/docker-heavy.lock` | Slot 1 directory, slot N is `<dir>.N` (`owner`: label, UTC time, PID, epoch, group) |
+| `DOCKER_HEAVY_LOCK_DIR` | `/tmp/docker-heavy.lock` | Legacy slot 1 directory, slot N is `<dir>.N` (`owner`: label, UTC time, PID, epoch, group[, kind]) |
 | `DOCKER_HEAVY_QUEUE_DIR` | `/tmp/docker-heavy.queue` | Queue of waiting tickets (label, group) |
-| `DOCKER_HEAVY_GROUP_DIR` | lock dir with `.lock` → `.group` (`/tmp/docker-heavy.group`) | Group tokens (group, PID, epoch, slot) |
-| `DOCKER_HEAVY_STALE_LOG` | `/tmp/docker-heavy.stale.log` | Removed stale locks (never a symlink) |
-| `DOCKER_HEAVY_SLOTS` | `4` | Slots this copy may take; every existing slot counts |
+| `DOCKER_HEAVY_GROUP_DIR` | lock dir with `.lock` → `.group` (`/tmp/docker-heavy.group`) | Kernel lock files of the groups and slots |
+| `DOCKER_HEAVY_STALE_LOG` | `/tmp/docker-heavy.stale.log` | Removed stale legacy directories (never a symlink) |
+| `DOCKER_HEAVY_SLOTS` | `4` | Slots this copy may take; every slot in use counts |
 | `DOCKER_HEAVY_MAXLOAD` | `MAXLOAD` or `10` | Hand out a slot only below this load average |
 | `DOCKER_HEAVY_MIN_MEM_MB` | `6144` | Hand out a slot only with this much `MemAvailable` (MB; `0` disables; unknown: closed) |
 | `DOCKER_HEAVY_GROUP` | git repository, else label prefix | Group of the job; one job per group holds a slot |
 | `DOCKER_HEAVY_IGNORE_REPOS` | — | Space-separated repository names never used as a group (e.g. a workspace that runs no stack) |
 | `DOCKER_HEAVY_POLL` | `POLL` or `10` | Seconds between checks while waiting |
-| `DOCKER_HEAVY_LOCK_MAXAGE` | `3600` | Age after which a holder without PID is stale |
+| `DOCKER_HEAVY_LOCK_MAXAGE` | `3600` | How long a bare `acquire` without a watched PID is held; age after which an older copy's holder without PID is stale |
+| `DOCKER_HEAVY_LOCK_PID` | — | PID a bare `acquire` watches |
 
 The nowo-tech workspace helper `docker-heavy-lock.sh` is generated from this script (it also never groups by the
-repository that holds it), so both share one set of slots, tokens and rules on the same machine. A holder written by an
-older copy (no group line) is grouped by its PID's working directory, else by its label. The `/tmp` defaults are shared
+repository that holds it), so both share one set of locks and rules on the same machine. The `/tmp` defaults are shared
 by every account on the machine; on a multi-user host point the variables at a directory of your own (e.g.
-`$XDG_RUNTIME_DIR`). With the lock in `/tmp`, a reboot clears stale state. Keep each heavy job at **two processes
+`$XDG_RUNTIME_DIR`). With the lock in `/tmp`, a reboot clears all state. Keep each heavy job at **two processes
 at most** (`paratest --processes=2 --max-batch-size=5`, Playwright `--workers=2`; `HEAVY_PROCESSES` in `heavy.mk`).
-Exit codes: `0`; `run` exits with the command's code; `1` acquire failed; `2` usage error.
+Exit codes: `0`; `run` exits with the command's code; `1` acquire failed (or no `flock`); `2` usage error.
 
 ### `memory-guard`
 

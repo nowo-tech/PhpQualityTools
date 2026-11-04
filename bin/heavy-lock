@@ -5,21 +5,25 @@
 # machine. Up to DOCKER_HEAVY_SLOTS jobs run at once, at most one per group (the jobs of one repository share its test
 # database, coverage files and stacks), and a slot is handed out only while the 1-minute load average is low and enough
 # memory is available. Every waiter takes a ticket; the oldest live ticket goes first, so a job that releases and
-# immediately re-acquires queues behind everyone already waiting. POSIX sh. Run with --help for the commands and variables.
+# immediately re-acquires queues behind everyone already waiting. POSIX sh plus flock(1) (util-linux or busybox).
+# Run with --help for the commands and variables.
+#
+# Mutual exclusion is kernel locks (flock): a job holds, for its whole life, an open file descriptor locked on its
+# group's lock file and one on a slot's lock file, both in DOCKER_HEAVY_GROUP_DIR. The kernel releases them when the
+# job's process ends, however it ends (exit, SIGKILL, OOM), so there is no stale-holder logic for them.
+# The tickets in the queue directory only order the waiters (fairness); correctness never depends on them.
+#
+# Older copies (mkdir-based: php-quality-tools 1.9, the previous workspace docker-heavy-lock.sh) only know the legacy
+# slot directories: slot 1 is $DOCKER_HEAVY_LOCK_DIR, slot N is $DOCKER_HEAVY_LOCK_DIR.N, each with an owner file
+# (label, acquired-at UTC, holder PID or "-", acquired-at epoch, group). This copy honours them both ways: a legacy
+# directory with a live holder is an occupied slot of that holder's group, and a holder of slot N also creates
+# $DOCKER_HEAVY_LOCK_DIR(.N) with its owner file (plus line 6: "run" or "bare:<watched pid>") and removes it on exit.
+# That owner file is also what status shows; for this copy it decides nothing except for older copies' holders. The
+# remaining risk (an older copy's own check-then-act) ends once every copy on the machine runs this version.
 #
 # The nowo-tech workspace helper docker-heavy-lock.sh is this file with VARIANT_IGNORE_OWN_REPO=1 (the repository that
-# holds the script is never a group), so both copies share one set of files and rules on the same machine:
-#   - slot 1 is $DOCKER_HEAVY_LOCK_DIR, slot N is $DOCKER_HEAVY_LOCK_DIR.N; <slot>/owner holds the label, acquired-at
-#     (UTC), holder PID ("-" when unknown), acquired-at epoch and group;
-#   - <queue>/[0-]<epoch-ns>-<pid> holds the label and group of a waiter;
-#   - <group dir>/<name>-<cksum> is the group token (group, PID, epoch, slot), taken with mkdir before the slot, so two
-#     jobs of one group can never both pass the group check.
-# Every slot directory present is honoured, whatever DOCKER_HEAVY_SLOTS says; that setting only limits the slots this
-# copy takes. A holder without a group line (an older copy) is grouped by its PID's working directory, else its label.
-# A ticket without a group line belongs to an older single-slot copy, which only ever takes slot 1: later tickets may
-# take slots 2..N past it. Entries of another user, symlinks and directories holding more than an owner file are never
-# removed. Labels and groups lose their control characters before they are written; numeric fields are validated
-# before use, so a malformed owner file is judged by its age only, never as "pid gone".
+# holds the script is never a group). Labels and groups lose their control characters before they are written; numbers
+# read from files are validated and never reach shell or awk arithmetic.
 set -u
 set -f
 
@@ -29,21 +33,24 @@ PROG=$(basename "$0")
 
 usage() {
   cat <<USAGE
-Usage: $PROG acquire <owner>          wait for the turn, a free slot for the group and the load / memory gates
-       $PROG release [<pid>]          release the slot held by <pid> (default: the parent process, else the oldest
-                                      slot held without a PID)
-       $PROG status                   slots, group tokens, queue, load average and available memory
-       $PROG run <owner> <cmd> [...]  acquire, run <cmd>, always release; exit code of <cmd>
+Usage: $PROG run <owner> <cmd> [...]  wait for the turn, a slot for the group and the load / memory gates, run <cmd>
+                                      holding them, release when it ends (however it ends); exit code of <cmd>
+       $PROG acquire <owner>          the same without a command: a background holder keeps the slot until
+                                      release, until DOCKER_HEAVY_LOCK_PID exits, or for DOCKER_HEAVY_LOCK_MAXAGE seconds
+       $PROG release [<pid>]          release the bare acquire of <pid> (default: the parent process, else the oldest
+                                      bare acquire without a watched PID); a run job releases by ending
+       $PROG status                   slots, queue, load average and available memory
 
 <owner> is a free-text label shown by status (e.g. "my-app: release-check"). Its prefix before ":" is the group of last
 resort. Control characters (newlines included) are replaced by spaces.
 
 Environment:
-  DOCKER_HEAVY_LOCK_DIR     slot 1 directory; slot N is <dir>.N (default: /tmp/docker-heavy.lock)
+  DOCKER_HEAVY_LOCK_DIR     legacy slot 1 directory; slot N is <dir>.N (default: /tmp/docker-heavy.lock)
   DOCKER_HEAVY_QUEUE_DIR    queue directory (default: /tmp/docker-heavy.queue)
-  DOCKER_HEAVY_GROUP_DIR    group token directory (default: the lock directory with .lock replaced by .group)
-  DOCKER_HEAVY_STALE_LOG    log of removed stale locks (default: /tmp/docker-heavy.stale.log; never a symlink)
-  DOCKER_HEAVY_SLOTS        slots this copy may take (default: 4); every existing slot is honoured
+  DOCKER_HEAVY_GROUP_DIR    kernel lock files of the groups and slots (default: the lock directory with .lock replaced
+                            by .group, i.e. /tmp/docker-heavy.group)
+  DOCKER_HEAVY_STALE_LOG    log of removed stale legacy directories (default: /tmp/docker-heavy.stale.log; never a symlink)
+  DOCKER_HEAVY_SLOTS        slots this copy may take (default: 4); every slot in use counts
   DOCKER_HEAVY_MAXLOAD      hand out a slot only below this 1-minute load average (default: MAXLOAD or 10)
   DOCKER_HEAVY_MIN_MEM_MB   hand out a slot only with this much MemAvailable, in MB (default: 6144; 0 disables; an
                             unknown MemAvailable keeps the gate closed)
@@ -51,13 +58,12 @@ Environment:
                             prefix before ":"); at most one job per group holds a slot
   DOCKER_HEAVY_IGNORE_REPOS space-separated repository names never used as a group (e.g. a workspace that runs no stack)
   DOCKER_HEAVY_POLL         seconds between checks while waiting (default: POLL or 10)
-  DOCKER_HEAVY_LOCK_MAXAGE  seconds after which a holder without a valid PID is stale (default: 3600)
+  DOCKER_HEAVY_LOCK_MAXAGE  seconds a bare acquire without DOCKER_HEAVY_LOCK_PID is held, and after which an older
+                            copy's holder without a PID is stale (default: 3600)
   DOCKER_HEAVY_PRIORITY     1: queue before every normal ticket (never interrupts a holder)
-  DOCKER_HEAVY_LOCK_PID     long-lived PID recorded by a bare acquire (run records its own)
+  DOCKER_HEAVY_LOCK_PID     PID a bare acquire watches: the slot is released when it exits
   DOCKER_HEAVY_LOCK_HELD    set by run for <cmd>: nested acquire / release / run are no-ops
-An invalid number falls back to its default with a warning.
-
-A holder whose PID is gone (killed job, closed session) is removed by a waiter and logged.
+An invalid number falls back to its default with a warning. run and acquire need flock(1).
 Exit codes: 0 success (run: the exit code of <cmd>), 1 acquire failed, 2 usage error.
 USAGE
 }
@@ -107,12 +113,14 @@ if [ -n "${DOCKER_HEAVY_LOCK_HELD:-}" ]; then
   esac
 fi
 
+# Epoch in nanoseconds; seconds padded with zeros where date has no %N (busybox prints seconds only, BSD a literal N).
 now_ns() {
   ns=$(date +%s%N 2>/dev/null)
   case "$ns" in
-    *N|'') printf '%s000000000\n' "$(date +%s)" ;;
-    *) printf '%s\n' "$ns" ;;
+    ''|*[!0-9]*) ns="$(date +%s)000000000" ;;
+    ??????????) ns="${ns}000000000" ;;
   esac
+  printf '%s\n' "$ns"
 }
 
 load1() {
@@ -145,45 +153,33 @@ mtime() {
 # Seconds since epoch $1 (validated by the caller).
 age_of() { awk -v n="$(date +%s)" -v s="$1" 'BEGIN{printf "%d\n", n - s}'; }
 
-# True when PID $1 runs. EPERM (another user's process) counts as running.
+# True when PID $1 runs (another user's process included). A zombie (killed, not yet reaped by its parent) is gone.
 alive() {
-  err=$(kill -0 "$1" 2>&1) && return 0
-  case "$err" in *ermit*|*EPERM*) return 0 ;; esac
+  if [ -r "/proc/$1/stat" ]; then
+    [ "$(sed 's/.*) //' "/proc/$1/stat" 2>/dev/null | cut -c1)" != Z ]
+    return
+  fi
+  kill -0 "$1" 2>/dev/null && return 0
+  case "$(kill -0 "$1" 2>&1)" in *ermit*|*EPERM*) return 0 ;; esac
   return 1
 }
 
 # A directory of the current user that is not a symlink.
 owned_dir() { [ -d "$1" ] && [ ! -L "$1" ] && [ -O "$1" ]; }
 
-# True when lock directory $1 holds nothing but (at most) a regular owner file: the only shape this script removes.
+# True when legacy slot directory $1 holds nothing but (at most) a regular owner file: the only shape ever removed.
 lock_shaped() {
   c=$(ls -1A "$1" 2>/dev/null) || return 1
   [ -z "$c" ] && return 0
   [ "$c" = owner ] && [ -f "$1/owner" ] && [ ! -L "$1/owner" ]
 }
 
-# Removes lock directory $1 (an own slot or group token) after checking its shape.
+# Removes own legacy slot directory $1 after checking its shape.
 drop() {
   owned_dir "$1" || return 1
   lock_shaped "$1" || { warn "not removing $1: it holds more than an owner file"; return 1; }
   rm -f "$1/owner"
   rmdir "$1" 2>/dev/null
-}
-
-# Removes stale lock directory $1 whose owner file read $2 when it was judged. It is renamed first; if the renamed
-# directory is not the one judged (a fresh holder took the path meanwhile), it is put back, never deleted.
-reap() {
-  owned_dir "$1" || { warn "not removing $1: not a lock directory of this user"; return 1; }
-  lock_shaped "$1" || { warn "not removing $1: it holds more than an owner file"; return 1; }
-  r="$1.reap.$$.$(now_ns)"
-  mv "$1" "$r" 2>/dev/null || return 1
-  if [ "$(cat "$r/owner" 2>/dev/null)" != "$2" ]; then
-    [ -e "$1" ] || mv "$r" "$1" 2>/dev/null
-    [ -e "$r" ] && warn "left $r aside: a fresh lock was taken while a stale one was being removed"
-    return 1
-  fi
-  rm -f "$r/owner"
-  rmdir "$r" 2>/dev/null
 }
 
 log_stale() {
@@ -195,11 +191,26 @@ log_stale() {
   fi
 }
 
+need_flock() {
+  command -v flock >/dev/null 2>&1 && return 0
+  warn "flock(1) is required (util-linux on Linux, busybox flock, or 'brew install flock' on macOS)"
+  exit 1
+}
+
+# Creates directory $1 if needed; exits when it is a symlink or another user's.
+need_own_dir() {
+  if [ -L "$1" ] || { [ -e "$1" ] && ! owned_dir "$1"; }; then
+    warn "$1 is a symlink or belongs to another user; refusing to use it (set $2)"
+    exit 1
+  fi
+  mkdir -p "$1" 2>/dev/null && owned_dir "$1" || { warn "cannot create $1"; exit 1; }
+}
+
 slot_path() {
   if [ "$1" -eq 1 ]; then echo "$L"; else echo "$L.$1"; fi
 }
 
-# Numbers of every existing slot directory ($L is 1, $L.<n> is n), whatever DOCKER_HEAVY_SLOTS is.
+# Numbers of every existing legacy slot directory ($L is 1, $L.<n> is n), whatever DOCKER_HEAVY_SLOTS is.
 slots_all() {
   for e in $(ls -1A "$LDIR" 2>/dev/null); do
     case "$e" in
@@ -238,7 +249,14 @@ label_group() {
   echo "${g%% *}"
 }
 
-# Group of the holder of slot directory $1: line 5; else the holder PID's working directory; else its label prefix.
+# Sets $group for label $owner: DOCKER_HEAVY_GROUP, else the current repository, else the label prefix.
+compute_group() {
+  group=$(clean "${DOCKER_HEAVY_GROUP:-}")
+  [ -n "$group" ] || group=$(dir_group "$PWD") || group=$(label_group "$owner")
+  [ -n "$group" ] || group=default
+}
+
+# Group of the holder of legacy slot directory $1: line 5; else the holder PID's working directory; else its label.
 holder_group() {
   hg=$(line 5 "$1/owner")
   if [ -n "$hg" ]; then echo "$hg"; return 0; fi
@@ -247,8 +265,8 @@ holder_group() {
   label_group "$(line 1 "$1/owner")"
 }
 
-# Prints a reason and returns 0 when entry $1 (slot or token) whose PID line is $2 and epoch line is $3 is stale. Only a
-# valid PID can be "gone"; without one (bare acquire, malformed or unwritten owner file) only the age counts.
+# Prints a reason and returns 0 when a legacy holder (directory $1, PID line $2, epoch line $3) is stale. Only a valid
+# PID can be "gone"; without one (an older copy's bare acquire, a malformed or unwritten owner file) only the age counts.
 judge() {
   if valid_pid "$2"; then
     alive "$2" && return 1
@@ -263,38 +281,13 @@ judge() {
   return 0
 }
 
-# Prints a reason and returns 0 when the holder of slot directory $1 is stale. Another user's slot is never stale.
+# Prints a reason and returns 0 when the holder of legacy slot directory $1 is stale. Another user's is never stale.
 holder_stale() {
   owned_dir "$1" || return 1
   judge "$1" "$(line 3 "$1/owner")" "$(line 4 "$1/owner")"
 }
 
-token_path() {
-  n=$(printf '%s' "$1" | tr -c 'A-Za-z0-9._-' '_' | cut -c1-64)
-  c=$(printf '%s' "$1" | cksum | cut -d' ' -f1)
-  echo "$GD/$n-$c"
-}
-
-# Prints a reason and returns 0 when group token $1 is stale: its PID is gone; or, without a PID (bare acquire), its
-# slot is gone or held by another group (after a 60 s grace), or it is older than the maximum age.
-token_stale() {
-  owned_dir "$1" || return 1
-  tpid=$(line 2 "$1/owner")
-  if [ "$tpid" = "-" ]; then
-    tslot=$(line 4 "$1/owner")
-    tsince=$(line 3 "$1/owner")
-    is_count "$tsince" || tsince=$(mtime "$1") || return 1
-    if is_count "$tslot"; then
-      ts=$(slot_path "$tslot")
-      if [ ! -d "$ts" ] || [ "$(holder_group "$ts")" != "$(line 1 "$1/owner")" ]; then
-        [ "$(age_of "$tsince")" -ge 60 ] && { echo "slot $tslot released"; return 0; }
-      fi
-    fi
-  fi
-  judge "$1" "$tpid" "$(line 3 "$1/owner")"
-}
-
-# True when a live (not stale) slot holder has group $1.
+# True when a live holder of a legacy slot directory (any copy) has group $1.
 slots_group_busy() {
   for b in $(slots_all); do
     bs=$(slot_path "$b")
@@ -304,14 +297,16 @@ slots_group_busy() {
   return 1
 }
 
-# True when group $1 holds a live group token or slot.
-group_busy() {
-  bt=$(token_path "$1")
-  if [ -e "$bt" ] || [ -L "$bt" ]; then
-    token_stale "$bt" >/dev/null || return 0
-  fi
-  slots_group_busy "$1"
+group_lock_path() {
+  n=$(printf '%s' "$1" | tr -c 'A-Za-z0-9._-' '_' | cut -c1-64)
+  c=$(printf '%s' "$1" | cksum | cut -d' ' -f1)
+  echo "$GD/$n-$c.lock"
 }
+
+slot_lock_path() { echo "$GD/slot.$1.lock"; }
+
+# A lock file that may be opened: absent, or an own regular file that is not a symlink.
+lock_file_ok() { [ ! -L "$1" ] && { [ ! -e "$1" ] || { [ -f "$1" ] && [ -O "$1" ]; }; }; }
 
 # Prints the PID of ticket name $1 when it is [0-]<digits>-<pid> with a PID above 1.
 ticket_pid() {
@@ -335,9 +330,9 @@ prune_stale() {
   done
 }
 
-# Prints the first slot number this ticket may take; fails while it has to wait for older tickets. The first ticket
-# may take any slot. A later ticket may pass tickets whose group already holds a slot (they cannot start anyway), and
-# may take slots 2..N past tickets without a group line (older single-slot copies, which only ever take slot 1).
+# Prints the first slot number this ticket may take; fails while it has to wait for older tickets (fairness only). The
+# first ticket may take any slot. A later ticket may pass tickets whose group already holds a slot, and may take slots
+# 2..N past tickets without a group line (older single-slot copies, which only ever take slot 1).
 first_slot() {
   from=
   for t in $(tickets); do
@@ -347,107 +342,179 @@ first_slot() {
     fi
     tg=$(line 2 "$Q/$t")
     if [ -z "$tg" ]; then from=2; continue; fi
-    group_busy "$tg" && continue
+    slots_group_busy "$tg" && continue
     return 1
   done
   return 1
 }
 
-# Removes the own group tokens whose PID line is $1 (and, when $2 is set, whose slot line is $2).
-drop_tokens() {
-  for e in $(ls -1A "$GD" 2>/dev/null); do
-    tp="$GD/$e"
-    owned_dir "$tp" || continue
-    [ "$(line 2 "$tp/owner")" = "$1" ] || continue
-    [ -z "${2:-}" ] || [ "$(line 4 "$tp/owner")" = "$2" ] || continue
-    drop "$tp"
+# Holding slot $2's kernel lock: true when its legacy directory $1 is absent or was removed as stale. A directory written
+# by this version (line 6) is always stale here, since its holder would hold that kernel lock; one of an older copy
+# is stale when its PID is gone or, without a PID, after the maximum age. Only own, lock-shaped directories are removed.
+clear_legacy() {
+  [ -e "$1" ] || [ -L "$1" ] || return 0
+  owned_dir "$1" || return 1
+  snap=$(cat "$1/owner" 2>/dev/null)
+  sp=$(printf '%s\n' "$snap" | sed -n 3p)
+  if [ -n "$(printf '%s\n' "$snap" | sed -n 6p)" ]; then
+    if valid_pid "$sp" && ! alive "$sp"; then reason="pid $sp gone"; else reason="slot $2 not locked"; fi
+  else
+    reason=$(judge "$1" "$sp" "$(printf '%s\n' "$snap" | sed -n 4p)") || return 1
+  fi
+  drop "$1" || return 1
+  log_stale "$(date -u +%FT%TZ) stale lock of \"$(clean "$(printf '%s\n' "$snap" | sed -n 1p)")\" (slot $2) removed by \"$owner\" ($reason)"
+}
+
+# Waits for the turn, the group's and a slot's kernel locks and the gates, for holder PID $1 of kind $2 ("run" or
+# "bare:<watched pid>"); gives up when PID $3 (optional) is gone. On return fd 7 holds the group lock, fd 8 the slot
+# lock, and SLOT_N / SLOT_DIR name the slot whose legacy directory now holds the owner file.
+take_locks() {
+  glock=$(group_lock_path "$group")
+  ticket="$Q/${DOCKER_HEAVY_PRIORITY:+0-}$(now_ns)-$$"
+  printf '%s\n%s\n' "$owner" "$group" > "$ticket" || exit 1
+  hinted=
+  while :; do
+    [ -z "${3:-}" ] || alive "$3" || exit 1
+    prune_stale
+    # A ticket removed meanwhile is written again under the same name, so the waiter keeps its place.
+    [ -f "$ticket" ] || printf '%s\n%s\n' "$owner" "$group" > "$ticket"
+    if from=$(first_slot) && ! slots_group_busy "$group"; then
+      if ! gates_open; then
+        if [ -z "$hinted" ] && [ "$MINMEM_MB" -ne 0 ] && ! is_uint "$(mem_available_mb)"; then
+          warn "MemAvailable is unknown on this system, so the memory gate stays closed (set DOCKER_HEAVY_MIN_MEM_MB=0)"
+          hinted=1
+        fi
+      elif lock_file_ok "$glock" && exec 7>>"$glock" && flock -n 7; then
+        # The group is ours. A holder of this group written by an older copy (no kernel lock) still counts.
+        if ! slots_group_busy "$group"; then
+          n=$from
+          while [ "$n" -le "$SLOTS" ]; do
+            sl=$(slot_lock_path "$n")
+            if lock_file_ok "$sl"; then
+              exec 8>>"$sl"
+              if flock -n 8; then
+                s=$(slot_path "$n")
+                if clear_legacy "$s" "$n" && mkdir "$s" 2>/dev/null; then
+                  printf '%s\n%s\n%s\n%s\n%s\n%s\n' "$owner" "$(date -u +%FT%TZ)" "$1" "$(date +%s)" "$group" "$2" > "$s/owner"
+                  SLOT_N=$n
+                  SLOT_DIR=$s
+                  rm -f "$ticket"
+                  return 0
+                fi
+              fi
+              exec 8>&-
+            fi
+            n=$((n + 1))
+          done
+        fi
+        exec 7>&-
+      else
+        exec 7>&-
+      fi
+    fi
+    sleep "$POLL"
   done
 }
 
-# Creates directory $1 if needed; exits when it is a symlink or another user's.
-need_own_dir() {
-  if [ -L "$1" ] || { [ -e "$1" ] && ! owned_dir "$1"; }; then
-    warn "$1 is a symlink or belongs to another user; refusing to use it (set $2)"
-    exit 1
+# Removes this holder's legacy directory if it still names PID $1; the kernel locks close with the process.
+release_own() {
+  [ -n "${SLOT_DIR:-}" ] || return 0
+  [ "$(line 3 "$SLOT_DIR/owner")" = "$1" ] && drop "$SLOT_DIR"
+  SLOT_DIR=
+}
+
+# Stops bare-acquire holder PID $1 of legacy slot directory $2 and waits until it is gone.
+stop_holder() {
+  if valid_pid "$1" && { [ ! -r "/proc/$1/cmdline" ] || tr '\000' ' ' < "/proc/$1/cmdline" | grep -q ' __hold '; }; then
+    kill "$1" 2>/dev/null
+    i=0
+    while alive "$1" && [ "$i" -lt 50 ]; do sleep 0.1; i=$((i + 1)); done
+    alive "$1" && kill -9 "$1" 2>/dev/null
   fi
-  mkdir -p "$1" 2>/dev/null && owned_dir "$1" || { warn "cannot create $1"; exit 1; }
+  [ "$(line 3 "$2/owner")" = "$1" ] && drop "$2"
+  return 0
 }
 
 case "${1:-}" in
   run)
     [ "$#" -ge 3 ] || { echo "ERROR: run needs <owner> <cmd> (see --help)." >&2; exit 2; }
-    owner=$2
+    need_flock
+    owner=$(clean "$2")
     shift 2
-    DOCKER_HEAVY_LOCK_PID=$$ sh "$SELF" acquire "$owner" || exit 1
-    trap 'sh "$SELF" release $$ >/dev/null' EXIT
+    compute_group
+    need_own_dir "$Q" DOCKER_HEAVY_QUEUE_DIR
+    need_own_dir "$GD" DOCKER_HEAVY_GROUP_DIR
+    SLOT_DIR=
+    ticket=
+    trap 'rm -f "$ticket"; release_own $$' EXIT
     trap 'exit 130' INT
     trap 'exit 143' TERM
-    DOCKER_HEAVY_LOCK_HELD=1 "$@"
+    take_locks "$$" run
+    echo "acquired by $owner (slot $SLOT_N/$SLOTS, group $group)"
+    # The command does not inherit the lock descriptors: a daemon it leaves behind cannot keep the slot.
+    DOCKER_HEAVY_LOCK_HELD=1 "$@" 7>&- 8>&-
     exit $? ;;
   acquire)
     [ -n "${2:-}" ] || { echo "ERROR: acquire needs <owner> (see --help)." >&2; exit 2; }
+    need_flock
     owner=$(clean "$2")
-    group=$(clean "${DOCKER_HEAVY_GROUP:-}")
-    [ -n "$group" ] || group=$(dir_group "$PWD") || group=$(label_group "$owner")
-    [ -n "$group" ] || group=default
-    mypid=${DOCKER_HEAVY_LOCK_PID:--}
-    valid_pid "$mypid" || mypid=-
+    compute_group
     need_own_dir "$Q" DOCKER_HEAVY_QUEUE_DIR
     need_own_dir "$GD" DOCKER_HEAVY_GROUP_DIR
-    ticket="$Q/${DOCKER_HEAVY_PRIORITY:+0-}$(now_ns)-$$"
-    printf '%s\n%s\n' "$owner" "$group" > "$ticket" || exit 1
-    tok=$(token_path "$group")
-    pending=
-    trap 'rm -f "$ticket"; [ -z "$pending" ] || drop "$pending"' EXIT
+    watch=${DOCKER_HEAVY_LOCK_PID:-}
+    valid_pid "$watch" || watch=-
+    st="$GD/.acquire.$$"
+    rm -f "$st" "$st.err" "$st.fail"
+    # The holder waits and then keeps the kernel locks open; this process only reports its outcome.
+    DOCKER_HEAVY_GROUP=$group sh "$SELF" __hold "$owner" "$watch" "$st" "$$" </dev/null >/dev/null 2>"$st.err" \
+      3>&- 4>&- 5>&- 6>&- 7>&- 8>&- 9>&- &
+    hp=$!
+    done=
+    trap '[ -n "$done" ] || kill "$hp" 2>/dev/null; rm -f "$st" "$st.err" "$st.fail"' EXIT
     trap 'exit 130' INT
     trap 'exit 143' TERM
-    hinted=
     while :; do
-      prune_stale
-      # A ticket removed meanwhile is written again under the same name, so the waiter keeps its place.
-      [ -f "$ticket" ] || printf '%s\n%s\n' "$owner" "$group" > "$ticket"
-      # A stale token of this group is cleared by this group's waiters only, before the group check.
-      if reason=$(token_stale "$tok"); then
-        old=$(cat "$tok/owner" 2>/dev/null)
-        reap "$tok" "$old" && log_stale "$(date -u +%FT%TZ) stale group token of \"$group\" removed by \"$owner\" ($reason)"
+      if [ -s "$st" ]; then
+        done=1
+        cat "$st.err" >&2 2>/dev/null
+        cat "$st"
+        exit 0
       fi
-      if from=$(first_slot) && ! group_busy "$group"; then
-        if ! gates_open; then
-          if [ -z "$hinted" ] && [ "$MINMEM_MB" -ne 0 ] && ! is_uint "$(mem_available_mb)"; then
-            warn "MemAvailable is unknown on this system, so the memory gate stays closed (set DOCKER_HEAVY_MIN_MEM_MB=0)"
-            hinted=1
-          fi
-        elif mkdir "$tok" 2>/dev/null; then
-          # The group token is ours: no other job of this group gets past this point until it is removed.
-          pending=$tok
-          printf '%s\n%s\n%s\n\n' "$group" "$mypid" "$(date +%s)" > "$tok/owner"
-          # A holder of this group written by an older copy (no token) still counts.
-          if ! slots_group_busy "$group"; then
-            n=$from
-            while [ "$n" -le "$SLOTS" ]; do
-              s=$(slot_path "$n")
-              # Only a waiter whose turn it is clears a stale holder, right before trying to take the slot itself.
-              if reason=$(holder_stale "$s"); then
-                old=$(cat "$s/owner" 2>/dev/null)
-                if reap "$s" "$old"; then
-                  log_stale "$(date -u +%FT%TZ) stale lock of \"$(clean "$(printf '%s\n' "$old" | sed -n 1p)")\" (slot $n) removed by \"$owner\" ($reason)"
-                fi
-              fi
-              if mkdir "$s" 2>/dev/null; then
-                printf '%s\n%s\n%s\n%s\n%s\n' "$owner" "$(date -u +%FT%TZ)" "$mypid" "$(date +%s)" "$group" > "$s/owner"
-                printf '%s\n%s\n%s\n%s\n' "$group" "$mypid" "$(date +%s)" "$n" > "$tok/owner"
-                pending=
-                echo "acquired by $owner (slot $n/$SLOTS, group $group)"
-                exit 0
-              fi
-              n=$((n + 1))
-            done
-          fi
-          drop "$tok"
-          pending=
-        fi
+      # The holder is gone (or a zombie, as nothing here waits for it) without reporting a slot.
+      if [ -e "$st.fail" ] || ! alive "$hp"; then
+        [ -s "$st" ] && continue
+        cat "$st.err" >&2 2>/dev/null
+        exit 1
       fi
-      sleep "$POLL"
+      sleep 0.2
+    done ;;
+  __hold)
+    owner=$2
+    watch=$3
+    st=$4
+    compute_group
+    SLOT_DIR=
+    ticket=
+    reported=
+    trap 'rm -f "$ticket"; release_own $$; [ -n "$reported" ] || : > "$st.fail"' EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    take_locks "$$" "bare:$watch" "$5"
+    printf 'acquired by %s (slot %s/%s, group %s)\n' "$owner" "$SLOT_N" "$SLOTS" "$group" > "$st.tmp" && mv "$st.tmp" "$st"
+    reported=1
+    exec 2>/dev/null
+    since=$(date +%s)
+    while :; do
+      sleep 1 7>&- 8>&-
+      # Gone when released, when another copy removed the legacy directory, when the watched PID exits, or (without
+      # one) after the maximum age.
+      [ "$(line 3 "$SLOT_DIR/owner")" = "$$" ] || { SLOT_DIR=; exit 0; }
+      if [ "$watch" != - ]; then
+        alive "$watch" || exit 0
+      elif [ "$(age_of "$since")" -ge "$MAXAGE" ]; then
+        log_stale "$(date -u +%FT%TZ) bare acquire \"$owner\" (slot $SLOT_N) released after $MAXAGE s without release" 2>/dev/null
+        exit 0
+      fi
     done ;;
   release)
     want=${2:-$PPID}
@@ -455,30 +522,36 @@ case "${1:-}" in
     for n in $(slots_all); do
       s=$(slot_path "$n")
       owned_dir "$s" || continue
-      if [ "$(line 3 "$s/owner")" = "$want" ]; then
-        drop "$s"
-        drop_tokens "$want"
-        echo "released slot $n"
-        exit 0
-      fi
+      p=$(line 3 "$s/owner")
+      k=$(line 6 "$s/owner")
+      case "$k" in
+        bare:*)
+          if [ "$p" = "$want" ] || [ "${k#bare:}" = "$want" ]; then stop_holder "$p" "$s"; echo "released slot $n"; exit 0; fi ;;
+        run)
+          if [ "$p" = "$want" ]; then echo "slot $n is held by a running job (pid $p): it is released when the job ends"; exit 0; fi ;;
+        *)
+          # An older copy's holder (its run trap releases by PID).
+          if [ "$p" = "$want" ]; then drop "$s"; echo "released slot $n"; exit 0; fi ;;
+      esac
     done
-    drop_tokens "$want"
-    # An explicit PID without a slot (e.g. run interrupted before it got one) never frees someone else's slot.
+    # An explicit PID that holds nothing never frees someone else's slot.
     if [ -n "${2:-}" ]; then echo "nothing to release"; exit 0; fi
-    # No slot held by the parent process: the oldest own slot held without a PID (a bare acquire).
+    # Without a slot of the parent process: the oldest bare acquire without a watched PID.
     oldest=
     oldest_at=
     for n in $(slots_all); do
       s=$(slot_path "$n")
-      owned_dir "$s" && [ "$(line 3 "$s/owner")" = "-" ] || continue
+      owned_dir "$s" || continue
+      k=$(line 6 "$s/owner")
+      [ "$k" = "bare:-" ] || { [ -z "$k" ] && [ "$(line 3 "$s/owner")" = "-" ]; } || continue
       at=$(line 4 "$s/owner")
       is_count "$at" || at=$(mtime "$s") || continue
       if [ -z "$oldest" ] || [ "$at" -lt "$oldest_at" ]; then oldest=$n; oldest_at=$at; fi
     done
     if [ -n "$oldest" ]; then
-      drop "$(slot_path "$oldest")"
-      drop_tokens - "$oldest"
-      echo "released $(basename "$(slot_path "$oldest")")"
+      s=$(slot_path "$oldest")
+      if [ "$(line 6 "$s/owner")" = "bare:-" ]; then stop_holder "$(line 3 "$s/owner")" "$s"; else drop "$s"; fi
+      echo "released $(basename "$s")"
     else
       echo "nothing to release"
     fi ;;
@@ -496,15 +569,6 @@ case "${1:-}" in
       echo "held (slot $n/$SLOTS, group $(clean "$(holder_group "$s")")): $(clean "$(line 1 "$s/owner")") since $(clean "$(line 2 "$s/owner")") pid ${pid:--}$st"
     done
     [ "$held" -gt 0 ] || echo "free (0/$SLOTS slots held)"
-    # Group tokens without a live slot of their group (a waiter between token and slot, or one left behind).
-    for e in $(ls -1A "$GD" 2>/dev/null); do
-      tp="$GD/$e"
-      [ -d "$tp" ] || continue
-      tg=$(line 1 "$tp/owner")
-      [ -n "$tg" ] && slots_group_busy "$tg" && continue
-      if reason=$(token_stale "$tp"); then st=" (stale: $reason)"; else st=; fi
-      echo "group token without a slot: $(clean "$tg") pid $(clean "$(line 2 "$tp/owner")")$st"
-    done
     prune_stale 2>/dev/null
     list=$(tickets)
     if [ -n "$list" ]; then

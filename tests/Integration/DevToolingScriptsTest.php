@@ -58,9 +58,11 @@ final class DevToolingScriptsTest extends TestCase
         $process = $this->bin('heavy-lock', ['acquire', 'app: test'], ['DOCKER_HEAVY_LOCK_PID' => (string) getmypid()]);
         self::assertSame([0, "acquired by app: test (slot 1/1, group app)\n"], [$process->getExitCode(), $process->getOutput()]);
         $owner = explode("\n", (string) file_get_contents($this->dir . '/heavy.lock/owner'));
-        self::assertSame(['app: test', (string) getmypid(), 'app'], [$owner[0], $owner[2], $owner[4]]);
+        // Line 3 is the background holder that keeps the kernel locks; line 6 says it watches this process.
+        self::assertSame(['app: test', 'app', 'bare:' . getmypid()], [$owner[0], $owner[4], $owner[5]]);
+        self::assertMatchesRegularExpression('#^\d+$#', $owner[2]);
         $status = $this->bin('heavy-lock', ['status'])->getOutput();
-        self::assertMatchesRegularExpression('#^held \(slot 1/1, group app\): app: test since \d{4}-\d\d-\d\dT[\d:]+Z pid ' . getmypid() . "\nload: [\\d. ]+ \\(max 100000\\), mem available: \\w+ MB \\(min 0\\)\n$#", $status);
+        self::assertMatchesRegularExpression('#^held \(slot 1/1, group app\): app: test since \d{4}-\d\d-\d\dT[\d:]+Z pid ' . $owner[2] . "\nload: [\\d. ]+ \\(max 100000\\), mem available: \\w+ MB \\(min 0\\)\n$#", $status);
         self::assertSame([], glob($this->dir . '/heavy.queue/*'));
 
         $process = $this->bin('heavy-lock', ['release']);
@@ -169,7 +171,7 @@ final class DevToolingScriptsTest extends TestCase
         usleep(1_200_000);
         self::assertTrue($same->isRunning());
         $status = $this->bin('heavy-lock', ['status'], $slots)->getOutput();
-        self::assertMatchesRegularExpression('#^held \(slot 1/3, group a\): a: one since \S+ pid ' . getmypid() . "\nheld \\(slot 2/3, group beta\\): b: two since \\S+ pid -\nheld \\(slot 3/3, group c\\): c: four since \\S+ pid -\nqueue \\(oldest first\\):\n  a: three \\[group a\\] \\[\\d+-\\d+\\]\nload: #", $status);
+        self::assertMatchesRegularExpression('#^held \(slot 1/3, group a\): a: one since \S+ pid \d+' . "\nheld \\(slot 2/3, group beta\\): b: two since \\S+ pid \\d+\nheld \\(slot 3/3, group c\\): c: four since \\S+ pid \\d+\nqueue \\(oldest first\\):\n  a: three \\[group a\\] \\[\\d+-\\d+\\]\nload: #", $status);
 
         // An unknown PID frees nothing; a release without a PID match frees the oldest bare-acquire slot (here slot 2), which
         // does not let group a in; releasing its own group's slot does.
@@ -192,8 +194,8 @@ final class DevToolingScriptsTest extends TestCase
             self::assertTrue($waiter->isRunning(), (string) json_encode($gate));
             self::assertSame([], glob($this->dir . '/heavy.lock*'));
             $waiter->stop(1);
-            $this->bin('heavy-lock', ['status']);  // prunes the ticket of a waiter killed before its trap ran
-            self::assertSame([], glob($this->dir . '/heavy.queue/*'));
+            // The background holder notices within a poll and removes its ticket.
+            $this->waitFor(fn (): bool => '' !== $this->bin('heavy-lock', ['status'])->getOutput() && [] === glob($this->dir . '/heavy.queue/*'));
         }
         self::assertStringContainsString('(min 999999999)', $this->bin('heavy-lock', ['status'], ['DOCKER_HEAVY_MIN_MEM_MB' => '999999999'])->getOutput());
     }
@@ -202,7 +204,7 @@ final class DevToolingScriptsTest extends TestCase
     {
         $process = $this->bin('heavy-lock', ['--help']);
         self::assertSame(0, $process->getExitCode());
-        self::assertStringContainsString('Usage: heavy-lock acquire <owner>', $process->getOutput());
+        self::assertStringContainsString('Usage: heavy-lock run <owner> <cmd> [...]', $process->getOutput());
 
         foreach (['DOCKER_HEAVY_SLOTS' => '0', 'DOCKER_HEAVY_MIN_MEM_MB' => 'lots', 'DOCKER_HEAVY_POLL' => '0', 'DOCKER_HEAVY_LOCK_MAXAGE' => '1h', 'DOCKER_HEAVY_MAXLOAD' => '1+system("touch AWK")'] as $name => $value) {
             $process = $this->bin('heavy-lock', ['status'], [$name => $value]);
