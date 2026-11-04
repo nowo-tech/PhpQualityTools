@@ -64,10 +64,21 @@ composer update nowo-tech/php-quality-tools
 ```
 
 - **Several heavy jobs at once:** up to 4 jobs of different groups now run in parallel, while two jobs of one group (by
-  default one git repository, so one test database, coverage files and e2e stack) never overlap. Set
-  `DOCKER_HEAVY_SLOTS=1` to keep the 1.9 behaviour of one heavy job per machine.
+  default one git repository, so one test database, coverage files and e2e stack) never overlap. To keep the 1.9
+  behaviour of one heavy job per machine, set `DOCKER_HEAVY_SLOTS=1` for **every** copy on the machine (the shared
+  environment, not one project): a copy honours every slot that exists, so `DOCKER_HEAVY_SLOTS=1` in one project only
+  stops that project from taking slots 2..N, while others still run beside it.
 - **New gates:** the default load threshold is now 10 (was 6); set `DOCKER_HEAVY_MAXLOAD=6` to keep the old one. A slot
-  also needs 6144 MB of `MemAvailable` (`DOCKER_HEAVY_MIN_MEM_MB`, `0` disables it).
+  also needs 6144 MB of `MemAvailable` (`DOCKER_HEAVY_MIN_MEM_MB`, `0` disables it). Where `MemAvailable` is unknown
+  (macOS, no `/proc/meminfo`) the gate stays closed: set `DOCKER_HEAVY_MIN_MEM_MB=0` there.
+- **Group tokens:** a new directory, `DOCKER_HEAVY_GROUP_DIR` (default `/tmp/docker-heavy.group`), holds one token per
+  running group. Nothing to do; it is created on first use.
+- **Stricter input:** invalid numbers in the `DOCKER_HEAVY_*` variables now fall back to their defaults with a warning
+  (`DOCKER_HEAVY_SLOTS` and `DOCKER_HEAVY_MIN_MEM_MB` used to exit 2). `release <pid>` with a PID that holds nothing no
+  longer frees another bare `acquire`'s slot, and `release` needs a PID above 1. Lock directories that hold more than
+  an `owner` file, other users' entries and files of the queue directory that are not tickets are never removed.
+- **`heavy.mk`:** the label and the target are passed in single quotes, so a directory name, `HEAVY_LOCK_LABEL` or `T`
+  holding `$(...)`, backticks or quotes is only text.
 - **Groups:** jobs started outside a git repository are grouped by the label prefix before `:` (`HEAVY_LOCK_LABEL` in
   `heavy.mk`). Set `DOCKER_HEAVY_GROUP` to force a group, and `DOCKER_HEAVY_IGNORE_REPOS` for a repository (e.g. a
   workspace of clones) whose directory must not group the jobs started from it.

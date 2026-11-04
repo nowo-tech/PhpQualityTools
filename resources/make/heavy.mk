@@ -23,7 +23,8 @@
 #   heavy-status       slots and their groups, queue, load average and available memory.
 #   HEAVY_PROCESSES    suggested process count for parallel suites on the shared machine (default 2).
 #   MEMORY_GUARD       bin/memory-guard (stops the suite below MEMGUARD_MIN_MB of MemAvailable, default 4096).
-# The slots live in DOCKER_HEAVY_LOCK_DIR (default /tmp/docker-heavy.lock, slot N in <dir>.N); DOCKER_HEAVY_SLOTS (4),
+# The slots live in DOCKER_HEAVY_LOCK_DIR (default /tmp/docker-heavy.lock, slot N in <dir>.N), group tokens in
+# DOCKER_HEAVY_GROUP_DIR (/tmp/docker-heavy.group); DOCKER_HEAVY_SLOTS (4),
 # load threshold DOCKER_HEAVY_MAXLOAD (10), DOCKER_HEAVY_MIN_MEM_MB (6144). The group is DOCKER_HEAVY_GROUP, else the
 # git repository of the directory make runs in, else HEAVY_LOCK_LABEL: two heavy-* jobs of one repository never overlap.
 
@@ -39,9 +40,13 @@ MEMORY_GUARD ?= sh $(QUALITY_TOOLS_BIN)/memory-guard
 heavy-status:
 	@$(if $(strip $(HEAVY_LOCK)),$(HEAVY_LOCK) status,echo "heavy-status: HEAVY_LOCK is empty (no lock)")
 
+# The label and the target reach the shell in single quotes ('\'' for a quote), so a directory name, HEAVY_LOCK_LABEL or
+# T holding $(...) or backticks is only text.
+heavy_sq = '$(subst ','\'',$(1))'
+
 heavy-%:
 	@if [ -n "$(strip $(HEAVY_LOCK))" ] && [ -z "$(strip $(HEAVY_SKIP))" ] && [ -z "$$DOCKER_HEAVY_LOCK_HELD" ]; then \
-		$(HEAVY_LOCK) run "$(HEAVY_LOCK_LABEL): $*$(if $(T), $(T))" $(MAKE) $*; \
+		$(HEAVY_LOCK) run $(call heavy_sq,$(HEAVY_LOCK_LABEL): $*$(if $(T), $(T))) $(MAKE) $(call heavy_sq,$*); \
 	else \
-		$(MAKE) $*; \
+		$(MAKE) $(call heavy_sq,$*); \
 	fi

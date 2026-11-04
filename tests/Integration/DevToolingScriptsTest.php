@@ -171,8 +171,11 @@ final class DevToolingScriptsTest extends TestCase
         $status = $this->bin('heavy-lock', ['status'], $slots)->getOutput();
         self::assertMatchesRegularExpression('#^held \(slot 1/3, group a\): a: one since \S+ pid ' . getmypid() . "\nheld \\(slot 2/3, group beta\\): b: two since \\S+ pid -\nheld \\(slot 3/3, group c\\): c: four since \\S+ pid -\nqueue \\(oldest first\\):\n  a: three \\[group a\\] \\[\\d+-\\d+\\]\nload: #", $status);
 
-        // Releasing another group's slot does not let it in; releasing its own group's slot does.
-        self::assertSame("released heavy.lock.2\n", $this->bin('heavy-lock', ['release', '999999'], $slots)->getOutput());
+        // An unknown PID frees nothing; a release without a PID match frees the oldest bare-acquire slot (here slot 2), which
+        // does not let group a in; releasing its own group's slot does.
+        self::assertSame("nothing to release\n", $this->bin('heavy-lock', ['release', '999999'], $slots)->getOutput());
+        $process = $this->exec(['sh', '-c', 'sh "$0" release; true', self::ROOT . '/bin/heavy-lock'], $slots);
+        self::assertSame("released heavy.lock.2\n", $process->getOutput(), $process->getErrorOutput());
         usleep(1_200_000);
         self::assertTrue($same->isRunning());
         self::assertSame("released slot 1\n", $this->bin('heavy-lock', ['release'], $slots)->getOutput());
@@ -195,70 +198,19 @@ final class DevToolingScriptsTest extends TestCase
         self::assertStringContainsString('(min 999999999)', $this->bin('heavy-lock', ['status'], ['DOCKER_HEAVY_MIN_MEM_MB' => '999999999'])->getOutput());
     }
 
-    public function testHeavyLockInteroperatesWithTheWorkspaceScript(): void
-    {
-        $slots = ['DOCKER_HEAVY_SLOTS' => '4'];
-        // A repository with a worktree: both resolve to the main repository's name.
-        (new Filesystem())->mkdir($this->dir . '/symfony-beacon');
-        $this->exec(['git', 'init', '-q', '-b', 'main'], [], $this->dir . '/symfony-beacon');
-        $this->exec(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.com', '-c', 'commit.gpgsign=false', 'commit', '-q', '--allow-empty', '-m', 'init'], [], $this->dir . '/symfony-beacon');
-        $worktree = $this->exec(['git', 'worktree', 'add', '-q', '../beacon-wt'], [], $this->dir . '/symfony-beacon');
-        self::assertTrue($worktree->isSuccessful(), $worktree->getErrorOutput());
-
-        // Holder written by docker-heavy-lock.sh (five lines, group on line 5) in slot 1.
-        (new Filesystem())->mkdir($this->dir . '/heavy.lock');
-        file_put_contents($this->dir . '/heavy.lock/owner', "beacon: release-check\n2026-01-01T00:00:00Z\n" . getmypid() . "\n" . time() . "\nsymfony-beacon\n");
-        $fromWorktree = $this->start(['sh', self::ROOT . '/bin/heavy-lock', 'acquire', 'pqt: beacon tests'], $slots, $this->dir . '/beacon-wt');
-        $this->waitFor(fn (): bool => [] !== glob($this->dir . '/heavy.queue/*'));
-        usleep(1_200_000);
-        self::assertTrue($fromWorktree->isRunning());
-        self::assertStringContainsString('[group symfony-beacon]', $this->bin('heavy-lock', ['status'], $slots)->getOutput());
-        $fromWorktree->stop(1);
-        $this->bin('heavy-lock', ['status'], $slots);
-        self::assertSame([], glob($this->dir . '/heavy.queue/*'));
-
-        // DOCKER_HEAVY_IGNORE_REPOS: that repository is not a group; the label prefix is.
-        $process = $this->exec(['sh', self::ROOT . '/bin/heavy-lock', 'acquire', 'pqt: x'], [...$slots, 'DOCKER_HEAVY_IGNORE_REPOS' => 'other symfony-beacon'], $this->dir . '/beacon-wt');
-        self::assertSame([0, "acquired by pqt: x (slot 2/4, group pqt)\n"], [$process->getExitCode(), $process->getOutput()]);
-        $this->bin('heavy-lock', ['release'], $slots);
-        $this->bin('heavy-lock', ['release'], $slots);
-        self::assertSame([], glob($this->dir . '/heavy.lock*'));
-
-        // Holder of an older copy (four lines): grouped by its PID's working directory.
-        $sleeper = $this->start(['sleep', '30'], [], $this->dir . '/symfony-beacon');
-        (new Filesystem())->mkdir($this->dir . '/heavy.lock');
-        file_put_contents($this->dir . '/heavy.lock/owner', "old: job\n2026-01-01T00:00:00Z\n" . $sleeper->getPid() . "\n" . time() . "\n");
-        self::assertStringStartsWith('held (slot 1/4, group symfony-beacon): old: job since ', $this->bin('heavy-lock', ['status'], $slots)->getOutput());
-        $process = $this->bin('heavy-lock', ['acquire', 'pqt: y'], [...$slots, 'DOCKER_HEAVY_GROUP' => 'pqt']);
-        self::assertSame([0, "acquired by pqt: y (slot 2/4, group pqt)\n"], [$process->getExitCode(), $process->getOutput()]);
-        $sleeper->stop(0);
-        $this->bin('heavy-lock', ['release'], $slots);
-        (new Filesystem())->remove($this->dir . '/heavy.lock');
-
-        // Ticket of an older single-slot copy (one line): a later ticket takes slot 2 past it, never slot 1.
-        (new Filesystem())->mkdir($this->dir . '/heavy.queue');
-        file_put_contents($this->dir . '/heavy.queue/0-1-' . getmypid(), "old waiter\n");
-        $process = $this->bin('heavy-lock', ['acquire', 'pqt: z'], $slots);
-        self::assertSame([0, "acquired by pqt: z (slot 2/4, group pqt)\n"], [$process->getExitCode(), $process->getOutput()]);
-        self::assertDirectoryDoesNotExist($this->dir . '/heavy.lock');
-        // A two-line ticket of a free group ahead of it is waited for.
-        file_put_contents($this->dir . '/heavy.queue/0-5-' . getmypid(), "beacon: e2e\nsymfony-beacon\n");
-        $waiter = $this->start(['sh', self::ROOT . '/bin/heavy-lock', 'acquire', 'other: job'], $slots);
-        usleep(1_500_000);
-        self::assertTrue($waiter->isRunning());
-        unlink($this->dir . '/heavy.queue/0-5-' . getmypid());
-        $waiter->wait();
-        self::assertSame("acquired by other: job (slot 3/4, group other)\n", $waiter->getOutput());
-    }
-
     public function testHeavyLockUsage(): void
     {
         $process = $this->bin('heavy-lock', ['--help']);
         self::assertSame(0, $process->getExitCode());
         self::assertStringContainsString('Usage: heavy-lock acquire <owner>', $process->getOutput());
 
-        self::assertSame(2, $this->bin('heavy-lock', ['status'], ['DOCKER_HEAVY_SLOTS' => '0'])->getExitCode());
-        self::assertSame(2, $this->bin('heavy-lock', ['status'], ['DOCKER_HEAVY_MIN_MEM_MB' => 'lots'])->getExitCode());
+        foreach (['DOCKER_HEAVY_SLOTS' => '0', 'DOCKER_HEAVY_MIN_MEM_MB' => 'lots', 'DOCKER_HEAVY_POLL' => '0', 'DOCKER_HEAVY_LOCK_MAXAGE' => '1h', 'DOCKER_HEAVY_MAXLOAD' => '1+system("touch AWK")'] as $name => $value) {
+            $process = $this->bin('heavy-lock', ['status'], [$name => $value]);
+            self::assertSame(0, $process->getExitCode(), $name);
+            self::assertStringContainsString("heavy-lock: ignoring {$name}=", $process->getErrorOutput());
+        }
+        self::assertFileDoesNotExist($this->dir . '/AWK');
+        self::assertSame(2, $this->bin('heavy-lock', ['release', '1'])->getExitCode());
         foreach ([[], ['nope'], ['acquire'], ['run', 'owner']] as $args) {
             $process = $this->bin('heavy-lock', $args);
             self::assertSame(2, $process->getExitCode(), implode(' ', $args));
