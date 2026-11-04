@@ -389,7 +389,7 @@ final class HeavyLockScriptTest extends TestCase
             $started = microtime(true);
             $process = $this->exec(
                 ['bash', '-c', 'bash -c "$INNER" "$0" | cat', $script],
-                ['INNER' => 'exec 12>&1; bash "$0" acquire "F: bash" >/dev/null 2>&1; echo returned']
+                ['INNER' => 'exec 12>&1; bash "$0" acquire "F: bash" >/dev/null 2>&1 && echo returned']
             );
             self::assertSame("returned\n", $process->getOutput(), $script . "\n" . $process->getErrorOutput());
             self::assertLessThan(5.0, microtime(true) - $started, $script);
