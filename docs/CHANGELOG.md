@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.11.0] - 2026-11-05](#1110---2026-11-05)
 - [[1.10.1] - 2026-11-04](#1101---2026-11-04)
 - [[1.10.0] - 2026-11-04](#1100---2026-11-04)
 - [[1.9.0] - 2026-10-31](#190---2026-10-31)
@@ -46,9 +47,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Planned as **1.11.0** (minor): test hygiene gates and budget warnings from the Symfony Beacon 1.122.0 audit (KIT-76).
+## [1.11.0] - 2026-11-05
+
+Minor release: test hygiene gates and budget warnings from the Symfony Beacon 1.122.0 audit (KIT-76).
 Every addition is opt-in: nothing runs or changes until a project calls the new scripts or sets the new keys. See
-[UPGRADING](UPGRADING.md#unreleased), [Usage → Test hygiene gates](USAGE.md#test-hygiene-gates-since-1110) and spec
+[UPGRADING](UPGRADING.md#to-1110), [Usage → Test hygiene gates](USAGE.md#test-hygiene-gates-since-1110) and spec
 [`specs/006-test-hygiene-gates`](../specs/006-test-hygiene-gates/spec.md).
 
 ### Added
@@ -58,6 +61,8 @@ Every addition is opt-in: nothing runs or changes until a project calls the new 
 - Both new gates fail closed: an unreadable file or directory is `ERROR: cannot read …`, exit 2 (never a silent pass, never an uncaught exception). The wall-clock scan is linear in the file size (matching brackets are indexed once), so deeply nested or unclosed calls cannot stall it.
 - **`check-module-boundaries`**: `require_all_declared: true` (or a list of roots) fails when a directory directly under `src/` is not a declared module path (or below one, or ignored). Default `false`.
 - **`check-asset-budgets`**: `--warn-at=<percent>` / config key `warn_at` prints `WARN … (94.3% >= 90%)` for checks at or above that share of their budget, still exit 0; above 100 % fails as before. Without it the output is unchanged. Non-finite values (`.nan`) are rejected.
+
+[1.11.0]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.11.0
 
 ## [1.10.1] - 2026-11-04
 
