@@ -13,6 +13,7 @@ use Symfony\Component\Yaml\Yaml;
  * ```yaml
  * manifest: public/build/.vite/manifest.json   # optional (default: public/build/.vite/manifest.json, then public/build/manifest.json)
  * build_dir: public/build                       # optional (default: the manifest directory without .vite/)
+ * warn_at: 90                                   # optional: WARN at or above 90 % of a budget (still exit 0)
  * budgets:                                      # manifest entry => kind => size
  *   assets/app.ts: { js: 200kB, css: 250kB }
  *   assets/styles/shell-entry.scss: { css: 60kB, css_gzip: 15kB }
@@ -30,7 +31,7 @@ final readonly class AssetBudgetConfig
 {
     public const KINDS = ['js', 'css', 'js_gzip', 'css_gzip'];
 
-    private const TOP_LEVEL_KEYS = ['manifest', 'build_dir', 'budgets'];
+    private const TOP_LEVEL_KEYS = ['manifest', 'build_dir', 'budgets', 'warn_at'];
 
     private const UNITS = ['' => 1, 'b' => 1, 'k' => 1000, 'kb' => 1000, 'kib' => 1024, 'm' => 1000000, 'mb' => 1000000, 'mib' => 1048576];
 
@@ -41,6 +42,7 @@ final readonly class AssetBudgetConfig
         public array $budgets = [],
         public ?string $manifest = null,
         public ?string $buildDir = null,
+        public ?float $warnAt = null,
     ) {
     }
 
@@ -106,6 +108,9 @@ final readonly class AssetBudgetConfig
         }
 
         $config = new self([], $data['manifest'] ?? null, $data['build_dir'] ?? null);
+        if (\array_key_exists('warn_at', $data)) {
+            $config = $config->withWarnAt($data['warn_at']);
+        }
         foreach ($budgets as $entry => $kinds) {
             if (!\is_array($kinds) || [] === $kinds) {
                 throw new AssetBudgetException("budgets.{$entry} must be a non-empty map of kind => size.", AssetBudgetException::INVALID);
@@ -132,7 +137,24 @@ final readonly class AssetBudgetConfig
         $budgets = $this->budgets;
         $budgets[$entry][$kind] = self::parseSize($size, "{$entry} {$kind}");
 
-        return new self($budgets, $this->manifest, $this->buildDir);
+        return new self($budgets, $this->manifest, $this->buildDir, $this->warnAt);
+    }
+
+    /**
+     * Sets the warning threshold, e.g. from `--warn-at=90`: a percentage of the budget, above 0 and at most 100
+     * (`90`, `90%`, `87.5`).
+     */
+    public function withWarnAt(mixed $percent): self
+    {
+        $value = \is_string($percent) ? rtrim(trim($percent), '%') : $percent;
+        if (\is_string($value) && is_numeric($value)) {
+            $value = (float) $value;
+        }
+        if ((!\is_int($value) && !\is_float($value)) || !is_finite((float) $value) || $value <= 0 || $value > 100) {
+            throw new AssetBudgetException('warn_at must be a percentage above 0 and at most 100 (got ' . (\is_scalar($percent) ? var_export($percent, true) : get_debug_type($percent)) . ').', AssetBudgetException::INVALID);
+        }
+
+        return new self($this->budgets, $this->manifest, $this->buildDir, (float) $value);
     }
 
     public static function parseSize(mixed $size, string $context = 'size'): int

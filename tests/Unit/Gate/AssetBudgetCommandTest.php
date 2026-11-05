@@ -48,6 +48,76 @@ final class AssetBudgetCommandTest extends TestCase
         );
     }
 
+    public function testWarnAtFlagsChecksNearTheirBudgetWithoutFailing(): void
+    {
+        $root = $this->makeBuild([
+            'config/quality/asset-budgets.yaml' => "budgets:\n  assets/app.ts: { js: 640, css: 1kB }\n  assets/styles/shell.scss: { css: 400 }\n",
+        ]);
+
+        [$code, $out, $err] = $this->runCommand($root, ['--warn-at=90']);
+
+        self::assertSame(0, $code, $err);
+        self::assertSame(
+            "WARN assets/app.ts js: 0.6 kB (gzip 0.1 kB) / budget 0.6 kB (94.3% >= 90%)\n"
+            . "OK   assets/app.ts css: 0.3 kB (gzip 0.0 kB) / budget 1.0 kB\n"
+            . "WARN assets/styles/shell.scss css: 0.4 kB (gzip 0.0 kB) / budget 0.4 kB (100% >= 90%)\n"
+            . "OK: asset budgets (3 check(s), 2 entries, 2 warning(s) at >= 90%).\n",
+            $out,
+        );
+
+        // Above 100 % still fails; a warning threshold from the config applies without the option.
+        file_put_contents($root . '/config/quality/asset-budgets.yaml', "warn_at: 95%\nbudgets:\n  assets/app.ts: { js: 640 }\n  assets/styles/shell.scss: { css: 399 }\n");
+        [$code, $out] = $this->runCommand($root, []);
+        self::assertSame(1, $code);
+        self::assertStringContainsString("OK   assets/app.ts js: 0.6 kB (gzip 0.1 kB) / budget 0.6 kB\n", $out);
+        self::assertStringContainsString('FAIL assets/styles/shell.scss css: 0.4 kB', $out);
+
+        // The option overrides the config; a fractional threshold is printed with one decimal.
+        [$code, $out] = $this->runCommand($root, ['--warn-at=87.5', '--budget=assets/styles/shell.scss:css=1kB']);
+        self::assertSame(0, $code);
+        self::assertStringContainsString('WARN assets/app.ts js: 0.6 kB (gzip 0.1 kB) / budget 0.6 kB (94.3% >= 87.5%)', $out);
+        self::assertStringContainsString('1 warning(s) at >= 87.5%).', $out);
+
+        // An explicit --config carries its warn_at too.
+        [$code, $out] = $this->runCommand($root, ['--budget=assets/styles/shell.scss:css=1kB', '--config=config/quality/asset-budgets.yaml']);
+        self::assertSame(0, $code);
+        self::assertStringContainsString('2 entries, 0 warning(s) at >= 95%).', $out);
+    }
+
+    public function testInvalidWarnAt(): void
+    {
+        $root = $this->makeBuild([]);
+        foreach (['0', '101', 'abc', '-5%'] as $value) {
+            [$code, , $err] = $this->runCommand($root, ['--budget=assets/app.ts:js=1MB', '--warn-at=' . $value]);
+            self::assertSame(2, $code, $value);
+            self::assertStringContainsString('warn_at must be a percentage above 0 and at most 100', $err, $value);
+        }
+
+        $config = (new AssetBudgetConfig())->withWarnAt(90);
+        self::assertSame(90.0, $config->warnAt);
+        self::assertSame(90.0, $config->with('a.js', 'js', 10)->warnAt);
+        self::assertSame(80.0, AssetBudgetConfig::fromArray(['warn_at' => '80'])->warnAt);
+
+        foreach ([\NAN, \INF] as $value) {
+            try {
+                (new AssetBudgetConfig())->withWarnAt($value);
+                self::fail('A non-finite warn_at must be rejected.');
+            } catch (AssetBudgetException $e) {
+                self::assertStringContainsString('warn_at must be a percentage above 0 and at most 100', $e->getMessage());
+            }
+        }
+
+        try {
+            AssetBudgetConfig::fromArray(['warn_at' => null]);
+            self::fail('An explicit null warn_at must be rejected.');
+        } catch (AssetBudgetException $e) {
+            self::assertStringContainsStringIgnoringCase('(got null)', $e->getMessage());
+        }
+        $this->expectException(AssetBudgetException::class);
+        $this->expectExceptionMessage('warn_at must be a percentage above 0 and at most 100 (got array)');
+        AssetBudgetConfig::fromArray(['warn_at' => [90]]);
+    }
+
     public function testOverBudgetAndMissingEntryFail(): void
     {
         $root = $this->makeBuild([]);
@@ -182,7 +252,7 @@ final class AssetBudgetCommandTest extends TestCase
             'bad.yaml' => 'Invalid YAML in',
             'bad.json' => 'Invalid JSON in',
             'list.yaml' => 'must define a map (got string)',
-            'unknown.yaml' => 'unknown.yaml: Unknown key(s): budget (allowed: manifest, build_dir, budgets).',
+            'unknown.yaml' => 'unknown.yaml: Unknown key(s): budget (allowed: manifest, build_dir, budgets, warn_at).',
             'kinds.yaml' => 'budgets.a.js must be a non-empty map of kind => size.',
             'budgets-list.json' => 'budgets must be a map of entry => { kind: size }.',
             'manifest.json' => 'manifest must be a non-empty string.',

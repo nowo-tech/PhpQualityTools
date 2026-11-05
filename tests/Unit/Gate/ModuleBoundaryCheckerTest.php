@@ -252,6 +252,53 @@ final class ModuleBoundaryCheckerTest extends TestCase
         self::assertSame(["no TODO\nA.php:2"], $this->messages((new ModuleBoundaryChecker())->check($config, $root)['violations']));
     }
 
+    public function testRequireAllDeclared(): void
+    {
+        $root = $this->makeTree([
+            'src/Kernel.php' => "<?php\n",
+            'src/Billing/Invoice.php' => "<?php\n",
+            'src/Catalog/Sub/Product.php' => "<?php\n",
+            'src/Legacy/Old.php' => "<?php\n",
+            'src/Shared/Util/Clock.php' => "<?php\n",
+            'src/Stray/Thing.php' => "<?php\n",
+            'lib/Extra/X.php' => "<?php\n",
+        ]);
+        $modules = [
+            'Billing' => ['namespace' => 'App\\Billing', 'path' => 'src/Billing/'],
+            'CatalogSub' => ['namespace' => 'App\\Catalog\\Sub', 'path' => 'src/Catalog/Sub'],
+            'Shared' => ['namespace' => 'App\\Shared', 'path' => 'src/Shared'],
+            'NamespaceOnly' => 'Psr',
+        ];
+
+        // Off by default: undeclared directories are fine.
+        $config = ModuleBoundaryConfig::fromArray(['modules' => $modules]);
+        self::assertSame([], $config->requireAllDeclared);
+        self::assertSame([], (new ModuleBoundaryChecker())->check($config, $root)['violations']);
+
+        // A module only for a subdirectory does not declare its parent; ignore patterns exempt a directory.
+        $config = ModuleBoundaryConfig::fromArray(['modules' => $modules, 'ignore' => ['src/Legacy/'], 'require_all_declared' => true]);
+        self::assertSame(['src'], $config->requireAllDeclared);
+        self::assertSame(
+            ["Undeclared module directories (require_all_declared; add them to modules or to ignore):\nsrc/Catalog\nsrc/Stray"],
+            $this->messages((new ModuleBoundaryChecker())->check($config, $root)['violations']),
+        );
+
+        // Explicit roots; a missing root is reported; a module at the root declares everything below it.
+        $config = ModuleBoundaryConfig::fromArray([
+            'modules' => [...$modules, 'Lib' => ['namespace' => 'Lib', 'path' => './lib']],
+            'require_all_declared' => ['lib', './missing/'],
+        ]);
+        self::assertSame(['lib', 'missing'], $config->requireAllDeclared);
+        self::assertSame(
+            ["Undeclared module directories (require_all_declared; add them to modules or to ignore):\nmissing (root directory not found)"],
+            $this->messages((new ModuleBoundaryChecker())->check($config, $root)['violations']),
+        );
+
+        $config = ModuleBoundaryConfig::fromArray(['modules' => ['App' => ['namespace' => 'App', 'path' => 'src']], 'require_all_declared' => true]);
+        self::assertSame([], (new ModuleBoundaryChecker())->check($config, $root)['violations']);
+        self::assertSame([], ModuleBoundaryConfig::fromArray(['require_all_declared' => false])->requireAllDeclared);
+    }
+
     public function testPathMatches(): void
     {
         self::assertTrue(ModuleBoundaryChecker::pathMatches('src/A/B.php', 'src/A'));

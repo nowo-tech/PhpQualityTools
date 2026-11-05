@@ -15,7 +15,8 @@ and a PHPUnit `QueryBudgetTrait` (SQL query budgets / N+1 scaling checks), and a
 the `pid_path` Symfony env var processor and `vendor/bin/clean-stale-pid-paths`, and front-end / docs gates (since 1.6.0):
 `vendor/bin/check-no-inline-svg`, `vendor/bin/check-asset-budgets` (Vite), `vendor/bin/check-doc-links` and a
 `php-worker-reset` Makefile snippet, and quiet-run helpers (since 1.8.0): `vendor/bin/quiet-run` (full output in a
-log, a short summary on screen), `vendor/bin/junit-failures` and `vendor/bin/changed-tests`.
+log, a short summary on screen), `vendor/bin/junit-failures` and `vendor/bin/changed-tests`, and test hygiene gates
+(since 1.11.0): `vendor/bin/check-coverage-annotations` and `vendor/bin/check-wallclock-fixtures`.
 
 ![FrankenPHP Friendly Worker Mode](docs/images/frankenphp-friendly.png)
 
@@ -388,6 +389,11 @@ vendor/bin/clean-stale-pid-paths '/dev/shm/app-markers-{pid}'
 vendor/bin/check-no-inline-svg --allow=templates/vendor-sprite.html.twig   # no <svg> in templates/, no SVG strings in assets/*.ts
 vendor/bin/check-asset-budgets --budget=assets/app.ts:css=250kB           # or config/quality/asset-budgets.yaml
 vendor/bin/check-doc-links --check-anchors                                 # broken relative links, images and #anchors in *.md
+vendor/bin/check-asset-budgets --warn-at=90                                # since 1.11.0: WARN at >= 90 % of a budget
+
+# Test hygiene gates (since 1.11.0)
+vendor/bin/check-coverage-annotations                                      # "// @codeCoverageIgnore reason" and other ignored forms in src/
+vendor/bin/check-wallclock-fixtures --baseline=tests/wallclock-baseline.txt # tests reading the real clock without a frozen one
 
 # Git hygiene (since 1.7.0, POSIX sh): no AI agent co-author trailers
 vendor/bin/check-no-agent-coauthor --since-file .scripts/agent-coauthor-baseline

@@ -1,6 +1,6 @@
 {
     "name": "nowo-tech/php-quality-tools",
-    "description": "Pre-configured quality tools for PHP projects (Rector, PHP-CS-Fixer, Twig-CS-Fixer) with automatic framework detection, plus CI gate scripts (Clover coverage threshold, module boundaries, latest-release-tag deploy guard), a PHPUnit SQL query-budget trait, ParaTest per-process isolation helpers, profiler-based route query scaling and missing-translation test traits, front-end / docs gates (no inline SVG, Vite asset budgets, Markdown links) AI agent co-author trailer checks / hooks, quiet-run / junit-failures / changed-tests helpers (short gate summaries, failed tests of a JUnit log, tests covering the changes), and developer tooling for long gates on shared machines (machine-wide heavy-job lock, memory guard, per-phase release logs, coverage gaps, slowest tests, untested changed classes).",
+    "description": "Pre-configured quality tools for PHP projects (Rector, PHP-CS-Fixer, Twig-CS-Fixer) with automatic framework detection, plus CI gate scripts (Clover coverage threshold, module boundaries, latest-release-tag deploy guard), a PHPUnit SQL query-budget trait, ParaTest per-process isolation helpers, profiler-based route query scaling and missing-translation test traits, front-end / docs gates (no inline SVG, Vite asset budgets, Markdown links), test hygiene gates (ignored coverage annotations, wall-clock test fixtures) AI agent co-author trailer checks / hooks, quiet-run / junit-failures / changed-tests helpers (short gate summaries, failed tests of a JUnit log, tests covering the changes), and developer tooling for long gates on shared machines (machine-wide heavy-job lock, memory guard, per-phase release logs, coverage gaps, slowest tests, untested changed classes).",
     "type": "composer-plugin",
     "license": "MIT",
     "keywords": [
@@ -84,11 +84,13 @@
         "bin/changed-tests",
         "bin/check-changed-src-tested",
         "bin/check-asset-budgets",
+        "bin/check-coverage-annotations",
         "bin/check-coverage-threshold",
         "bin/check-doc-links",
         "bin/check-module-boundaries",
         "bin/check-no-agent-coauthor",
         "bin/check-no-inline-svg",
+        "bin/check-wallclock-fixtures",
         "bin/clean-stale-pid-paths",
         "bin/coverage-gaps",
         "bin/heavy-lock",

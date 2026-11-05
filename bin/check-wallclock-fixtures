@@ -1,0 +1,15 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Fail on tests and fixtures that read the real clock without freezing it.
+ * See docs/USAGE.md ("Test hygiene gates") or run with --help.
+ */
+
+use NowoTech\PhpQualityTools\Gate\WallClock\WallClockFixturesCommand;
+
+require __DIR__ . '/autoload.php';
+
+exit((new WallClockFixturesCommand(\STDOUT, \STDERR, (string) getcwd()))->run(array_slice($argv, 1)));

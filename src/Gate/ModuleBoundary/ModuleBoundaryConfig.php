@@ -22,6 +22,7 @@ use Symfony\Component\Yaml\Yaml;
  *   - { from: Project, to: [Ops], except: [src/Project/Legacy.php], message: '...' }
  * rules:                       # see Rule for the types
  *   - { type: require_path, path: src/Kernel.php }
+ * require_all_declared: true   # every directory directly under src/ (or the listed roots) must be a module path
  * ```
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
@@ -31,7 +32,7 @@ use Symfony\Component\Yaml\Yaml;
  */
 final readonly class ModuleBoundaryConfig
 {
-    private const TOP_LEVEL_KEYS = ['paths', 'ignore', 'references', 'modules', 'allowed_edges', 'forbidden_edges', 'rules'];
+    private const TOP_LEVEL_KEYS = ['paths', 'ignore', 'references', 'modules', 'allowed_edges', 'forbidden_edges', 'rules', 'require_all_declared'];
 
     private const RULE_KEYS = [
         'forbid_path' => ['path'],
@@ -58,6 +59,7 @@ final readonly class ModuleBoundaryConfig
      * @param list<Rule>                                                 $rules
      * @param list<string>                                               $ignore
      * @param list<string>                                               $paths
+     * @param list<string>                                               $requireAllDeclared roots whose direct subdirectories must be modules
      */
     public function __construct(
         public array $modules = [],
@@ -67,6 +69,7 @@ final readonly class ModuleBoundaryConfig
         public array $ignore = [],
         public array $paths = [],
         public bool $includeFullyQualified = false,
+        public array $requireAllDeclared = [],
     ) {
     }
 
@@ -193,6 +196,7 @@ final readonly class ModuleBoundaryConfig
             self::paths($data['ignore'] ?? [], 'ignore'),
             $paths,
             'all' === $references,
+            \array_key_exists('require_all_declared', $data) ? self::requireAllDeclared($data['require_all_declared']) : [],
         );
     }
 
@@ -207,6 +211,28 @@ final readonly class ModuleBoundaryConfig
         }
 
         return $regex;
+    }
+
+    /**
+     * `true` = `src`, `false` / absent = off, or a list of root directories.
+     *
+     * @return list<string>
+     */
+    private static function requireAllDeclared(mixed $value): array
+    {
+        if (\is_bool($value)) {
+            return $value ? ['src'] : [];
+        }
+        $roots = [];
+        foreach (self::paths($value, 'require_all_declared') as $root) {
+            $root = rtrim($root, '/');
+            if ('' === $root || \in_array('..', explode('/', $root), true)) {
+                throw new ConfigException('require_all_declared roots must be directories below the project root.');
+            }
+            $roots[] = $root;
+        }
+
+        return $roots;
     }
 
     private static function rule(mixed $rule, string $where): Rule

@@ -124,6 +124,16 @@ Specified in [`specs/005-frontend-docs-gates/spec.md`](../005-frontend-docs-gate
 | `Testing/MissingTranslationsTrait.php` | Missing translations of a request | FR-I18N-TEST-001 |
 | `Gate/Junit/JunitFailuresCommand.php` | `bin/junit-failures` | FR-JUNIT-001 |
 
+## Test hygiene gates (`src/Gate/Coverage/`, `src/Gate/WallClock/`, since 1.11.0)
+
+Specified in [`specs/006-test-hygiene-gates/spec.md`](../006-test-hygiene-gates/spec.md); also changes `Gate/ModuleBoundary/ModuleBoundaryConfig.php` / `ModuleBoundaryChecker.php` (FR-MB-DECL-001) and `Gate/Assets/AssetBudgetConfig.php` / `AssetBudgetCommand.php` (FR-AB-WARN-001).
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Gate/Coverage/CoverageAnnotationsCommand.php` | `bin/check-coverage-annotations` | FR-COVA-001 – FR-COVA-003 |
+| `Gate/WallClock/WallClockScanner.php` | PHP / JS wall-clock detection | FR-WC-001, FR-WC-002, FR-WC-003 |
+| `Gate/WallClock/WallClockFixturesCommand.php` | `bin/check-wallclock-fixtures` | FR-WC-004, FR-WC-005 |
+
 ## Coverage summary
 
 | Category | Files | Mapped |
@@ -140,4 +150,5 @@ Specified in [`specs/005-frontend-docs-gates/spec.md`](../005-frontend-docs-gate
 | ParaTest isolation (`src/Testing/`, since 1.5.0) | 2 | 2 |
 | Front-end and docs gates (`src/Gate/Svg/`, `src/Gate/Assets/`, `src/Gate/DocLinks/`, `resources/make/`, since 1.6.0) | 7 | 7 |
 | Test helpers and CI log tools (`src/Testing/`, `src/Gate/Junit/`, since 1.7.0) | 3 | 3 |
-| **Total `src/` artifacts** | **48** | **48** |
+| Test hygiene gates (`src/Gate/Coverage/`, `src/Gate/WallClock/`, since 1.11.0) | 3 | 3 |
+| **Total `src/` artifacts** | **51** | **51** |

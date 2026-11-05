@@ -8,7 +8,7 @@ namespace NowoTech\PhpQualityTools\Gate\Assets;
  * `bin/check-asset-budgets`: fail when a Vite entry (plus its statically imported chunks) grows past its size budget.
  *
  * Usage: check-asset-budgets [--root=<dir>] [--config=<file>] [--manifest=<file>] [--build-dir=<dir>]
- *        [--budget=<entry>:<kind>=<size>]...
+ *        [--budget=<entry>:<kind>=<size>]... [--warn-at=<percent>]
  *
  * Budgets come from `config/quality/asset-budgets.{yaml,yml,json,php}` (or `--config`) and/or `--budget`
  * (which overrides the config for the same entry and kind). See AssetBudgetConfig for the format.
@@ -37,7 +37,7 @@ final class AssetBudgetCommand
 
     public const USAGE = <<<'TXT'
         Usage: check-asset-budgets [--root=<dir>] [--config=<file>] [--manifest=<file>] [--build-dir=<dir>]
-                                   [--budget=<entry>:<kind>=<size>]...
+                                   [--budget=<entry>:<kind>=<size>]... [--warn-at=<percent>]
 
         Fails when a Vite entry (entry file + statically imported chunks; lazy chunks are not counted)
         is larger than its budget. Run the production build first.
@@ -49,6 +49,8 @@ final class AssetBudgetCommand
           --budget=<entry>:<kind>=<size>
                               e.g. --budget=assets/app.ts:css=250kB; kinds js, css, js_gzip, css_gzip;
                               sizes in bytes or with B, kB (1000), KiB (1024), MB, MiB; repeatable
+          --warn-at=<percent> print WARN for a check at or above this share of its budget (e.g. 90);
+                              still exit 0 (default: the config's warn_at, else no warning)
         Exit codes: 0 OK, 1 over budget / entry or build output missing, 2 usage or configuration error.
         TXT;
 
@@ -79,6 +81,7 @@ final class AssetBudgetCommand
         $manifestFile = null;
         $buildDir = null;
         $cliBudgets = [];
+        $warnAt = null;
         foreach ($args as $arg) {
             if ('-h' === $arg || '--help' === $arg) {
                 fwrite($this->stdout, self::USAGE . "\n");
@@ -99,6 +102,8 @@ final class AssetBudgetCommand
                 $buildDir = $value;
             } elseif ('--budget' === $name) {
                 $cliBudgets[] = $value;
+            } elseif ('--warn-at' === $name) {
+                $warnAt = $value;
             } else {
                 return $this->usageError("Unknown option {$arg}");
             }
@@ -111,6 +116,9 @@ final class AssetBudgetCommand
 
         try {
             $config = $this->loadConfig($root, $configFile, $cliBudgets);
+            if (null !== $warnAt) {
+                $config = $config->withWarnAt($warnAt);
+            }
             if ([] === $config->budgets) {
                 return $this->usageError('No budget: pass --budget=<entry>:<kind>=<size> or create config/quality/asset-budgets.yaml.');
             }
@@ -133,6 +141,7 @@ final class AssetBudgetCommand
     {
         $checks = 0;
         $failed = 0;
+        $warned = 0;
         foreach ($config->budgets as $entry => $budgets) {
             if (!$manifest->has($entry)) {
                 fwrite($this->stdout, "FAIL {$entry}: not in the manifest (renamed entry? update the budgets).\n");
@@ -152,15 +161,19 @@ final class AssetBudgetCommand
                 }
                 $measured = $gzipBudget ? (int) $gzip : $raw;
                 $over = $measured > $budgets[$kind];
+                $percent = 100 * $measured / $budgets[$kind];
+                $warn = !$over && null !== $config->warnAt && $percent >= $config->warnAt;
                 ++$checks;
                 $failed += $over ? 1 : 0;
+                $warned += $warn ? 1 : 0;
                 fwrite($this->stdout, \sprintf(
-                    "%s %s %s: %s / budget %s\n",
-                    $over ? 'FAIL' : 'OK  ',
+                    "%s %s %s: %s / budget %s%s\n",
+                    $over ? 'FAIL' : ($warn ? 'WARN' : 'OK  '),
                     $entry,
                     $kind,
                     $gzipBudget ? 'gzip ' . $this->kb((int) $gzip) . ' (raw ' . $this->kb($raw) . ')' : $this->kb($raw) . ' (gzip ' . (null === $gzip ? 'n/a' : $this->kb($gzip)) . ')',
                     $this->kb($budgets[$kind]),
+                    $warn ? \sprintf(' (%s%% >= %s%%)', $this->percent($percent), $this->percent((float) $config->warnAt)) : '',
                 ));
             }
         }
@@ -170,7 +183,13 @@ final class AssetBudgetCommand
 
             return 1;
         }
-        fwrite($this->stdout, \sprintf("OK: asset budgets (%d check(s), %d entr%s).\n", $checks, \count($config->budgets), 1 === \count($config->budgets) ? 'y' : 'ies'));
+        fwrite($this->stdout, \sprintf(
+            "OK: asset budgets (%d check(s), %d entr%s%s).\n",
+            $checks,
+            \count($config->budgets),
+            1 === \count($config->budgets) ? 'y' : 'ies',
+            null !== $config->warnAt ? \sprintf(', %d warning(s) at >= %s%%', $warned, $this->percent($config->warnAt)) : '',
+        ));
 
         return 0;
     }
@@ -236,6 +255,11 @@ final class AssetBudgetCommand
         }
 
         return [$raw, $gzip];
+    }
+
+    private function percent(float $value): string
+    {
+        return rtrim(rtrim(\sprintf('%.1f', floor($value * 10) / 10), '0'), '.');
     }
 
     private function kb(int $bytes): string

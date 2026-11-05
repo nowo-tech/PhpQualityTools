@@ -59,6 +59,29 @@
 
 ## Unreleased
 
+Planned as **1.11.0**, from **1.10.1** (minor release, nothing to change):
+
+```bash
+composer update nowo-tech/php-quality-tools
+```
+
+Every addition is opt-in, so no existing CI changes on upgrade. To enable them (see
+[Usage → Test hygiene gates](USAGE.md#test-hygiene-gates-since-1110)):
+
+- **Coverage annotations:** call `vendor/bin/check-coverage-annotations` in `make qa` / `check-fast`. Rewrite each
+  reported comment to exactly `// @codeCoverageIgnore` (or `Start` / `End`), with the reason on the line above, and
+  assign each reported `match` to a variable first (or pass `--no-match`).
+- **Wall-clock fixtures:** start with the baseline (or `--warn-only`), never the plain gate: an existing suite usually
+  has many findings (Symfony Beacon: 666). Run `vendor/bin/check-wallclock-fixtures --baseline=tests/wallclock-baseline.txt --write-baseline`
+  once, commit the baseline, then call `vendor/bin/check-wallclock-fixtures --baseline=tests/wallclock-baseline.txt`
+  (add `--paths=tests --paths=assets` for JS / TS tests next to the sources, `--paths=src/DataFixtures` for fixtures,
+  to both calls). Freeze the
+  clock in a listed file, or mark a deliberate wall-clock read with `// @wallclock-ignore <reason>`, and delete its line.
+- **Module declarations:** add `require_all_declared: true` to `config/quality/module-boundaries.yaml` once every
+  `src/*` directory is a module (or in `ignore`).
+- **Budget warnings:** add `--warn-at=90` to the `check-asset-budgets` call, or `warn_at: 90` to the budgets file. A
+  project that greps the output for `OK  ` lines should also accept `WARN`.
+
 ## To 1.10.1
 
 From **1.10.0**; no configuration change.

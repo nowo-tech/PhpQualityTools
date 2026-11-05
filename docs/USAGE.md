@@ -41,6 +41,10 @@
   - [`coverage-gaps`](#coverage-gaps)
   - [`slowest-tests`](#slowest-tests)
   - [Makefile snippets: `heavy.mk`, `quiet.mk`, `release-phases.mk`](#makefile-snippets-heavymk-quietmk-release-phasesmk)
+- [Test hygiene gates (since 1.11.0)](#test-hygiene-gates-since-1110)
+  - [`check-coverage-annotations`](#check-coverage-annotations)
+  - [`check-wallclock-fixtures`](#check-wallclock-fixtures)
+  - [Enabling them](#enabling-them)
 
 ## Run quality tools
 
@@ -168,6 +172,9 @@ rules:                    # extra checks (all optional "message")
   - { type: forbid_pattern, in: [src], except: [src/Ingest/Otlp/], pattern: 'Otlp.*Controller' }
   - { type: require_pattern, path: src/Ingest/Handler.php, pattern: 'IssueWriter' }   # missing files are skipped
   - { type: require_near, path: [src/Project/Entity/Project.php], pattern: 'ORM\\OneToMany\(', requires: 'EXTRA_LAZY', within_lines: 4 }
+
+require_all_declared: true  # since 1.11.0, default false: every directory directly under src/ must be a module path
+                            # (or lie below one, or match ignore); a list of roots works too: [src, lib]
 ```
 
 - A file belongs to the module with the **longest** matching `path`; an imported name to the module with
@@ -182,6 +189,10 @@ rules:                    # extra checks (all optional "message")
   YAML so backslashes stay literal.
 - `require_near`: every line matching `pattern` needs `requires` on that line or within the next
   `within_lines` lines.
+- `require_all_declared` (since 1.11.0, off by default): a new top-level `src/*` directory that nobody added to
+  `modules` fails at once (`Undeclared module directories …`), instead of slipping past every edge rule. A module whose
+  path is a subdirectory (`src/Catalog/Sub`) does not declare its parent `src/Catalog`; a module with path `src` declares
+  everything; `ignore` patterns exempt a directory. A missing root is reported.
 
 A complete real-world map (Symfony Beacon, 7 modules, 3 forbidden edges, 18 rules) lives in
 [`tests/Fixtures/module-boundaries/beacon.yaml`](../tests/Fixtures/module-boundaries/beacon.yaml); the test
@@ -451,7 +462,7 @@ error: SVG markup string in assets/controllers/chart_controller.ts:40 (render th
 
 ```text
 vendor/bin/check-asset-budgets [--root=<dir>] [--config=<file>] [--manifest=<file>] [--build-dir=<dir>]
-                               [--budget=<entry>:<kind>=<size>]...
+                               [--budget=<entry>:<kind>=<size>]... [--warn-at=<percent>]
 ```
 
 Reads the Vite manifest of a **production build** (`build.manifest: true`; run `pnpm run build` /
@@ -466,6 +477,10 @@ chunks (JS) and their CSS. Dynamic imports (lazy controllers) are not counted: t
 - Kinds: `js`, `css` (raw bytes) and `js_gzip`, `css_gzip` (gzip level 9, needs ext-zlib). Sizes: bytes, or
   a number with `B`, `k` / `kB` (1000), `KiB` (1024), `M` / `MB`, `MiB` (case-insensitive).
 - Output: one `OK  ` / `FAIL` line per check with raw and gzip sizes, then a summary.
+- `--warn-at=<percent>` (since 1.11.0; or `warn_at:` in the config, the option wins): a check at or above that share of
+  its budget prints `WARN … (94.3% >= 90%)` and still passes; above 100 % it fails as before. The summary adds
+  `N warning(s) at >= 90%`. Without a threshold (the default) the output is unchanged. Accepts `90`, `90%` or `87.5`
+  (above 0, at most 100).
 
 | Exit code | Meaning |
 | --- | --- |
@@ -477,6 +492,7 @@ chunks (JS) and their CSS. Dynamic imports (lazy controllers) are not counted: t
 # config/quality/asset-budgets.yaml (needs symfony/yaml; .json or a .php file returning the array work too)
 manifest: public/build/.vite/manifest.json   # optional
 build_dir: public/build                       # optional
+warn_at: 90                                   # optional (since 1.11.0): WARN at >= 90 % of a budget
 budgets:
   assets/app.ts: { js: 200kB, css: 250kB }
   assets/styles/shell-entry.scss: { css: 60kB }
@@ -1130,3 +1146,94 @@ test-coverage:
 
 A host that already defines one of these targets keeps its own by not including that snippet; the existing bins and
 the 1.8 recipes above are unchanged.
+
+## Test hygiene gates (since 1.11.0)
+
+Two more static gates, harvested from the Symfony Beacon 1.122.0 release audit (KIT-76): its release-check failed late
+for reasons a seconds-long scan catches. Plain PHP, same conventions as the other gates (`OK …` on stdout, findings on
+stderr, exit 0 OK, 1 findings, 2 usage error). Like every gate they run only where you call them, so upgrading changes
+nothing until you wire them into `make qa` / `check-fast` / `release-precheck`.
+
+### `check-coverage-annotations`
+
+```text
+vendor/bin/check-coverage-annotations [--root=<dir>] [--paths=<dir>]... [--exclude=<pattern>]... [--no-match]
+```
+
+- **Ignored annotations.** php-code-coverage honours a line annotation only when the whole `//` comment is exactly
+  `// @codeCoverageIgnore`, `// @codeCoverageIgnoreStart` or `// @codeCoverageIgnoreEnd` (it compares the trimmed comment
+  token). `// @codeCoverageIgnore because …`, a `#` or `/* … */` comment, or a double space after `//` is dropped
+  without a warning, so the lines count as uncovered and the 100 % gate fails at the very end. Every other non-doc
+  comment that mentions `@codeCoverageIgnore` is reported; write the reason in a comment on the line above. Docblock
+  (`/** … */`) annotations are not line annotations and are not checked; mind that a class or method docblock that
+  merely mentions `@codeCoverageIgnore` (e.g. in prose) excludes that whole class or method from coverage.
+- **Unmappable `match`.** A `match (…)` that is the operand of `?`, `?:`, `??` or follows `:` (ternary else branch, named
+  argument) cannot be mapped to lines by the coverage driver. Assign the `match` to a variable first. `--no-match` turns
+  this check off.
+- Paths: `--paths` (repeatable; a directory or a PHP file), default `src/` when it exists. `--exclude`: a path, a
+  directory prefix or an `fnmatch` glob. `vendor/` and `node_modules/` are always skipped. Token based: strings never match.
+
+```text
+$ vendor/bin/check-coverage-annotations
+error: src/Ingest/Otlp/OtlpDecoder.php:88 "// @codeCoverageIgnoreStart protobuf extension missing" is ignored by php-code-coverage (write exactly "// @codeCoverageIgnore[Start|End]", the reason on the line above)
+error: src/Issues/Service/IssueTitle.php:41 match() after "?" cannot be mapped by the coverage driver (assign the match to a variable first)
+Coverage annotations: 2 violation(s).
+```
+
+### `check-wallclock-fixtures`
+
+```text
+vendor/bin/check-wallclock-fixtures [--root=<dir>] [--paths=<dir>]... [--exclude=<pattern>]...
+                                    [--baseline=<file>] [--write-baseline] [--frozen-marker=<regex>]... [--warn-only]
+```
+
+Tests and fixtures that read the real clock pass today and fail tomorrow, at midnight, on the first of the month or in
+another time zone. The gate reports, in files that do not freeze the clock:
+
+| Language | Reported | Not reported |
+| --- | --- | --- |
+| PHP | `new DateTime()` / `new DateTimeImmutable()` / `new Carbon()` / `date_create()` without an argument or with a relative literal (`'now'`, `'today'`, `'tomorrow'`, `'yesterday'`, `'midnight'`, `'noon'`, `'next …'`, `'last …'`, `'this …'`, `'+1 day'`, `'3 weeks ago'`, weekday names); `strtotime('<relative>')` without a base timestamp; `time()`; `date()` / `gmdate()` / `idate()` without a timestamp; `Carbon::now()` / `today()` / `tomorrow()` / `yesterday()` | absolute dates (`'2026-01-15'`, `'@1700000000'`, a phrase with a year such as `'first monday of january 2026'`), variable or computed arguments, `date('Y', $ts)`, `strtotime('+1 day', $base)`, methods (`$clock->time()`), static calls of other classes, namespaced functions, strings and comments |
+| JS / TS | `new Date()` without an argument | `new Date('2026-01-01')`, `Date.now()` (usually durations), `//` and `/* … */` comment lines |
+
+- **Frozen clock = file skipped.** PHP: `MockClock`, `ClockSensitiveTrait`, `mockTime(`, `ClockMock`, `time-sensitive`
+  (PHPUnit bridge group), `FrozenClock`, `setTestNow(`, `Clock::set(`. JS / TS: `useFakeTimers(`, `setSystemTime(`,
+  `mockdate` / `MockDate`, `timekeeper`, `@sinonjs/fake-timers`, `clock.install(` / `clock.setFixedTime(` (Playwright).
+  `--frozen-marker=<regex>` (PCRE with delimiters, repeatable) adds a project helper, e.g. `--frozen-marker='/freezeTime\(/'`.
+- **Inline opt-out.** `@wallclock-ignore` in a comment at the end of the line, or in a comment alone on the line above,
+  skips that one finding (say why: `// @wallclock-ignore elapsed-time measurement`).
+- **Files.** Every PHP file under `--paths` (default `tests/` when it exists; add e.g. `--paths=src/DataFixtures` for
+  Doctrine fixtures), and the JS / TS test files: `*.test.*`, `*.spec.*`, or below a `tests`, `test`, `__tests__`, `e2e`,
+  `fixtures` or `__fixtures__` directory (`--paths=assets` scans `assets/**/*.test.ts`, not the sources). A file passed
+  explicitly in `--paths` is always scanned. `vendor/`, `node_modules/`, `var/` and `*.d.ts` are skipped.
+- **Ratchet.** `--baseline=<file>` lists files (one root-relative path per line, `#` comments) that may keep their
+  findings: they print `warning: … [baseline]` and the gate still passes, while any other file fails. A listed file
+  without findings (fixed, renamed or deleted) is an error, so the list only shrinks. `--baseline=<file> --write-baseline`
+  writes the current offenders (adoption). `--warn-only` prints every finding as a warning and exits 0. The baseline
+  must be a file inside the project root: `..` is refused, and `--write-baseline` never writes through a symlink or
+  into a symlinked directory that leads outside the root.
+- **Start with a baseline.** An existing suite usually has many findings (Symfony Beacon had 666 at 1.122.0), so the
+  first run on a project is `--write-baseline` (or `--warn-only` while you look), never the plain gate.
+- **Fails closed.** An unreadable file or directory under the scanned paths is `ERROR: cannot read …`, exit 2 (also with
+  `--warn-only`), never a silent pass; fix its permissions or `--exclude` it. The same holds for
+  `check-coverage-annotations`. Both tokenise whole files (about 10× the file size in memory): `--exclude` multi-MB
+  generated fixtures when PHP runs with a low `memory_limit`.
+
+```text
+$ vendor/bin/check-wallclock-fixtures --baseline=tests/wallclock-baseline.txt
+warning: tests/Functional/ReportExportTest.php:31 new DateTimeImmutable('yesterday') reads the wall clock (freeze the clock: MockClock / ClockSensitiveTrait::mockTime(), or use a fixed date; @wallclock-ignore to opt out) [baseline]
+error: tests/Unit/Retention/PurgeWindowTest.php:18 new DateTimeImmutable('-30 days') reads the wall clock (…)
+Wall-clock fixtures: 1 error(s), 1 warning(s).
+```
+
+### Enabling them
+
+```makefile
+# Seconds-long static checks: put them in front of the slow suites.
+check-fast: ensure-up
+	$(DC) exec -T php vendor/bin/check-coverage-annotations
+	$(DC) exec -T php vendor/bin/check-wallclock-fixtures --paths=tests --paths=assets --baseline=tests/wallclock-baseline.txt
+	$(DC) exec -T php vendor/bin/check-module-boundaries      # with require_all_declared: true in the config
+```
+
+Adopting the wall-clock gate on an existing suite: run `vendor/bin/check-wallclock-fixtures --paths=tests --paths=assets --baseline=tests/wallclock-baseline.txt --write-baseline`
+once (with the same `--paths` as the recurring call), commit the file, and remove lines as tests get a frozen clock.

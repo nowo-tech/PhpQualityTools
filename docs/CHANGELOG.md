@@ -46,6 +46,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Planned as **1.11.0** (minor): test hygiene gates and budget warnings from the Symfony Beacon 1.122.0 audit (KIT-76).
+Every addition is opt-in: nothing runs or changes until a project calls the new scripts or sets the new keys. See
+[UPGRADING](UPGRADING.md#unreleased), [Usage → Test hygiene gates](USAGE.md#test-hygiene-gates-since-1110) and spec
+[`specs/006-test-hygiene-gates`](../specs/006-test-hygiene-gates/spec.md).
+
+### Added
+
+- **`bin/check-coverage-annotations`** (`Gate\Coverage\CoverageAnnotationsCommand`): fails on line annotations php-code-coverage silently ignores (`// @codeCoverageIgnore because …`, `#` / `/* */` comments, a double space: anything but exactly `// @codeCoverageIgnore[Start|End]`) and on `match (…)` after `?`, `?:`, `??` or `:`, which the coverage driver cannot map (`--no-match` skips that check). Token based; `--paths` (default `src/`), `--exclude`, `--root`.
+- **`bin/check-wallclock-fixtures`** (`Gate\WallClock\WallClockFixturesCommand`, `Gate\WallClock\WallClockScanner`): fails on tests and fixtures that read the real clock in files without a frozen one: PHP `new DateTime[Immutable]()` / `new Carbon()` / `date_create()` without an argument or with a relative literal (`today`, `tomorrow`, `+1 day`, `next monday` …), `strtotime('<relative>')`, `time()`, `date()` without a timestamp, `Carbon::now()`; JS / TS `new Date()` in test files. Files that use `MockClock`, `ClockSensitiveTrait` / `mockTime()`, `ClockMock` / `time-sensitive`, `setTestNow()`, fake timers, `mockdate` or Playwright `clock.install()` are skipped; `--frozen-marker` adds project helpers. Inline opt-out `@wallclock-ignore`; ratchet `--baseline` (listed files warn, new files fail, fixed files must leave the list) with `--write-baseline` (inside the project root only, never through a symlink); `--warn-only`. Default path `tests/`. Start an existing suite with `--write-baseline` or `--warn-only`.
+- Both new gates fail closed: an unreadable file or directory is `ERROR: cannot read …`, exit 2 (never a silent pass, never an uncaught exception). The wall-clock scan is linear in the file size (matching brackets are indexed once), so deeply nested or unclosed calls cannot stall it.
+- **`check-module-boundaries`**: `require_all_declared: true` (or a list of roots) fails when a directory directly under `src/` is not a declared module path (or below one, or ignored). Default `false`.
+- **`check-asset-budgets`**: `--warn-at=<percent>` / config key `warn_at` prints `WARN … (94.3% >= 90%)` for checks at or above that share of their budget, still exit 0; above 100 % fails as before. Without it the output is unchanged. Non-finite values (`.nan`) are rejected.
+
 ## [1.10.1] - 2026-11-04
 
 Patch release. See [UPGRADING](UPGRADING.md#to-1101).
