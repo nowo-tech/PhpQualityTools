@@ -48,14 +48,16 @@ Existing scripts are preserved.
 Nothing to configure for the Composer plugin. The optional CI gates read their own inputs:
 
 - `vendor/bin/check-coverage-threshold`: Clover path + minimum (argument, `--min` or `COVERAGE_MIN`).
-- `vendor/bin/check-module-boundaries`: `config/quality/module-boundaries.yaml` (or `.yml` / `.php`, or `--config`).
+- `vendor/bin/check-module-boundaries`: `config/quality/module-boundaries.yaml` (or `.yml` / `.php`, or `--config`). Since 1.11.0, `require_all_declared: true` (or a list of roots; default `false`) makes every directory directly under `src/` a required module.
 - `vendor/bin/assert-latest-tag` (since 1.3.0): tag argument or `GITHUB_REF_NAME`, `--prefix` (default `v`), `GITHUB_OUTPUT` with `--github-output`; tags from `git tag --list` (or `--stdin`).
 - `Testing\QueryBudgetTrait`: register `Testing\Dbal\QueryCountingMiddleware` (tag `doctrine.middleware`) in the test environment.
 - `Testing\Env\PidPathEnvVarProcessor` (since 1.5.0): register it with the tag `container.env_var_processor` under `when@test`, then use `%env(pid_path:…)%`.
 - `vendor/bin/clean-stale-pid-paths` (since 1.5.0): one or more path patterns with a `{pid}` placeholder.
 - `vendor/bin/check-no-inline-svg` (since 1.6.0): options only (`--templates`, `--scripts`, `--template-ext`, `--script-ext`, `--allow`, `--no-scripts`); defaults `templates/` (`.twig`) and `assets/` (`.ts`).
-- `vendor/bin/check-asset-budgets` (since 1.6.0): `config/quality/asset-budgets.yaml` (or `.yml` / `.json` / `.php`, or `--config`) with `manifest`, `build_dir` and `budgets: { <entry>: { js|css|js_gzip|css_gzip: <size> } }`, and/or `--budget=<entry>:<kind>=<size>`.
+- `vendor/bin/check-asset-budgets` (since 1.6.0): `config/quality/asset-budgets.yaml` (or `.yml` / `.json` / `.php`, or `--config`) with `manifest`, `build_dir` and `budgets: { <entry>: { js|css|js_gzip|css_gzip: <size> } }`, and/or `--budget=<entry>:<kind>=<size>`. Since 1.11.0, `warn_at: <percent>` (or `--warn-at=<percent>`; default none) prints `WARN` for checks at or above that share of their budget without failing.
 - `vendor/bin/check-doc-links` (since 1.6.0): options only (`--root`, `--exclude`, `--check-anchors`, `--no-git`).
+- `vendor/bin/check-coverage-annotations` (since 1.11.0): options only (`--root`, `--paths`, default `src/`, `--exclude`, `--no-match`).
+- `vendor/bin/check-wallclock-fixtures` (since 1.11.0): options only (`--root`, `--paths`, default `tests/`, `--exclude`, `--baseline`, `--write-baseline`, `--frozen-marker`, `--warn-only`); the baseline is a plain list of root-relative paths. Inline opt-out: `@wallclock-ignore`.
 - `resources/make/php-worker-reset.mk` (since 1.6.0): Makefile variables `PHP_WORKER_RESET_COMPOSE`, `PHP_WORKER_RESET_EXTRA_COMPOSE`, `PHP_WORKER_RESET_SERVICE`, `PHP_WORKER_RESET_EXTRA_SERVICES` (since 1.6.1), `PHP_WORKER_RESET_CACHE_CLEAR`, `PHP_WORKER_RESET_TIMEOUT`.
 
-Full reference: [Usage → Gate scripts](USAGE.md#gate-scripts-since-120), [Usage → Release guards](USAGE.md#release-guards-since-130), [Usage → Query budgets](USAGE.md#query-budgets-in-phpunit-since-120), [Usage → Parallel PHPUnit isolation](USAGE.md#parallel-phpunit-isolation-since-150) and [Usage → Front-end and docs gates](USAGE.md#front-end-and-docs-gates-since-160).
+Full reference: [Usage → Gate scripts](USAGE.md#gate-scripts-since-120), [Usage → Release guards](USAGE.md#release-guards-since-130), [Usage → Query budgets](USAGE.md#query-budgets-in-phpunit-since-120), [Usage → Parallel PHPUnit isolation](USAGE.md#parallel-phpunit-isolation-since-150), [Usage → Front-end and docs gates](USAGE.md#front-end-and-docs-gates-since-160) and [Usage → Test hygiene gates](USAGE.md#test-hygiene-gates-since-1110).

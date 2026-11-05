@@ -34,7 +34,7 @@ final class GateBinScriptsTest extends TestCase
         $composer = json_decode((string) file_get_contents(self::ROOT . '/composer.json'), true, 512, \JSON_THROW_ON_ERROR);
 
         self::assertIsArray($composer);
-        self::assertSame(['bin/assert-latest-tag', 'bin/assert-release-proof', 'bin/changed-tests', 'bin/check-changed-src-tested', 'bin/check-asset-budgets', 'bin/check-coverage-threshold', 'bin/check-doc-links', 'bin/check-module-boundaries', 'bin/check-no-agent-coauthor', 'bin/check-no-inline-svg', 'bin/clean-stale-pid-paths', 'bin/coverage-gaps', 'bin/heavy-lock', 'bin/install-git-hooks', 'bin/junit-failures', 'bin/memory-guard', 'bin/quiet-run', 'bin/release-phase', 'bin/slowest-tests', 'bin/strip-agent-coauthor'], $composer['bin'] ?? null);
+        self::assertSame(['bin/assert-latest-tag', 'bin/assert-release-proof', 'bin/changed-tests', 'bin/check-changed-src-tested', 'bin/check-asset-budgets', 'bin/check-coverage-annotations', 'bin/check-coverage-threshold', 'bin/check-doc-links', 'bin/check-module-boundaries', 'bin/check-no-agent-coauthor', 'bin/check-no-inline-svg', 'bin/check-wallclock-fixtures', 'bin/clean-stale-pid-paths', 'bin/coverage-gaps', 'bin/heavy-lock', 'bin/install-git-hooks', 'bin/junit-failures', 'bin/memory-guard', 'bin/quiet-run', 'bin/release-phase', 'bin/slowest-tests', 'bin/strip-agent-coauthor'], $composer['bin'] ?? null);
         foreach ($composer['bin'] as $script) {
             self::assertTrue(is_executable(self::ROOT . '/' . $script), $script);
         }
@@ -129,6 +129,34 @@ final class GateBinScriptsTest extends TestCase
         [$code, $out] = $this->runScript('check-doc-links', ['--check-anchors'], [], $this->repo);
         self::assertSame(0, $code, $out);
         self::assertStringContainsString('OK: doc links (2 Markdown files, no broken relative link, image or anchor).', $out);
+    }
+
+    public function testTestHygieneGateScripts(): void
+    {
+        $this->repo = sys_get_temp_dir() . '/pqt-hygiene-' . bin2hex(random_bytes(4));
+        $files = [
+            'src/Clean.php' => "<?php\n// @codeCoverageIgnoreStart\n\$a = 1;\n// @codeCoverageIgnoreEnd\n",
+            'tests/FixedTest.php' => "<?php\n\$d = new DateTimeImmutable('2026-01-01');\n",
+        ];
+        foreach ($files as $path => $content) {
+            (new Filesystem())->dumpFile($this->repo . '/' . $path, $content);
+        }
+
+        [$code, $out] = $this->runScript('check-coverage-annotations', [], [], $this->repo);
+        self::assertSame(0, $code, $out);
+        self::assertStringContainsString('OK: coverage annotations (1 PHP file(s)).', $out);
+        (new Filesystem())->dumpFile($this->repo . '/src/Bad.php', "<?php\n// @codeCoverageIgnore because\n");
+        [$code, $out] = $this->runScript('check-coverage-annotations', [], [], $this->repo);
+        self::assertSame(1, $code, $out);
+        self::assertStringContainsString('error: src/Bad.php:2', $out);
+
+        [$code, $out] = $this->runScript('check-wallclock-fixtures', [], [], $this->repo);
+        self::assertSame(0, $code, $out);
+        self::assertStringContainsString('OK: wall-clock fixtures (1 file(s) scanned, 0 warning(s), 0 baselined file(s)).', $out);
+        (new Filesystem())->dumpFile($this->repo . '/tests/LateTest.php', "<?php\n\$d = new DateTimeImmutable('tomorrow');\n");
+        [$code, $out] = $this->runScript('check-wallclock-fixtures', [], [], $this->repo);
+        self::assertSame(1, $code, $out);
+        self::assertStringContainsString("error: tests/LateTest.php:2 new DateTimeImmutable('tomorrow') reads the wall clock", $out);
     }
 
     public function testPhpWorkerResetMakefileSnippet(): void

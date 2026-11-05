@@ -1,0 +1,15 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Fail on coverage annotations php-code-coverage silently ignores and on match() placements it cannot map.
+ * See docs/USAGE.md ("Test hygiene gates") or run with --help.
+ */
+
+use NowoTech\PhpQualityTools\Gate\Coverage\CoverageAnnotationsCommand;
+
+require __DIR__ . '/autoload.php';
+
+exit((new CoverageAnnotationsCommand(\STDOUT, \STDERR, (string) getcwd()))->run(array_slice($argv, 1)));

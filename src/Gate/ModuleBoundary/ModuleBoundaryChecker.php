@@ -60,6 +60,12 @@ final class ModuleBoundaryChecker
 
         $files = $this->phpFiles($config->paths, [], $config->ignore);
         $violations = $this->checkEdges($config, $files);
+        if ([] !== $config->requireAllDeclared) {
+            $violation = $this->checkAllDeclared($config);
+            if ($violation instanceof Violation) {
+                $violations[] = $violation;
+            }
+        }
         foreach ($config->rules as $rule) {
             $violation = $this->checkRule($config, $rule);
             if ($violation instanceof Violation) {
@@ -108,6 +114,49 @@ final class ModuleBoundaryChecker
         }
 
         return $violations;
+    }
+
+    /**
+     * `require_all_declared`: every directory directly under each root must be a module path or lie below one
+     * (`ignore` patterns exempt a directory); a missing root is reported too.
+     */
+    private function checkAllDeclared(ModuleBoundaryConfig $config): ?Violation
+    {
+        $details = [];
+        foreach ($config->requireAllDeclared as $root) {
+            $absolute = $this->absolute($root);
+            if (!is_dir($absolute)) {
+                $details[] = $root . ' (root directory not found)';
+                continue;
+            }
+            $children = [];
+            foreach (new \FilesystemIterator($absolute, \FilesystemIterator::SKIP_DOTS) as $info) {
+                /** @var \SplFileInfo $info */
+                if ($info->isDir()) {
+                    $children[] = $root . '/' . $info->getFilename();
+                }
+            }
+            sort($children);
+            foreach ($children as $child) {
+                if ($this->matchesAny($child, $config->ignore) || $this->declared($config, $child)) {
+                    continue;
+                }
+                $details[] = $child;
+            }
+        }
+
+        return [] === $details ? null : new Violation('Undeclared module directories (require_all_declared; add them to modules or to ignore):', $details);
+    }
+
+    private function declared(ModuleBoundaryConfig $config, string $directory): bool
+    {
+        foreach ($config->modules as $module) {
+            if (null !== $module['path'] && self::pathMatches($directory, rtrim($module['path'], '/'))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function checkRule(ModuleBoundaryConfig $config, Rule $rule): ?Violation
