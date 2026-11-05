@@ -98,6 +98,15 @@ final class AssetBudgetCommandTest extends TestCase
         self::assertSame(90.0, $config->with('a.js', 'js', 10)->warnAt);
         self::assertSame(80.0, AssetBudgetConfig::fromArray(['warn_at' => '80'])->warnAt);
 
+        foreach ([\NAN, \INF] as $value) {
+            try {
+                (new AssetBudgetConfig())->withWarnAt($value);
+                self::fail('A non-finite warn_at must be rejected.');
+            } catch (AssetBudgetException $e) {
+                self::assertStringContainsString('warn_at must be a percentage above 0 and at most 100', $e->getMessage());
+            }
+        }
+
         try {
             AssetBudgetConfig::fromArray(['warn_at' => null]);
             self::fail('An explicit null warn_at must be rejected.');

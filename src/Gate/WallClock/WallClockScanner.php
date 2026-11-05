@@ -41,6 +41,10 @@ final readonly class WallClockScanner
 
     private const CARBON_NOW = ['now', 'today', 'tomorrow', 'yesterday'];
 
+    private const FUNCTIONS = ['time', 'date', 'gmdate', 'idate', 'date_create', 'date_create_immutable', 'strtotime'];
+
+    private const RENDER_LIMIT = 120;
+
     private const RELATIVE = '/(?:^|[^a-z])(?:now|today|tomorrow|yesterday|midnight|noon|next|last|this|ago|monday|tuesday|wednesday|thursday|friday|saturday|sunday)(?:[^a-z]|$)|^\s*[+-]?\s*\d+\s*(?:sec|second|min|minute|hour|day|week|fortnight|month|year)s?\b/';
 
     /** A calendar date, a `@timestamp` or a year (1900-2099) makes a relative phrase absolute ('first monday of january 2025'). */
@@ -84,10 +88,29 @@ final readonly class WallClockScanner
             $raw = $token;
         }
 
+        // One linear pass: the matching closer and the first top-level comma of every bracket, so checking a call
+        // never rescans its arguments (deeply nested calls stay linear).
+        $close = [];
+        $comma = [];
+        $stack = [];
+        foreach ($tokens as $index => $token) {
+            $text = \is_array($token) ? $token[1] : $token;
+            if ('(' === $text || '[' === $text || '{' === $text || '${' === $text) {
+                $stack[] = $index;
+            } elseif (')' === $text || ']' === $text || '}' === $text) {
+                $open = array_pop($stack);
+                if (null !== $open) {
+                    $close[$open] = $index;
+                }
+            } elseif (',' === $text && [] !== $stack) {
+                $comma[$stack[\count($stack) - 1]] ??= $index;
+            }
+        }
+
         $findings = [];
         $count = \count($tokens);
         for ($i = 0; $i < $count; ++$i) {
-            $finding = $this->phpFinding($tokens, $i);
+            $finding = $this->phpFinding($tokens, $close, $comma, $i);
             if (null !== $finding && !isset($ignored[$finding[0]])) {
                 $findings[] = $finding;
             }
@@ -146,10 +169,12 @@ final readonly class WallClockScanner
 
     /**
      * @param list<array{0: int, 1: string, 2: int}|string> $tokens significant tokens
+     * @param array<int, int>                               $close  index of `(` => index of its `)`
+     * @param array<int, int>                               $comma  index of `(` => index of its first top-level `,`
      *
      * @return array{int, string}|null
      */
-    private function phpFinding(array $tokens, int $i): ?array
+    private function phpFinding(array $tokens, array $close, array $comma, int $i): ?array
     {
         $token = $tokens[$i];
         if (!\is_array($token)) {
@@ -164,10 +189,10 @@ final readonly class WallClockScanner
             if (!\is_array($class) || !\in_array($this->shortName($class), self::DATE_CLASSES, true)) {
                 return null;
             }
-            $args = $this->arguments($tokens, $i + 2);
+            $args = $this->arguments($tokens, $close, $comma, $i + 2);
 
             return $this->dateArguments($args, true)
-                ? [$line, \sprintf('new %s(%s) reads the wall clock (%s)', ltrim($class[1], '\\'), $this->render($args), self::PHP_HINT)]
+                ? [$line, \sprintf('new %s(%s) reads the wall clock (%s)', ltrim($class[1], '\\'), $args['text'] ?? '', self::PHP_HINT)]
                 : null;
         }
 
@@ -186,103 +211,97 @@ final readonly class WallClockScanner
             return null;
         }
 
+        // Only the watched functions; the name is checked before anything else is looked at.
+        if (!\in_array($name, self::FUNCTIONS, true)) {
+            return null;
+        }
+
         // A global function call: not a method, a static call, a declaration or a namespaced function.
         if (\T_NAME_QUALIFIED === $token[0] || (\T_NAME_FULLY_QUALIFIED === $token[0] && 1 !== substr_count($token[1], '\\')) || \in_array($previousId, [\T_OBJECT_OPERATOR, \T_NULLSAFE_OBJECT_OPERATOR, \T_DOUBLE_COLON, \T_FUNCTION, \T_NEW, \T_CONST], true)) {
             return null;
         }
-        $args = $this->arguments($tokens, $i + 1);
+        $args = $this->arguments($tokens, $close, $comma, $i + 1);
         if (null === $args) {
             return null;
         }
         $wallClock = match ($name) {
-            'time' => [] === $args,
-            'date', 'gmdate', 'idate' => 1 === \count($args),
+            'time' => 0 === $args['count'],
+            'date', 'gmdate', 'idate' => 1 === $args['count'],
             'date_create', 'date_create_immutable' => $this->dateArguments($args, false),
-            'strtotime' => 1 === \count($args) && $this->dateArguments($args, false),
-            default => false,
+            default => 1 === $args['count'] && $this->dateArguments($args, false), // strtotime
         };
 
-        return $wallClock ? [$line, \sprintf('%s(%s) reads the wall clock (%s)', $name, $this->render($args), self::PHP_HINT)] : null;
+        return $wallClock ? [$line, \sprintf('%s(%s) reads the wall clock (%s)', $name, $args['text'], self::PHP_HINT)] : null;
     }
 
     /**
-     * Whether the (first) date argument means "now": none (or no parentheses with `new`), or a relative literal.
+     * Whether the date arguments mean "now": none (or no parentheses with `new`), or one relative literal first.
      *
-     * @param list<list<array{0: int, 1: string, 2: int}|string>>|null $args
+     * @param array{count: int, first: array{0: int, 1: string, 2: int}|string|null, text: string}|null $args
      */
     private function dateArguments(?array $args, bool $allowNoParentheses): bool
     {
         if (null === $args) {
             return $allowNoParentheses;
         }
-        if ([] === $args) {
+        if (0 === $args['count']) {
             return true;
         }
-        $first = $args[0];
-        if (1 !== \count($first) || !\is_array($first[0]) || \T_CONSTANT_ENCAPSED_STRING !== $first[0][0]) {
+        $first = $args['first'];
+        if (!\is_array($first) || \T_CONSTANT_ENCAPSED_STRING !== $first[0]) {
             return false;
         }
 
-        return self::isRelativeDate(substr($first[0][1], 1, -1));
+        return self::isRelativeDate(substr($first[1], 1, -1));
     }
 
     /**
-     * The arguments of the call whose `(` is at `$open`, split on top-level commas; null when there is no `(`.
+     * The call whose `(` is at `$open`: argument count (0, 1, or 2 for "two or more"), the first argument when it is
+     * a single token, and its rendered text; null when there is no `(`. Constant time apart from the bounded render.
      *
      * @param list<array{0: int, 1: string, 2: int}|string> $tokens
+     * @param array<int, int>                               $close
+     * @param array<int, int>                               $comma
      *
-     * @return list<list<array{0: int, 1: string, 2: int}|string>>|null
+     * @return array{count: int, first: array{0: int, 1: string, 2: int}|string|null, text: string}|null
      */
-    private function arguments(array $tokens, int $open): ?array
+    private function arguments(array $tokens, array $close, array $comma, int $open): ?array
     {
         if ('(' !== ($tokens[$open] ?? null)) {
             return null;
         }
-        $args = [];
-        $current = [];
-        $depth = 0;
-        $count = \count($tokens);
-        for ($i = $open + 1; $i < $count; ++$i) {
-            $token = $tokens[$i];
-            $text = \is_array($token) ? $token[1] : $token;
-            if (0 === $depth && (')' === $text || ',' === $text)) {
-                if ([] !== $current) {
-                    $args[] = $current;
-                }
-                if (')' === $text) {
-                    break;
-                }
-                $current = [];
-                continue;
-            }
-            if (\in_array($text, ['(', '[', '{'], true) || (\is_array($token) && \in_array($token[0], [\T_CURLY_OPEN, \T_DOLLAR_OPEN_CURLY_BRACES], true))) {
-                ++$depth;
-            } elseif (\in_array($text, [')', ']', '}'], true)) {
-                --$depth;
-            }
-            $current[] = $token;
+        $end = $close[$open] ?? \count($tokens);
+        if ($end === $open + 1) {
+            return ['count' => 0, 'first' => null, 'text' => ''];
         }
+        $firstEnd = $comma[$open] ?? $end;
 
-        return $args;
+        return [
+            'count' => isset($comma[$open]) ? 2 : 1,
+            'first' => $firstEnd === $open + 2 ? $tokens[$open + 1] : null,
+            'text' => $this->render($tokens, $open + 1, $end),
+        ];
     }
 
     /**
-     * @param list<list<array{0: int, 1: string, 2: int}|string>>|null $args
+     * The source of tokens `$from` .. `$to - 1` (whitespace was dropped: one space between two words and after a
+     * comma), cut at RENDER_LIMIT characters.
+     *
+     * @param list<array{0: int, 1: string, 2: int}|string> $tokens
      */
-    private function render(?array $args): string
+    private function render(array $tokens, int $from, int $to): string
     {
-        $parts = [];
-        foreach ($args ?? [] as $arg) {
-            $text = '';
-            foreach ($arg as $token) {
-                $token = \is_array($token) ? $token[1] : $token;
-                // Whitespace tokens were dropped: put one space back between two words (new DateTimeZone).
-                $text .= (1 === preg_match('/\w$/', $text) && 1 === preg_match('/^[\w$\\\\]/', $token) ? ' ' : '') . $token;
+        $text = '';
+        for ($i = $from; $i < $to; ++$i) {
+            if (\strlen($text) > self::RENDER_LIMIT) {
+                return substr($text, 0, self::RENDER_LIMIT) . '...';
             }
-            $parts[] = $text;
+            $token = \is_array($tokens[$i]) ? $tokens[$i][1] : $tokens[$i];
+            $space = str_ends_with($text, ',') || (1 === preg_match('/\w$/', $text) && 1 === preg_match('/^[\w$\\\\]/', $token));
+            $text .= ($space ? ' ' : '') . $token;
         }
 
-        return implode(', ', $parts);
+        return \strlen($text) > self::RENDER_LIMIT ? substr($text, 0, self::RENDER_LIMIT) . '...' : $text;
     }
 
     /**

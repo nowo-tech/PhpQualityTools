@@ -53,6 +53,11 @@ final class WallClockScannerTest extends TestCase
         self::assertStringContainsString('freeze the clock: MockClock / ClockSensitiveTrait::mockTime()', $findings[0][1]);
     }
 
+    private function hint(): string
+    {
+        return 'freeze the clock: MockClock / ClockSensitiveTrait::mockTime(), or use a fixed date; @wallclock-ignore to opt out';
+    }
+
     /**
      * @return iterable<string, array{string}>
      */
@@ -152,6 +157,31 @@ final class WallClockScannerTest extends TestCase
         foreach (['vi.useFakeTimers();', 'jest.useFakeTimers()', 'vi.setSystemTime(0)', "import MockDate from 'mockdate';", 'await page.clock.install({ time });', "import FakeTimers from '@sinonjs/fake-timers';"] as $marker) {
             self::assertSame([], $scanner->scanJs($marker . "\nconst now = new Date();\n"), $marker);
         }
+    }
+
+    public function testDeeplyNestedCallsStayLinear(): void
+    {
+        $scanner = new WallClockScanner();
+        $start = microtime(true); // @wallclock-ignore elapsed time of the scan
+
+        self::assertSame([], $scanner->scanPhp('<?php ' . str_repeat('foo(', 40000) . str_repeat(')', 40000) . ';'));
+        self::assertSame([], $scanner->scanPhp('<?php ' . str_repeat('foo(', 40000)));
+        // Only the innermost (empty, unclosed) constructor reads the clock.
+        self::assertCount(1, $scanner->scanPhp('<?php ' . str_repeat('new DateTime(', 20000)));
+        $findings = $scanner->scanPhp('<?php ' . str_repeat('date(', 20000) . "'Y'" . str_repeat(')', 20000) . ';');
+        self::assertCount(20000, $findings);
+        self::assertStringEndsWith("...) reads the wall clock ({$this->hint()})", $findings[0][1]);
+        self::assertStringStartsWith("date('Y') reads the wall clock", $findings[19999][1]);
+
+        // Quadratic scanning took 21 s for 20 000 levels and 64 s for 40 000 unclosed calls.
+        self::assertLessThan(10.0, microtime(true) - $start); // @wallclock-ignore elapsed time of the scan
+    }
+
+    public function testRenderedArgumentsAreCut(): void
+    {
+        $findings = (new WallClockScanner())->scanPhp("<?php\n\$y = date('" . str_repeat('x', 300) . "');\n");
+
+        self::assertSame("date('" . str_repeat('x', 119) . "...) reads the wall clock ({$this->hint()})", $findings[0][1]);
     }
 
     public function testIsRelativeDate(): void

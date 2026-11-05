@@ -18,7 +18,7 @@ namespace NowoTech\PhpQualityTools\Gate\Coverage;
  * 2. A `match (…)` that is the operand of `?`, `?:`, `??` or follows `:` (ternary else branch, named argument)
  *    cannot be mapped to lines by the coverage driver; assign it to a variable first. `--no-match` skips this check.
  *
- * Exit codes: 0 OK, 1 violations, 2 usage error.
+ * Exit codes: 0 OK, 1 violations, 2 usage error or unreadable file / directory (never a silent pass).
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
@@ -38,7 +38,7 @@ final class CoverageAnnotationsCommand
         Only "// @codeCoverageIgnore", "// @codeCoverageIgnoreStart" and "// @codeCoverageIgnoreEnd" (nothing else
         in the comment) are honoured; put the reason in a comment on the line above.
         Skips vendor/ and node_modules/. A missing default directory is skipped.
-        Exit codes: 0 OK, 1 violations, 2 usage error.
+        Exit codes: 0 OK, 1 violations, 2 usage error or unreadable file / directory.
         TXT;
 
     private const VALID_ANNOTATIONS = [
@@ -106,12 +106,31 @@ final class CoverageAnnotationsCommand
             $paths = is_dir($root . '/src') ? ['src'] : [];
         }
 
+        try {
+            $files = $this->phpFiles($root, $paths, $exclude);
+        } catch (\UnexpectedValueException $e) {
+            // An unreadable directory: fail closed with a clear message instead of an uncaught exception.
+            fwrite($this->stderr, 'ERROR: cannot read a directory under the scanned paths: ' . $e->getMessage() . "\n");
+
+            return 2;
+        }
         $errors = [];
-        $files = $this->phpFiles($root, $paths, $exclude);
+        $unreadable = [];
         foreach ($files as $relative) {
-            foreach ($this->check((string) file_get_contents($root . '/' . $relative), $checkMatch) as [$line, $message]) {
+            $source = @file_get_contents($root . '/' . $relative);
+            if (false === $source) {
+                $unreadable[] = "ERROR: cannot read {$relative} (not scanned: fix its permissions or --exclude it)";
+                continue;
+            }
+            foreach ($this->check($source, $checkMatch) as [$line, $message]) {
                 $errors[] = "error: {$relative}:{$line} {$message}";
             }
+        }
+
+        if ([] !== $unreadable) {
+            fwrite($this->stderr, implode("\n", [...$errors, ...$unreadable]) . "\n");
+
+            return 2;
         }
 
         if ([] !== $errors) {

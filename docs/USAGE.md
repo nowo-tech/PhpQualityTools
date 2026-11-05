@@ -1208,7 +1208,15 @@ another time zone. The gate reports, in files that do not freeze the clock:
 - **Ratchet.** `--baseline=<file>` lists files (one root-relative path per line, `#` comments) that may keep their
   findings: they print `warning: … [baseline]` and the gate still passes, while any other file fails. A listed file
   without findings (fixed, renamed or deleted) is an error, so the list only shrinks. `--baseline=<file> --write-baseline`
-  writes the current offenders (adoption). `--warn-only` prints every finding as a warning and exits 0.
+  writes the current offenders (adoption). `--warn-only` prints every finding as a warning and exits 0. The baseline
+  must be a file inside the project root: `..` is refused, and `--write-baseline` never writes through a symlink or
+  into a symlinked directory that leads outside the root.
+- **Start with a baseline.** An existing suite usually has many findings (Symfony Beacon had 666 at 1.122.0), so the
+  first run on a project is `--write-baseline` (or `--warn-only` while you look), never the plain gate.
+- **Fails closed.** An unreadable file or directory under the scanned paths is `ERROR: cannot read …`, exit 2 (also with
+  `--warn-only`), never a silent pass; fix its permissions or `--exclude` it. The same holds for
+  `check-coverage-annotations`. Both tokenise whole files (about 10× the file size in memory): `--exclude` multi-MB
+  generated fixtures when PHP runs with a low `memory_limit`.
 
 ```text
 $ vendor/bin/check-wallclock-fixtures --baseline=tests/wallclock-baseline.txt

@@ -119,7 +119,7 @@ final class WallClockFixturesCommandTest extends TestCase
 
         [$code, , $err] = $this->runCommand($root, ['--baseline=missing.txt']);
         self::assertSame(2, $code);
-        self::assertSame("ERROR: baseline file not found: missing.txt (create it with --write-baseline)\n", $err);
+        self::assertSame("ERROR: baseline file not found or unreadable: missing.txt (create it with --write-baseline)\n", $err);
 
         [$code, , $err] = $this->runCommand($root, ['--baseline=nodir/baseline.txt', '--write-baseline']);
         self::assertSame(2, $code);
@@ -142,6 +142,79 @@ final class WallClockFixturesCommandTest extends TestCase
         [$code, $out, $err] = $this->runCommand($root, ['--paths=./', '--exclude=tests/Unit/', '--baseline=baseline.txt']);
         self::assertSame(0, $code, $err);
         self::assertSame("OK: wall-clock fixtures (1 file(s) scanned, 1 warning(s), 1 baselined file(s)).\n", $out);
+    }
+
+    public function testUnreadableFilesAndDirectoriesFailClosed(): void
+    {
+        $root = $this->makeTree([
+            'tests/ATest.php' => "<?php\n",
+            'tests/BTest.php' => "<?php\n\$t = time();\n",
+            'tests/Locked/CTest.php' => "<?php\n\$t = time();\n",
+            'baseline.txt' => "tests/BTest.php\n",
+        ]);
+        chmod($root . '/tests/BTest.php', 0o000);
+        if (is_readable($root . '/tests/BTest.php')) {
+            chmod($root . '/tests/BTest.php', 0o644);
+            self::markTestSkipped('Running as root: permissions cannot make a file unreadable.');
+        }
+
+        try {
+            [$code, $out, $err] = $this->runCommand($root, ['--exclude=tests/Locked']);
+            self::assertSame(2, $code);
+            self::assertSame('', $out);
+            self::assertSame("ERROR: cannot read tests/BTest.php (not scanned: fix its permissions or --exclude it)\n", $err);
+
+            // --warn-only and --write-baseline do not turn an unreadable file into a pass either.
+            [$code] = $this->runCommand($root, ['--exclude=tests/Locked', '--warn-only']);
+            self::assertSame(2, $code);
+            [$code] = $this->runCommand($root, ['--exclude=tests/Locked', '--baseline=baseline.txt', '--write-baseline']);
+            self::assertSame(2, $code);
+            self::assertSame("tests/BTest.php\n", file_get_contents($root . '/baseline.txt'));
+
+            chmod($root . '/tests/BTest.php', 0o644);
+            chmod($root . '/baseline.txt', 0o000);
+            [$code, , $err] = $this->runCommand($root, ['--exclude=tests/Locked', '--baseline=baseline.txt']);
+            self::assertSame(2, $code);
+            self::assertStringContainsString('ERROR: baseline file not found or unreadable: baseline.txt', $err);
+
+            chmod($root . '/tests/Locked', 0o000);
+            [$code, $out, $err] = $this->runCommand($root, []);
+            self::assertSame(2, $code);
+            self::assertSame('', $out);
+            self::assertStringStartsWith('ERROR: cannot read a directory under the scanned paths: ', $err);
+            self::assertStringContainsString('tests/Locked', $err);
+        } finally {
+            chmod($root . '/tests/BTest.php', 0o644);
+            chmod($root . '/baseline.txt', 0o644);
+            chmod($root . '/tests/Locked', 0o755);
+        }
+    }
+
+    public function testWriteBaselineStaysInsideTheProject(): void
+    {
+        $outside = $this->makeTree(['precious.txt' => 'PRECIOUS', 'dir/keep.txt' => 'x']);
+        $root = $this->makeTree(['tests/ATest.php' => "<?php\n\$t = time();\n"]);
+        symlink($outside . '/precious.txt', $root . '/bl.txt');
+        symlink($outside . '/dir', $root . '/linkdir');
+
+        try {
+            foreach (['bl.txt', 'linkdir/bl.txt'] as $baseline) {
+                [$code, , $err] = $this->runCommand($root, ['--baseline=' . $baseline, '--write-baseline']);
+                self::assertSame(2, $code, $baseline);
+                self::assertSame("ERROR: refusing to write the baseline {$baseline} through a symlink or outside the project root\n", $err);
+            }
+            self::assertSame('PRECIOUS', file_get_contents($outside . '/precious.txt'));
+            self::assertFileDoesNotExist($outside . '/dir/bl.txt');
+        } finally {
+            unlink($root . '/bl.txt');
+            unlink($root . '/linkdir');
+        }
+
+        foreach (['../outside.txt', 'tests/../../x.txt', '.'] as $baseline) {
+            [$code, , $err] = $this->runCommand($root, ['--baseline=' . $baseline, '--write-baseline']);
+            self::assertSame(2, $code, $baseline);
+            self::assertStringContainsString("--baseline must be a file inside the project root (got {$baseline})", $err);
+        }
     }
 
     public function testRootAndMissingDefaultDirectory(): void

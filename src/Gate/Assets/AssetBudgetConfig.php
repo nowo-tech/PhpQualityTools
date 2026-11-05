@@ -150,7 +150,7 @@ final readonly class AssetBudgetConfig
         if (\is_string($value) && is_numeric($value)) {
             $value = (float) $value;
         }
-        if ((!\is_int($value) && !\is_float($value)) || $value <= 0 || $value > 100) {
+        if ((!\is_int($value) && !\is_float($value)) || !is_finite((float) $value) || $value <= 0 || $value > 100) {
             throw new AssetBudgetException('warn_at must be a percentage above 0 and at most 100 (got ' . (\is_scalar($percent) ? var_export($percent, true) : get_debug_type($percent)) . ').', AssetBudgetException::INVALID);
         }
 

@@ -15,7 +15,8 @@ namespace NowoTech\PhpQualityTools\Gate\WallClock;
  * The baseline (ratchet) file lists files that may keep their findings (reported as warnings); a listed file
  * without findings any more is an error, so the list only shrinks. `--write-baseline` (re)writes it.
  *
- * Exit codes: 0 OK (or only baselined findings / --warn-only), 1 findings or stale baseline entries, 2 usage error.
+ * Exit codes: 0 OK (or only baselined findings / --warn-only), 1 findings or stale baseline entries, 2 usage error or
+ * unreadable file / directory (never a silent pass).
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
@@ -44,7 +45,8 @@ final class WallClockFixturesCommand
           --frozen-marker=<regex> extra PCRE (with delimiters) that marks a file as using a frozen clock, repeatable
           --warn-only             report findings as warnings and exit 0 (adoption mode)
         Skips vendor/, node_modules/ and var/. A missing default directory is skipped.
-        Exit codes: 0 OK, 1 findings or stale baseline entries, 2 usage error.
+        Exit codes: 0 OK, 1 findings or stale baseline entries, 2 usage error or unreadable file / directory.
+        Start an existing suite with --write-baseline (or --warn-only): it may have hundreds of findings.
         TXT;
 
     private const JS_EXTENSIONS = ['js', 'mjs', 'cjs', 'jsx', 'ts', 'mts', 'cts', 'tsx'];
@@ -95,6 +97,9 @@ final class WallClockFixturesCommand
                 $exclude[] = $this->normalize($value);
             } elseif ('--baseline' === $name) {
                 $baseline = $this->normalize($value);
+                if ('' === $baseline || \in_array('..', explode('/', $baseline), true)) {
+                    return $this->usageError("--baseline must be a file inside the project root (got {$value})");
+                }
             } elseif ('--frozen-marker' === $name) {
                 if (false === @preg_match($value, '')) {
                     return $this->usageError("--frozen-marker is not a valid PCRE pattern (with delimiters): {$value}");
@@ -126,25 +131,44 @@ final class WallClockFixturesCommand
         }
 
         $scanner = new WallClockScanner($markers);
-        $files = $this->files($root, $paths, $exclude);
+
+        try {
+            $files = $this->files($root, $paths, $exclude);
+        } catch (\UnexpectedValueException $e) {
+            // An unreadable directory: fail closed with a clear message instead of an uncaught exception.
+            fwrite($this->stderr, 'ERROR: cannot read a directory under the scanned paths: ' . $e->getMessage() . "\n");
+
+            return 2;
+        }
         $findings = [];
+        $unreadable = [];
         foreach ($files as $relative => $kind) {
-            $source = (string) file_get_contents($root . '/' . $relative);
+            $source = @file_get_contents($root . '/' . $relative);
+            if (false === $source) {
+                $unreadable[] = "ERROR: cannot read {$relative} (not scanned: fix its permissions or --exclude it)";
+                continue;
+            }
             $found = 'php' === $kind ? $scanner->scanPhp($source) : $scanner->scanJs($source);
             if ([] !== $found) {
                 $findings[$relative] = $found;
             }
         }
 
+        if ([] !== $unreadable) {
+            fwrite($this->stderr, implode("\n", $unreadable) . "\n");
+
+            return 2;
+        }
+
         if ($writeBaseline) {
-            return $this->writeBaseline($root . '/' . $baseline, array_keys($findings));
+            return $this->writeBaseline($root, (string) $baseline, array_keys($findings));
         }
 
         $listed = [];
         if (null !== $baseline) {
             $listed = $this->readBaseline($root . '/' . $baseline);
             if (null === $listed) {
-                fwrite($this->stderr, "ERROR: baseline file not found: {$baseline} (create it with --write-baseline)\n");
+                fwrite($this->stderr, "ERROR: baseline file not found or unreadable: {$baseline} (create it with --write-baseline)\n");
 
                 return 2;
             }
@@ -189,12 +213,22 @@ final class WallClockFixturesCommand
     }
 
     /**
+     * Writes the baseline, never through a symlink nor outside the project root (a symlinked directory included).
+     *
      * @param list<string> $files
      */
-    private function writeBaseline(string $file, array $files): int
+    private function writeBaseline(string $root, string $baseline, array $files): int
     {
+        $file = $root . '/' . $baseline;
         if (!is_dir(\dirname($file))) {
             fwrite($this->stderr, 'ERROR: baseline directory not found: ' . \dirname($file) . "\n");
+
+            return 2;
+        }
+        $realRoot = (string) realpath($root);
+        $realDir = (string) realpath(\dirname($file));
+        if (is_link($file) || ($realDir !== $realRoot && !str_starts_with($realDir, $realRoot . '/'))) {
+            fwrite($this->stderr, "ERROR: refusing to write the baseline {$baseline} through a symlink or outside the project root\n");
 
             return 2;
         }
@@ -214,8 +248,12 @@ final class WallClockFixturesCommand
         if (!is_file($file)) {
             return null;
         }
+        $content = @file_get_contents($file);
+        if (false === $content) {
+            return null;
+        }
         $listed = [];
-        foreach (explode("\n", (string) file_get_contents($file)) as $line) {
+        foreach (explode("\n", $content) as $line) {
             $line = trim($line);
             if ('' !== $line && !str_starts_with($line, '#')) {
                 $listed[$this->normalize($line)] = true;

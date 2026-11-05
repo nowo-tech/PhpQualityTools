@@ -140,6 +140,38 @@ final class CoverageAnnotationsCommandTest extends TestCase
         self::assertSame("OK: coverage annotations (0 PHP file(s)).\n", $out);
     }
 
+    public function testUnreadableFilesAndDirectoriesFailClosed(): void
+    {
+        $root = $this->makeTree([
+            'src/A.php' => "<?php\n// @codeCoverageIgnore why\n",
+            'src/B.php' => "<?php\n// @codeCoverageIgnore why\n",
+            'src/Locked/C.php' => "<?php\n",
+        ]);
+        chmod($root . '/src/B.php', 0o000);
+        if (is_readable($root . '/src/B.php')) {
+            chmod($root . '/src/B.php', 0o644);
+            self::markTestSkipped('Running as root: permissions cannot make a file unreadable.');
+        }
+
+        try {
+            [$code, $out, $err] = $this->runCommand($root, ['--exclude=src/Locked']);
+            self::assertSame(2, $code);
+            self::assertSame('', $out);
+            self::assertStringStartsWith('error: src/A.php:2 ', $err);
+            self::assertStringEndsWith("\nERROR: cannot read src/B.php (not scanned: fix its permissions or --exclude it)\n", $err);
+
+            chmod($root . '/src/B.php', 0o644);
+            chmod($root . '/src/Locked', 0o000);
+            [$code, $out, $err] = $this->runCommand($root, []);
+            self::assertSame(2, $code);
+            self::assertSame('', $out);
+            self::assertStringStartsWith('ERROR: cannot read a directory under the scanned paths: ', $err);
+        } finally {
+            chmod($root . '/src/B.php', 0o644);
+            chmod($root . '/src/Locked', 0o755);
+        }
+    }
+
     public function testHelpAndUsageErrors(): void
     {
         $root = $this->makeTree(['src/A.php' => "<?php\n"]);

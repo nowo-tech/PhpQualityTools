@@ -71,7 +71,8 @@ Every addition is opt-in, so no existing CI changes on upgrade. To enable them (
 - **Coverage annotations:** call `vendor/bin/check-coverage-annotations` in `make qa` / `check-fast`. Rewrite each
   reported comment to exactly `// @codeCoverageIgnore` (or `Start` / `End`), with the reason on the line above, and
   assign each reported `match` to a variable first (or pass `--no-match`).
-- **Wall-clock fixtures:** run `vendor/bin/check-wallclock-fixtures --baseline=tests/wallclock-baseline.txt --write-baseline`
+- **Wall-clock fixtures:** start with the baseline (or `--warn-only`), never the plain gate: an existing suite usually
+  has many findings (Symfony Beacon: 666). Run `vendor/bin/check-wallclock-fixtures --baseline=tests/wallclock-baseline.txt --write-baseline`
   once, commit the baseline, then call `vendor/bin/check-wallclock-fixtures --baseline=tests/wallclock-baseline.txt`
   (add `--paths=tests --paths=assets` for JS / TS tests next to the sources, `--paths=src/DataFixtures` for fixtures,
   to both calls). Freeze the
