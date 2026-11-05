@@ -73,7 +73,8 @@ Every addition is opt-in, so no existing CI changes on upgrade. To enable them (
   assign each reported `match` to a variable first (or pass `--no-match`).
 - **Wall-clock fixtures:** run `vendor/bin/check-wallclock-fixtures --baseline=tests/wallclock-baseline.txt --write-baseline`
   once, commit the baseline, then call `vendor/bin/check-wallclock-fixtures --baseline=tests/wallclock-baseline.txt`
-  (add `--paths=assets` for JS / TS tests next to the sources, `--paths=src/DataFixtures` for fixtures). Freeze the
+  (add `--paths=tests --paths=assets` for JS / TS tests next to the sources, `--paths=src/DataFixtures` for fixtures,
+  to both calls). Freeze the
   clock in a listed file, or mark a deliberate wall-clock read with `// @wallclock-ignore <reason>`, and delete its line.
 - **Module declarations:** add `require_all_declared: true` to `config/quality/module-boundaries.yaml` once every
   `src/*` directory is a module (or in `ignore`).

@@ -187,7 +187,7 @@ final readonly class WallClockScanner
         }
 
         // A global function call: not a method, a static call, a declaration or a namespaced function.
-        if (\T_NAME_QUALIFIED === $token[0] || \in_array($previousId, [\T_OBJECT_OPERATOR, \T_NULLSAFE_OBJECT_OPERATOR, \T_DOUBLE_COLON, \T_FUNCTION, \T_NEW, \T_CONST], true)) {
+        if (\T_NAME_QUALIFIED === $token[0] || (\T_NAME_FULLY_QUALIFIED === $token[0] && 1 !== substr_count($token[1], '\\')) || \in_array($previousId, [\T_OBJECT_OPERATOR, \T_NULLSAFE_OBJECT_OPERATOR, \T_DOUBLE_COLON, \T_FUNCTION, \T_NEW, \T_CONST], true)) {
             return null;
         }
         $args = $this->arguments($tokens, $i + 1);

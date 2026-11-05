@@ -126,6 +126,24 @@ final class WallClockFixturesCommandTest extends TestCase
         self::assertSame('ERROR: baseline directory not found: ' . $root . "/nodir\n", $err);
     }
 
+    public function testProjectRootAsPath(): void
+    {
+        $root = $this->makeTree([
+            'tests/Unit/ATest.php' => "<?php\n\$t = time();\n",
+            'tests/BTest.php' => "<?php\n\$t = time();\n",
+            'vendor/lib/C.php' => "<?php\n\$t = time();\n",
+        ]);
+
+        [$code, $out] = $this->runCommand($root, ['--paths=.', '--exclude=tests/Unit/', '--baseline=baseline.txt', '--write-baseline']);
+        self::assertSame(0, $code);
+        self::assertStringContainsString('wrote 1 file(s)', $out);
+        self::assertStringEndsWith("\ntests/BTest.php\n", (string) file_get_contents($root . '/baseline.txt'));
+
+        [$code, $out, $err] = $this->runCommand($root, ['--paths=./', '--exclude=tests/Unit/', '--baseline=baseline.txt']);
+        self::assertSame(0, $code, $err);
+        self::assertSame("OK: wall-clock fixtures (1 file(s) scanned, 1 warning(s), 1 baselined file(s)).\n", $out);
+    }
+
     public function testRootAndMissingDefaultDirectory(): void
     {
         $root = $this->makeTree(['src/A.php' => "<?php\ntime();\n"]);

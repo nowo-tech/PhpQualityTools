@@ -235,7 +235,7 @@ final class WallClockFixturesCommand
     {
         $files = [];
         foreach ($paths as $path) {
-            $absolute = $root . '/' . $path;
+            $absolute = '' === $path ? $root : $root . '/' . $path;
             $candidates = is_file($absolute)
                 ? [$path]
                 : array_map(
@@ -289,7 +289,9 @@ final class WallClockFixturesCommand
 
     private function normalize(string $path): string
     {
-        return trim((string) preg_replace('#^(\./)+#', '', $path), '/');
+        $path = trim((string) preg_replace('#^(\./)+#', '', $path), '/');
+
+        return '.' === $path ? '' : $path;
     }
 
     private function usageError(string $message): int

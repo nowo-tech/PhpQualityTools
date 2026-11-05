@@ -1227,5 +1227,5 @@ check-fast: ensure-up
 	$(DC) exec -T php vendor/bin/check-module-boundaries      # with require_all_declared: true in the config
 ```
 
-Adopting the wall-clock gate on an existing suite: run `vendor/bin/check-wallclock-fixtures --baseline=tests/wallclock-baseline.txt --write-baseline`
-once, commit the file, and remove lines as tests get a frozen clock.
+Adopting the wall-clock gate on an existing suite: run `vendor/bin/check-wallclock-fixtures --paths=tests --paths=assets --baseline=tests/wallclock-baseline.txt --write-baseline`
+once (with the same `--paths` as the recurring call), commit the file, and remove lines as tests get a frozen clock.

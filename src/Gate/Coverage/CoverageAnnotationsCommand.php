@@ -189,7 +189,7 @@ final class CoverageAnnotationsCommand
     {
         $files = [];
         foreach ($paths as $path) {
-            $absolute = $root . '/' . $path;
+            $absolute = '' === $path ? $root : $root . '/' . $path;
             if (is_file($absolute)) {
                 $files[$path] = true;
                 continue;
@@ -231,7 +231,9 @@ final class CoverageAnnotationsCommand
 
     private function normalize(string $path): string
     {
-        return trim((string) preg_replace('#^(\./)+#', '', $path), '/');
+        $path = trim((string) preg_replace('#^(\./)+#', '', $path), '/');
+
+        return '.' === $path ? '' : $path;
     }
 
     private function usageError(string $message): int

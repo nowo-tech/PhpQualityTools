@@ -116,6 +116,8 @@ final class ModuleBoundaryConfigTest extends TestCase
         yield 'rule bad regex' => [['rules' => [['type' => 'forbid_pattern', 'pattern' => '(unclosed']]], 'rules[0].pattern is not a valid regular expression: (unclosed'];
         yield 'require_all_declared not a list' => [['require_all_declared' => [1]], 'require_all_declared must contain non-empty strings.'];
         yield 'require_all_declared project root' => [['require_all_declared' => ['.']], 'require_all_declared roots must be directories below the project root.'];
+        yield 'require_all_declared null' => [['require_all_declared' => null], 'require_all_declared must be a list.'];
+        yield 'require_all_declared outside the project' => [['require_all_declared' => ['src/../../other/src']], 'require_all_declared roots must be directories below the project root.'];
         yield 'require_all_declared scalar' => [['require_all_declared' => 1], 'require_all_declared must be a list.'];
         yield 'rule pattern not string' => [['rules' => [['type' => 'forbid_pattern', 'pattern' => ['a']]]], 'rules[0].pattern must contain non-empty strings.'];
     }

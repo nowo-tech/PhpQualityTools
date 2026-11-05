@@ -108,7 +108,7 @@ final readonly class AssetBudgetConfig
         }
 
         $config = new self([], $data['manifest'] ?? null, $data['build_dir'] ?? null);
-        if (isset($data['warn_at'])) {
+        if (\array_key_exists('warn_at', $data)) {
             $config = $config->withWarnAt($data['warn_at']);
         }
         foreach ($budgets as $entry => $kinds) {

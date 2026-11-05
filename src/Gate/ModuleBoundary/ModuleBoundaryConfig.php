@@ -196,7 +196,7 @@ final readonly class ModuleBoundaryConfig
             self::paths($data['ignore'] ?? [], 'ignore'),
             $paths,
             'all' === $references,
-            self::requireAllDeclared($data['require_all_declared'] ?? false),
+            \array_key_exists('require_all_declared', $data) ? self::requireAllDeclared($data['require_all_declared']) : [],
         );
     }
 
@@ -226,7 +226,7 @@ final readonly class ModuleBoundaryConfig
         $roots = [];
         foreach (self::paths($value, 'require_all_declared') as $root) {
             $root = rtrim($root, '/');
-            if ('' === $root) {
+            if ('' === $root || \in_array('..', explode('/', $root), true)) {
                 throw new ConfigException('require_all_declared roots must be directories below the project root.');
             }
             $roots[] = $root;

@@ -127,6 +127,13 @@ final class CoverageAnnotationsCommandTest extends TestCase
         self::assertStringContainsString('error: src/A.php:2', $err);
         self::assertStringNotContainsString('Generated', $err);
 
+        // The project root as a path keeps root-relative names, so excludes still apply.
+        [$code, , $err] = $this->runCommand($root, ['--paths=.', '--exclude=src', '--exclude=app/D.php']);
+        self::assertSame(0, $code, $err);
+        [$code, , $err] = $this->runCommand($root, ['--paths=./', '--exclude=src']);
+        self::assertSame(1, $code);
+        self::assertStringContainsString('error: app/D.php:2', $err);
+
         // No src/ and no --paths: nothing to scan.
         [$code, $out] = $this->runCommand('/', ['--root=' . $root . '/app/']);
         self::assertSame(0, $code);

@@ -72,6 +72,7 @@ final class WallClockScannerTest extends TestCase
         yield 'method named time' => ['$t = $clock->time(); $u = $clock?->time(); $v = Clock::time();'];
         yield 'function declaration' => ['function time(): int { return 1; }'];
         yield 'namespaced function' => ['$t = Foo\time();'];
+        yield 'fully qualified namespaced function' => ['$t = \Foo\time(); $y = \App\date(\'Y\');'];
         yield 'constant and named argument' => ['$t = time; f(time: 3);'];
         yield 'string and comment' => ["\$s = 'new DateTime()'; // time() and new DateTime()\n/* date('Y') */"];
         yield 'Carbon with a fixed date' => ['$d = Carbon::parse(\'2026-01-01\'); $e = Carbon::create(2026, 1, 1);'];
