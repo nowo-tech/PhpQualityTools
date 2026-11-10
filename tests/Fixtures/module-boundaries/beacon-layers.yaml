@@ -1,0 +1,53 @@
+# Beacon-like layer map (Symfony Beacon spec 225, incremental DDD migration, step 0): the existing module map plus a
+# "layers" section. Uptime is migrated (enforce); the other contexts are reported (warn) with today's directories mapped
+# to the layers, and today's findings live in the baseline, which may only shrink.
+modules:
+  Uptime: { namespace: 'App\Uptime', path: src/Uptime }
+  Billing: { namespace: 'App\Billing', path: src/Billing }
+  Identity: { namespace: 'App\Identity', path: src/Identity }
+  Shared: { namespace: 'App\Shared', path: src/Shared }
+
+forbidden_edges:
+  - from: [Uptime, Billing, Identity]
+    to: Shared
+    except: [src/Billing/Legacy/]
+    message: 'example edge rule: unchanged by the layers section.'
+
+layers:
+  # Layers of every context (default: Domain, Application, Infrastructure, UI in src/<Module>/<Layer>,
+  # namespace App\<Module>\<Layer>). Listed again here only to show the syntax.
+  definitions:
+    Domain: ~
+    Application: ~
+    Infrastructure: ~
+    UI: { path: UI, namespace: UI }
+  # Allow-list of the @default "domain-framework-free" rule (this is the default).
+  domain_allow: ['Doctrine\Common\Collections\']
+  contexts:
+    Uptime: enforce                  # migrated: a new finding fails the run
+    Billing:                         # not migrated yet: findings are reported, the run passes
+      mode: warn
+      layers:                        # today's directories count as their future layer
+        Domain: [Domain, Entity]
+        Application: [Application, Service, MessageHandler]
+        Infrastructure: [Infrastructure, Repository]
+        UI: [UI, Controller, Form, Command]
+    Identity: { mode: warn, layers: { UI: [UI, Controller] } }
+  rules:
+    - '@default'                     # domain-layer-edges, domain-framework-free, ui-no-persistence, flush-in-application
+    - id: application-no-ui
+      type: forbid_layers
+      in: [Domain, Application]
+      to: [UI]
+      message: 'use cases do not depend on controllers, forms or Twig.'
+    - id: ui-no-other-context-infrastructure
+      type: forbid_layers
+      in: [UI]
+      to: [Infrastructure]
+      scope: other
+    - id: no-container
+      type: forbid_names
+      not_in: [Infrastructure]
+      contexts: [Uptime]
+      names: ['Symfony\Component\DependencyInjection\ContainerInterface', 'Psr\Container\*']
+  baseline: config/quality/module-boundaries-baseline.txt
