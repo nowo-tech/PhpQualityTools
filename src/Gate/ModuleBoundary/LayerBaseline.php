@@ -101,10 +101,12 @@ final class LayerBaseline
         if ($directory !== $realRoot && !str_starts_with($directory . '/', rtrim($realRoot, '/') . '/')) {
             throw new ConfigException("refusing to write the baseline outside the project root: {$file}");
         }
-        if (is_link($file)) {
+        // Check and write the same, canonical path (no gap between the resolved directory and the given path).
+        $target = $directory . '/' . basename($file);
+        if (is_link($target)) {
             throw new ConfigException("refusing to write the baseline through a symbolic link: {$file}");
         }
-        if (false === @file_put_contents($file, $content)) {
+        if (false === @file_put_contents($target, $content)) {
             // A read-only file or directory: not reproducible in the suite, which runs as root in Docker.
             // @codeCoverageIgnoreStart
             throw new ConfigException("cannot write baseline {$file}");
