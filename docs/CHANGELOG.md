@@ -66,11 +66,14 @@ and spec [`specs/007-module-boundary-layers`](../specs/007-module-boundary-layer
   / `ObjectManager` / `ManagerRegistry` in UI) and `flush-in-application` (no `->flush()` outside Application /
   Infrastructure).
 - Detection is token based: `use` statements (grouped, aliased, `function` / `const`), fully-qualified names (also
-  `::class` and attributes) and qualified names resolved against the namespace; comments and strings are never read.
+  `::class` and attributes) and qualified names resolved through an imported alias (`use Doctrine\ORM;` +
+  `ORM\EntityManagerInterface`) or against the namespace; comments and strings are never read, and files PHP cannot
+  compile are still tokenized.
 - **Layer baseline** (`layers.baseline`, default `config/quality/module-boundaries-baseline.txt`, or `--baseline`):
   listed findings do not fail; entries that no longer occur are reported, and fail with `--strict-baseline`.
-  `--update-baseline` rewrites it from the current findings and refuses to add entries to an existing file unless
-  `--allow-grow` is given; it writes only inside the project root and never through a symbolic link.
+  `--update-baseline` rewrites it: on an existing file it keeps the accepted findings that still occur and lists new
+  ones without adding them (`--allow-grow` adds them). The write is atomic (temporary file + rename), only inside the
+  project root and never through a symbolic link.
 
 [Unreleased]: https://github.com/nowo-tech/PhpQualityTools/compare/v1.11.0...HEAD
 

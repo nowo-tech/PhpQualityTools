@@ -66,7 +66,8 @@ Target **1.12.0**, from **1.11.0** (minor release, nothing to change):
 composer update nowo-tech/php-quality-tools
 ```
 
-`check-module-boundaries` maps without a `layers` section behave exactly as before (same output and exit codes). To
+`check-module-boundaries` maps without a `layers` section behave exactly as before: same output and exit codes for
+every run (only the usage text printed by `--help` and on argument errors has 5 new lines, for the new options). To
 adopt the layer rules (see [Usage → Layer rules per context](USAGE.md#layer-rules-per-context-since-1120)):
 
 1. Add a `layers` section to `config/quality/module-boundaries.yaml` with every context in `warn` (map today's
@@ -74,8 +75,8 @@ adopt the layer rules (see [Usage → Layer rules per context](USAGE.md#layer-ru
 2. Run `vendor/bin/check-module-boundaries --update-baseline` once and commit
    `config/quality/module-boundaries-baseline.txt`.
 3. Call `vendor/bin/check-module-boundaries --strict-baseline` in CI, so a fixed finding must leave the baseline.
-4. Per migrated context: switch it to `enforce` and run `--update-baseline` (it drops fixed lines; adding lines to an
-   existing baseline needs `--allow-grow`).
+4. Per migrated context: switch it to `enforce` and run `--update-baseline`. It drops fixed lines and never adds a
+   line to an existing baseline (new findings, enforce or warn, are listed and left out); `--allow-grow` adds them.
 
 Code that constructs `ModuleBoundaryConfig` directly gains an optional last argument `?LayerConfig $layers = null`;
 `check-module-boundaries` arguments that were unknown before (`--baseline=`, `--strict-baseline`, `--update-baseline`,

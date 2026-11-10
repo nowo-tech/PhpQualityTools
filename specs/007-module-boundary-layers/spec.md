@@ -27,7 +27,8 @@ Application / Infrastructure calls `flush()`.
 1. **Given** `src/Uptime/Domain/Monitor.php` with `use Doctrine\ORM\Mapping as ORM;` and Uptime in `enforce`, **Then**
    exit 1, `error: src/Uptime/Domain/Monitor.php:5 references Doctrine\ORM\Mapping (Uptime Domain, layer rule domain-framework-free): …`.
 2. **Given** `use Doctrine\Common\Collections\ArrayCollection;` in the Domain, **Then** no finding (default `domain_allow`).
-3. **Given** `\App\Billing\UI\Controller\X::class`, a grouped `use Doctrine\ORM\{EntityManagerInterface as Em};`, or
+3. **Given** `\App\Billing\UI\Controller\X::class`, a grouped `use Doctrine\ORM\{EntityManagerInterface as Em};`,
+   `use Doctrine\ORM;` + `ORM\EntityManagerInterface`, `use App\Uptime;` + `Uptime\Infrastructure\…`, or
    `Infrastructure\Foo::class` inside `namespace App\Uptime;`, **Then** each is found; the same names in a comment or a
    string are not.
 4. **Given** `$this->em->flush()` in `src/Uptime/Legacy/` (outside every layer), **Then** `flush-in-application` fails.
@@ -45,8 +46,8 @@ in `layers.contexts` are not scanned; a map without `layers` prints exactly what
 2. **Given** a finding listed in the baseline, **Then** it does not fail and is counted as baselined.
 3. **Given** a listed finding that no longer occurs, **Then** `warning: baseline entry no longer occurs …`; with
    `--strict-baseline`, exit 1.
-4. **Given** a new finding, **When** `--update-baseline`, **Then** exit 1 listing it, the file unchanged; with
-   `--allow-grow` it is added.
+4. **Given** a new finding (enforce or warn) and a fixed one, **When** `--update-baseline`, **Then** the fixed entry is
+   dropped and the new finding is listed (`not added …`) but not written; with `--allow-grow` it is added.
 5. **Given** a baseline path outside the root or a symbolic link, **Then** `--update-baseline` refuses (exit 2).
 
 ### User Story 4 — Configurable and extensible rules (Priority: P2)

@@ -287,10 +287,16 @@ How it works:
   global `definitions` (so "Domain must not use the UI of any context" also covers contexts migrated later).
 - Names come from the tokens, never from comments or strings: every top-level `use` (grouped `use A\{B, C as D}`,
   aliases, `use function` / `use const`), every fully-qualified name (`\App\Foo`, `\App\Foo::class`, attributes,
-  type hints) and every qualified name not starting with an imported alias (`Infrastructure\Foo::class` inside
-  `namespace App\Uptime;` is `App\Uptime\Infrastructure\Foo`). A name reached through an alias (`ORM\Column`,
-  `Foo::class`) is covered by its `use` line. Each name is reported once per file and rule (first line); each call is
-  reported.
+  type hints) and every qualified name, resolved: through an imported alias when its first segment is one
+  (`use Doctrine\ORM;` + `ORM\EntityManagerInterface` is `Doctrine\ORM\EntityManagerInterface`; `#[ORM\Column]` with
+  `use Doctrine\ORM\Mapping as ORM;` is `Doctrine\ORM\Mapping\Column`), else against the namespace
+  (`Infrastructure\Foo::class` inside `namespace App\Uptime;` is `App\Uptime\Infrastructure\Foo`). An unqualified
+  name (`Foo::class`) is covered by its `use` line or is the file's own namespace. Each name is reported once per file
+  and rule (first line); each call is reported. Files PHP cannot compile (duplicate modifiers, syntax newer than the
+  running PHP) are still tokenized and checked.
+- Limits: dynamic calls (`$r->$method()`, `->{'flush'}()`, `call_user_func([$r, 'flush'])`), class names in strings and
+  service ids are not seen; a file whose `namespace` does not match its directory references its declared namespace
+  with unqualified names, which are not recorded (its layer is taken from its path).
 - `layers` does not change `references`, `allowed_edges`, `forbidden_edges`, `rules` or `require_all_declared`.
 
 Output and exit codes with `layers`:
@@ -314,9 +320,15 @@ flush-in-application|src/Billing/Controller/InvoiceController.php|->flush()
 - One line per finding, without line numbers (edits above a finding do not invalidate it); a key repeated N times
   accepts N findings (two `->flush()` calls in a file are two lines). Findings of `warn` and `enforce` contexts both
   go in, so switching a context to `enforce` changes nothing until its lines are removed.
-- `--update-baseline` rewrites the file from the current findings (dropping fixed ones) and exits without running the
-  other checks. It creates a missing file, but refuses (exit 1, the new findings listed) to **add** entries to an
-  existing one unless `--allow-grow` is given. It writes only inside `--root`, never through a symbolic link.
+- `--update-baseline` rewrites the file and exits without running the other checks (exit 0). A missing file is
+  created with every current finding. On an existing file it keeps only the listed findings that still occur
+  (accepted ∩ current): fixed ones are dropped, and new findings, of `enforce` and `warn` contexts alike, are printed
+  as `not added (fix it, or pass --allow-grow): …` and left out, so the next run still reports them. With
+  `--allow-grow` they are added. The write is atomic (temporary file in the same directory, then rename), only inside
+  `--root`, never through a symbolic link, and keeps the file mode.
+- The ratchet is a review-time control: a line added by hand pre-accepts a future finding, which only
+  `--strict-baseline` rejects while the code does not exist yet, and a deleted baseline is recreated in full. Run
+  `--strict-baseline` in CI and protect the baseline file in review (for example with CODEOWNERS).
 
 Adoption: add the `layers` section with every context in `warn`, run `--update-baseline` once and commit the baseline,
 then add `--strict-baseline` to CI so fixed findings must leave the file. Migrate a context, switch it to `enforce`,
