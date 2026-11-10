@@ -48,7 +48,7 @@ Existing scripts are preserved.
 Nothing to configure for the Composer plugin. The optional CI gates read their own inputs:
 
 - `vendor/bin/check-coverage-threshold`: Clover path + minimum (argument, `--min` or `COVERAGE_MIN`).
-- `vendor/bin/check-module-boundaries`: `config/quality/module-boundaries.yaml` (or `.yml` / `.php`, or `--config`). Since 1.11.0, `require_all_declared: true` (or a list of roots; default `false`) makes every directory directly under `src/` a required module.
+- `vendor/bin/check-module-boundaries`: `config/quality/module-boundaries.yaml` (or `.yml` / `.php`, or `--config`). Since 1.11.0, `require_all_declared: true` (or a list of roots; default `false`) makes every directory directly under `src/` a required module. Since 1.12.0, an optional `layers` section adds layer rules per context (`enforce` / `warn`) and a baseline file (`layers.baseline`, default `config/quality/module-boundaries-baseline.txt`); see [Usage → Layer rules per context](USAGE.md#layer-rules-per-context-since-1120).
 - `vendor/bin/assert-latest-tag` (since 1.3.0): tag argument or `GITHUB_REF_NAME`, `--prefix` (default `v`), `GITHUB_OUTPUT` with `--github-output`; tags from `git tag --list` (or `--stdin`).
 - `Testing\QueryBudgetTrait`: register `Testing\Dbal\QueryCountingMiddleware` (tag `doctrine.middleware`) in the test environment.
 - `Testing\Env\PidPathEnvVarProcessor` (since 1.5.0): register it with the tag `container.env_var_processor` under `when@test`, then use `%env(pid_path:…)%`.

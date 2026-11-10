@@ -23,6 +23,7 @@ use Symfony\Component\Yaml\Yaml;
  * rules:                       # see Rule for the types
  *   - { type: require_path, path: src/Kernel.php }
  * require_all_declared: true   # every directory directly under src/ (or the listed roots) must be a module path
+ * layers: { contexts: { Shared: warn } }   # since 1.12.0: layer rules per context, see LayerConfig
  * ```
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
@@ -32,7 +33,7 @@ use Symfony\Component\Yaml\Yaml;
  */
 final readonly class ModuleBoundaryConfig
 {
-    private const TOP_LEVEL_KEYS = ['paths', 'ignore', 'references', 'modules', 'allowed_edges', 'forbidden_edges', 'rules', 'require_all_declared'];
+    private const TOP_LEVEL_KEYS = ['paths', 'ignore', 'references', 'modules', 'allowed_edges', 'forbidden_edges', 'rules', 'require_all_declared', 'layers'];
 
     private const RULE_KEYS = [
         'forbid_path' => ['path'],
@@ -60,6 +61,7 @@ final readonly class ModuleBoundaryConfig
      * @param list<string>                                               $ignore
      * @param list<string>                                               $paths
      * @param list<string>                                               $requireAllDeclared roots whose direct subdirectories must be modules
+     * @param LayerConfig|null                                           $layers             `layers` section (null = no layer rules)
      */
     public function __construct(
         public array $modules = [],
@@ -70,6 +72,7 @@ final readonly class ModuleBoundaryConfig
         public array $paths = [],
         public bool $includeFullyQualified = false,
         public array $requireAllDeclared = [],
+        public ?LayerConfig $layers = null,
     ) {
     }
 
@@ -197,6 +200,7 @@ final readonly class ModuleBoundaryConfig
             $paths,
             'all' === $references,
             \array_key_exists('require_all_declared', $data) ? self::requireAllDeclared($data['require_all_declared']) : [],
+            \array_key_exists('layers', $data) ? LayerConfig::fromArray($data['layers'], $modules) : null,
         );
     }
 

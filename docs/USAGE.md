@@ -8,6 +8,7 @@
 - [Gate scripts (since 1.2.0)](#gate-scripts-since-120)
   - [`check-coverage-threshold`](#check-coverage-threshold)
   - [`check-module-boundaries`](#check-module-boundaries)
+    - [Layer rules per context (since 1.12.0)](#layer-rules-per-context-since-1120)
 - [Release guards (since 1.3.0)](#release-guards-since-130)
   - [`assert-latest-tag`](#assert-latest-tag)
   - [Local release gate: `make release-check`](#local-release-gate-make-release-check)
@@ -130,6 +131,9 @@ coverage-threshold:
 
 ```bash
 vendor/bin/check-module-boundaries [--config=<file>] [--root=<dir>]
+# since 1.12.0, maps with a "layers" section only:
+vendor/bin/check-module-boundaries [--baseline=<file>] [--strict-baseline]
+vendor/bin/check-module-boundaries --update-baseline [--allow-grow] [--baseline=<file>]
 ```
 
 - Config: `--config`, else `config/quality/module-boundaries.yaml` (then `.yml`, then `.php`) under the root.
@@ -197,6 +201,138 @@ require_all_declared: true  # since 1.11.0, default false: every directory direc
 A complete real-world map (Symfony Beacon, 7 modules, 3 forbidden edges, 18 rules) lives in
 [`tests/Fixtures/module-boundaries/beacon.yaml`](../tests/Fixtures/module-boundaries/beacon.yaml); the test
 suite runs it on a fake module tree and checks every rule fails on its regression.
+
+#### Layer rules per context (since 1.12.0)
+
+An optional `layers` section declares layers inside some modules (here called **contexts**) and checks rules between
+them, for an incremental move to Domain-Driven Design: each migrated context is switched to `enforce`, the others are
+reported (`warn`), and today's findings sit in a baseline that may only shrink. A map without `layers` behaves exactly
+as before (same output, same exit codes; the new flags are refused with exit 2).
+
+Beacon-like example (also [`tests/Fixtures/module-boundaries/beacon-layers.yaml`](../tests/Fixtures/module-boundaries/beacon-layers.yaml),
+run by the test suite):
+
+```yaml
+modules:
+  Uptime: { namespace: 'App\Uptime', path: src/Uptime }
+  Billing: { namespace: 'App\Billing', path: src/Billing }
+  Identity: { namespace: 'App\Identity', path: src/Identity }
+  Shared: { namespace: 'App\Shared', path: src/Shared }
+
+layers:
+  # Layer => sub-directory of the module path; the namespace is derived (UI -> App\<Module>\UI).
+  # Default: Domain, Application, Infrastructure, UI (src/<Module>/<Layer>). Forms:
+  #   ~ (the layer name), 'Dir', [DirA, DirB/Sub], { path: [Dir], namespace: [Ns] }
+  definitions:
+    Domain: ~
+    Application: ~
+    Infrastructure: ~
+    UI: { path: UI, namespace: UI }
+  domain_allow: ['Doctrine\Common\Collections\']   # allow-list of the @default Domain rule (default shown)
+  contexts:                          # only these modules are checked; the others keep today's behaviour
+    Uptime: enforce                  # migrated: a new finding fails the run (exit 1)
+    Billing:                         # not migrated yet: findings are printed as warnings (exit 0)
+      mode: warn
+      layers:                        # per-context override: today's directories count as their future layer
+        Domain: [Domain, Entity]
+        Application: [Application, Service, MessageHandler]
+        Infrastructure: [Infrastructure, Repository]
+        UI: [UI, Controller, Form, Command]
+    Identity: { mode: warn, layers: { UI: [UI, Controller] } }
+  rules:                             # default: ['@default']
+    - '@default'                     # the four default rules below
+    - id: application-no-ui          # id: [A-Za-z0-9_.-], the baseline key
+      type: forbid_layers
+      in: [Domain, Application]      # source layers (or not_in: [...], which also selects files outside every layer)
+      to: [UI]
+      message: 'use cases do not depend on controllers, forms or Twig.'
+    - id: ui-no-other-context-infrastructure
+      type: forbid_layers
+      in: [UI]
+      to: [Infrastructure]
+      scope: other                   # any (default) | same | other context
+    - id: no-container
+      type: forbid_names
+      not_in: [Infrastructure]
+      contexts: [Uptime]             # optional: only these contexts
+      names: ['Symfony\Component\DependencyInjection\ContainerInterface', 'Psr\Container\*']
+  baseline: config/quality/module-boundaries-baseline.txt   # default shown
+```
+
+The `@default` rules:
+
+| Rule id | Type | Files | Fails on |
+| --- | --- | --- | --- |
+| `domain-layer-edges` | `forbid_layers` | `in: [Domain]` | a name of the `UI` or `Infrastructure` layer of **any** context |
+| `domain-framework-free` | `forbid_names` | `in: [Domain]` | `Symfony\…`, `Doctrine\…`, except `domain_allow` (default `Doctrine\Common\Collections\`) |
+| `ui-no-persistence` | `forbid_names` | `in: [UI]` | `Doctrine\ORM\EntityManagerInterface`, `Doctrine\ORM\EntityManager`, `Doctrine\Persistence\ObjectManager`, `Doctrine\Persistence\ManagerRegistry`, `*Repository`, `*RepositoryInterface` |
+| `flush-in-application` | `forbid_calls` | `not_in: [Application, Infrastructure]` | `->flush(` / `?->flush(` |
+
+Rule types (every rule: `id`, `type`, exactly one of `in` / `not_in`, optional `contexts`, optional `message`):
+
+| Type | Keys | Fails when a file of the selected layers … |
+| --- | --- | --- |
+| `forbid_layers` | `to`, `scope` | references a name in one of the `to` layers |
+| `allow_layers` | `to`, `scope` | references a name in a layer other than its own and the `to` layers (names outside every layer are not checked) |
+| `forbid_names` | `names`, `allow` | references a name matching `names` and not `allow` (exact name, namespace prefix ending in `\`, or `*` / `?` glob over the whole name; case-insensitive) |
+| `forbid_calls` | `methods` | calls `->method(` / `?->method(` (case-insensitive) |
+
+How it works:
+
+- A file belongs to the context with the longest matching module `path` (a nested module is its own context), and to
+  the layer with the longest matching `<module path>/<layer path>`; a file outside every layer has no layer (selected
+  only by `not_in` rules). The global `ignore` applies.
+- A referenced name belongs to the module with the longest matching namespace and to the layer with the longest
+  matching `<module namespace>\<layer namespace>`, for **every** module: a module that is not a context yet uses the
+  global `definitions` (so "Domain must not use the UI of any context" also covers contexts migrated later).
+- Names come from the tokens, never from comments or strings: every top-level `use` (grouped `use A\{B, C as D}`,
+  aliases, `use function` / `use const`), every fully-qualified name (`\App\Foo`, `\App\Foo::class`, attributes,
+  type hints) and every qualified name, resolved: through an imported alias when its first segment is one
+  (`use Doctrine\ORM;` + `ORM\EntityManagerInterface` is `Doctrine\ORM\EntityManagerInterface`; `#[ORM\Column]` with
+  `use Doctrine\ORM\Mapping as ORM;` is `Doctrine\ORM\Mapping\Column`), else against the namespace
+  (`Infrastructure\Foo::class` inside `namespace App\Uptime;` is `App\Uptime\Infrastructure\Foo`). An unqualified
+  name (`Foo::class`) is covered by its `use` line or is the file's own namespace. Each name is reported once per file
+  and rule (first line); each call is reported. Files PHP cannot compile (duplicate modifiers, syntax newer than the
+  running PHP) are still tokenized and checked.
+- Limits: dynamic calls (`$r->$method()`, `->{'flush'}()`, `call_user_func([$r, 'flush'])`), class names in strings and
+  service ids are not seen; a file whose `namespace` does not match its directory references its declared namespace
+  with unqualified names, which are not recorded (its layer is taken from its path).
+- `layers` does not change `references`, `allowed_edges`, `forbidden_edges`, `rules` or `require_all_declared`.
+
+Output and exit codes with `layers`:
+
+- `enforce` context, finding not in the baseline: `error: <file>:<line> references <name> (<Context> <Layer>, layer rule <id>): <message>` on stderr, exit 1.
+- `warn` context, finding not in the baseline: the same line as `warning: …` on stdout, exit 0.
+- Finding in the baseline: counted only (`… N baselined …`).
+- Baseline entry that no longer occurs: `warning: baseline entry no longer occurs (remove it, or run --update-baseline): <entry>`;
+  with `--strict-baseline` it is an `error:` and the run fails.
+- A summary line on stdout: `Layers: 3 context(s), 10 file(s), 7 rule(s): 0 error(s), 4 warning(s), 15 baselined, 0 stale baseline entries.`
+
+Baseline (`layers.baseline`, or `--baseline=<file>` relative to the working directory; a missing file is empty):
+
+```text
+# check-module-boundaries layer baseline (php-quality-tools >= 1.12.0): accepted findings, one
+# rule|file|subject line each. It may only shrink: regenerate with --update-baseline after fixing findings.
+domain-framework-free|src/Billing/Entity/Invoice.php|Doctrine\ORM\Mapping
+flush-in-application|src/Billing/Controller/InvoiceController.php|->flush()
+```
+
+- One line per finding, without line numbers (edits above a finding do not invalidate it); a key repeated N times
+  accepts N findings (two `->flush()` calls in a file are two lines). Findings of `warn` and `enforce` contexts both
+  go in, so switching a context to `enforce` changes nothing until its lines are removed.
+- `--update-baseline` rewrites the file and exits without running the other checks (exit 0). A missing file is
+  created with every current finding. On an existing file it keeps only the listed findings that still occur
+  (accepted ∩ current): fixed ones are dropped, and new findings, of `enforce` and `warn` contexts alike, are printed
+  as `not added (fix it, or pass --allow-grow): …` and left out, so the next run still reports them. With
+  `--allow-grow` they are added. The write is atomic (temporary file in the same directory, then rename), only inside
+  `--root`, never through a symbolic link, and keeps the file mode.
+- The ratchet is a review-time control: a line added by hand pre-accepts a future finding, which only
+  `--strict-baseline` rejects while the code does not exist yet, and a deleted baseline is recreated in full. Run
+  `--strict-baseline` in CI and protect the baseline file in review (for example with CODEOWNERS).
+
+Adoption: add the `layers` section with every context in `warn`, run `--update-baseline` once and commit the baseline,
+then add `--strict-baseline` to CI so fixed findings must leave the file. Migrate a context, switch it to `enforce`,
+and run `--update-baseline` to drop its lines.
 
 ## Release guards (since 1.3.0)
 
