@@ -47,6 +47,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target **1.12.0** (minor): layer rules per context in `check-module-boundaries`, requested by Symfony Beacon spec 225
+(incremental DDD migration, step 0, T002). Opt-in: a map without a `layers` section behaves exactly as in 1.11.0. See
+[UPGRADING](UPGRADING.md#unreleased), [Usage → Layer rules per context](USAGE.md#layer-rules-per-context-since-1120)
+and spec [`specs/007-module-boundary-layers`](../specs/007-module-boundary-layers/spec.md).
+
+### Added
+
+- **`check-module-boundaries` `layers` section** (`Gate\ModuleBoundary\LayerConfig`, `LayerChecker`, `LayerRule`,
+  `LayerViolation`, `LayerBaseline`, `ReferenceExtractor`): layers inside declared contexts (default `Domain`,
+  `Application`, `Infrastructure`, `UI` in `src/<Module>/<Layer>`; directory and namespace mapping configurable,
+  globally and per context, several directories per layer), a mode per context (`enforce` fails the run, `warn`
+  reports with exit 0) and a configurable rule list. Rule types `forbid_layers` / `allow_layers` (layer to layer, `scope`
+  any / same / other context), `forbid_names` (exact, prefix or glob, with `allow`) and `forbid_calls` (`->method(`),
+  each with `in` / `not_in` source layers and optional `contexts`. `'@default'` expands to `domain-layer-edges` (Domain
+  uses no UI / Infrastructure of any context), `domain-framework-free` (no `Symfony\` / `Doctrine\` in Domain except
+  `domain_allow`, default `Doctrine\Common\Collections\`), `ui-no-persistence` (no repositories, `EntityManagerInterface`
+  / `ObjectManager` / `ManagerRegistry` in UI) and `flush-in-application` (no `->flush()` outside Application /
+  Infrastructure).
+- Detection is token based: `use` statements (grouped, aliased, `function` / `const`), fully-qualified names (also
+  `::class` and attributes) and qualified names resolved against the namespace; comments and strings are never read.
+- **Layer baseline** (`layers.baseline`, default `config/quality/module-boundaries-baseline.txt`, or `--baseline`):
+  listed findings do not fail; entries that no longer occur are reported, and fail with `--strict-baseline`.
+  `--update-baseline` rewrites it from the current findings and refuses to add entries to an existing file unless
+  `--allow-grow` is given; it writes only inside the project root and never through a symbolic link.
+
+[Unreleased]: https://github.com/nowo-tech/PhpQualityTools/compare/v1.11.0...HEAD
+
 ## [1.11.0] - 2026-11-05
 
 Minor release: test hygiene gates and budget warnings from the Symfony Beacon 1.122.0 audit (KIT-76).

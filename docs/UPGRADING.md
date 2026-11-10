@@ -60,6 +60,27 @@
 
 ## Unreleased
 
+Target **1.12.0**, from **1.11.0** (minor release, nothing to change):
+
+```bash
+composer update nowo-tech/php-quality-tools
+```
+
+`check-module-boundaries` maps without a `layers` section behave exactly as before (same output and exit codes). To
+adopt the layer rules (see [Usage → Layer rules per context](USAGE.md#layer-rules-per-context-since-1120)):
+
+1. Add a `layers` section to `config/quality/module-boundaries.yaml` with every context in `warn` (map today's
+   directories to the layers per context if they do not live in `src/<Module>/<Layer>` yet).
+2. Run `vendor/bin/check-module-boundaries --update-baseline` once and commit
+   `config/quality/module-boundaries-baseline.txt`.
+3. Call `vendor/bin/check-module-boundaries --strict-baseline` in CI, so a fixed finding must leave the baseline.
+4. Per migrated context: switch it to `enforce` and run `--update-baseline` (it drops fixed lines; adding lines to an
+   existing baseline needs `--allow-grow`).
+
+Code that constructs `ModuleBoundaryConfig` directly gains an optional last argument `?LayerConfig $layers = null`;
+`check-module-boundaries` arguments that were unknown before (`--baseline=`, `--strict-baseline`, `--update-baseline`,
+`--allow-grow`) still exit 2 on a map without `layers`, with a clearer message.
+
 ## To 1.11.0
 
 From **1.10.1** (minor release, nothing to change):

@@ -377,6 +377,7 @@ vendor/bin/check-coverage-threshold var/coverage/clover.xml 95
 
 # Fail on forbidden imports between modules (config/quality/module-boundaries.yaml)
 vendor/bin/check-module-boundaries
+vendor/bin/check-module-boundaries --strict-baseline                       # since 1.12.0: layer rules per context ("layers" section)
 
 # Deploy guard (since 1.3.0): exit 1 unless the tag is the highest vX.Y.Z tag;
 # --github-output writes deploy=true|false to $GITHUB_OUTPUT instead
