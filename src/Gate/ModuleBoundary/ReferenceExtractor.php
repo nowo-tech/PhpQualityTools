@@ -11,11 +11,13 @@ namespace NowoTech\PhpQualityTools\Gate\ModuleBoundary;
  * Names:
  * - every top-level `use` import (also grouped `use A\{B, C as D}`, `use function`, `use const`; aliases are read);
  * - every fully-qualified name in the code (`\App\Foo`, `\App\Foo::class`, attributes, type hints);
- * - every qualified name whose first segment is not an imported alias (`Infrastructure\Foo::class` inside
- *   `namespace App\Uptime;` is `App\Uptime\Infrastructure\Foo`), and every `namespace\Foo` relative name.
+ * - every qualified name, resolved: through an imported alias when its first segment is one (`use Doctrine\ORM;` +
+ *   `ORM\EntityManagerInterface` is `Doctrine\ORM\EntityManagerInterface`), else against the namespace
+ *   (`Infrastructure\Foo::class` inside `namespace App\Uptime;` is `App\Uptime\Infrastructure\Foo`), and every
+ *   `namespace\Foo` relative name.
  *
- * Names reached through an imported alias (`ORM\Column`, `Assert\NotBlank`, `Foo::class`) are not repeated: the `use`
- * statement already declares that dependency. Comments, strings and heredocs are never read.
+ * Unqualified names (`Foo::class`, `new Foo()`) are not recorded: they are the file's own namespace or an import that
+ * is already recorded. Comments, strings and heredocs are never read.
  *
  * Calls: every `->method(` / `?->method(` (method name lowercased).
  *
@@ -33,11 +35,9 @@ final class ReferenceExtractor
      */
     public function extract(string $code): array
     {
-        try {
-            $tokens = token_get_all($code, \TOKEN_PARSE);
-        } catch (\ParseError) {
-            $tokens = token_get_all($code);
-        }
+        // No TOKEN_PARSE: it raises uncatchable compile errors (duplicate modifiers, newer syntax on an older PHP), and
+        // nothing below needs it (names are T_NAME_* and a label after `->` is T_STRING in both modes).
+        $tokens = token_get_all($code);
 
         $significant = [];
         foreach ($tokens as $token) {
@@ -94,10 +94,13 @@ final class ReferenceExtractor
                     break;
 
                 case \T_NAME_QUALIFIED:
-                    $first = strtolower(strstr($token[1], '\\', true) ?: $token[1]);
-                    if (!isset($aliases[$first])) {
-                        $names[] = ['name' => $this->join($namespace, $token[1]), 'line' => $token[2]];
-                    }
+                    $first = (string) strstr($token[1], '\\', true);
+                    $names[] = [
+                        'name' => isset($aliases[strtolower($first)])
+                            ? $aliases[strtolower($first)] . substr($token[1], \strlen($first)) // `use Doctrine\ORM;` + ORM\EntityManagerInterface
+                            : $this->join($namespace, $token[1]),
+                        'line' => $token[2],
+                    ];
                     break;
 
                 case \T_OBJECT_OPERATOR:

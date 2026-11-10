@@ -62,11 +62,13 @@ final class ReferenceExtractorTest extends TestCase
             ['name' => 'App\\Shared\\helper', 'line' => 8],
             ['name' => 'App\\Shared\\LIMIT', 'line' => 8],
             ['name' => 'App\\Shared\\Thing', 'line' => 8],
+            ['name' => 'Doctrine\\ORM\\Mapping\\Entity', 'line' => 11],
             ['name' => 'App\\Traits\\T', 'line' => 14],
             ['name' => 'App\\Uptime\\Domain\\Local\\Traits\\U', 'line' => 15],
             ['name' => 'App\\Uptime\\Domain\\Infrastructure\\Thing', 'line' => 29],
             ['name' => 'App\\Uptime\\UI\\X', 'line' => 29],
             ['name' => 'App\\Uptime\\Domain\\Rel', 'line' => 29],
+            ['name' => 'App\\Uptime\\UI\\Ctl\\Sub', 'line' => 29],
         ], $result['names']);
         self::assertSame([['method' => 'flush', 'line' => 23], ['method' => 'flush', 'line' => 24]], $result['calls']);
     }
@@ -93,9 +95,21 @@ final class ReferenceExtractorTest extends TestCase
             ['name' => 'Lib\\Infra', 'line' => 3],
             ['name' => 'Lib\\Models', 'line' => 4],
             ['name' => 'A\\Infra\\Thing', 'line' => 5],
+            ['name' => 'Lib\\Models\\User', 'line' => 5],
             ['name' => 'B\\Models\\User', 'line' => 9],
             ['name' => 'Root\\Thing', 'line' => 12],
         ], (new ReferenceExtractor())->extract($code)['names']);
+    }
+
+    /**
+     * KU-L1: a file PHP cannot compile (duplicate modifiers, or syntax newer than the running PHP) is tokenized, not fatal.
+     */
+    public function testCompileErrorsAreTokenized(): void
+    {
+        $result = (new ReferenceExtractor())->extract("<?php\nnamespace A;\nuse B\\C;\nclass D { public public \$x; public function f() { \$this->x->flush(); } }\n");
+
+        self::assertSame([['name' => 'B\\C', 'line' => 3]], $result['names']);
+        self::assertSame([['method' => 'flush', 'line' => 4]], $result['calls']);
     }
 
     public function testParseErrorFallsBackToPlainTokens(): void

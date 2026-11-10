@@ -69,12 +69,12 @@ final class ModuleBoundaryLayersCommandTest extends TestCase
         [$code, $out, $err] = $this->execute([], $root);
 
         self::assertSame(1, $code);
-        self::assertSame(4, substr_count($out, 'warning: '));
+        self::assertSame(5, substr_count($out, 'warning: '));
         self::assertStringContainsString("warning: src/Billing/Entity/Invoice.php:4 references Doctrine\\ORM\\Mapping (Billing Domain, layer rule domain-framework-free): Domain is plain PHP: no Symfony, no Doctrine (except layers.domain_allow).\n", $out);
-        self::assertStringEndsWith("Layers: 3 context(s), 10 file(s), 7 rule(s): 11 error(s), 4 warning(s), 0 baselined, 0 stale baseline entries.\n", $out);
-        self::assertSame(11, substr_count($err, 'error: '));
+        self::assertStringEndsWith("Layers: 3 context(s), 10 file(s), 7 rule(s): 12 error(s), 5 warning(s), 0 baselined, 0 stale baseline entries.\n", $out);
+        self::assertSame(12, substr_count($err, 'error: '));
         self::assertStringContainsString("error: src/Uptime/Legacy/Helper.php:4 calls ->flush() (Uptime (no layer), layer rule flush-in-application): flush() belongs to the Application (transaction per use case) or Infrastructure layer.\n", $err);
-        self::assertStringEndsWith("Module boundaries: 11 violation(s).\n", $err);
+        self::assertStringEndsWith("Module boundaries: 12 violation(s).\n", $err);
     }
 
     public function testBaselineOnlyShrinks(): void
@@ -83,17 +83,17 @@ final class ModuleBoundaryLayersCommandTest extends TestCase
         $baseline = $root . '/' . self::BASELINE;
 
         // 1. Generate: a missing baseline is created with every finding (enforce and warn contexts).
-        self::assertSame([0, "Baseline created: {$baseline} (15 entries; 15 added, 0 removed).\n", ''], $this->execute(['--update-baseline'], $root));
+        self::assertSame([0, "Baseline created: {$baseline} (17 entries; 17 added, 0 removed).\n", ''], $this->execute(['--update-baseline'], $root));
         $content = (string) file_get_contents($baseline);
         self::assertStringStartsWith(LayerBaseline::HEADER, $content);
         self::assertStringContainsString("\nflush-in-application|src/Uptime/Legacy/Helper.php|->flush()\n", $content);
-        self::assertSame(15, array_sum(LayerBaseline::load($baseline)));
+        self::assertSame(17, array_sum(LayerBaseline::load($baseline)));
 
         // 2. Every finding is baselined: the run passes.
         [$code, $out, $err] = $this->execute([], $root);
         self::assertSame(0, $code, $err);
         self::assertSame(
-            "Layers: 3 context(s), 10 file(s), 7 rule(s): 0 error(s), 0 warning(s), 15 baselined, 0 stale baseline entries.\n"
+            "Layers: 3 context(s), 10 file(s), 7 rule(s): 0 error(s), 0 warning(s), 17 baselined, 0 stale baseline entries.\n"
             . "OK: module boundaries (4 module(s), 11 PHP file(s) scanned, 1 edge rule(s), 0 extra rule(s)).\n",
             $out,
         );
@@ -104,33 +104,45 @@ final class ModuleBoundaryLayersCommandTest extends TestCase
         [$code, $out] = $this->execute([], $root);
         self::assertSame(0, $code);
         self::assertStringContainsString("warning: {$stale}\n", $out);
-        self::assertStringContainsString('14 baselined, 1 stale baseline entry.', $out);
+        self::assertStringContainsString('16 baselined, 1 stale baseline entry.', $out);
         [$code, $out, $err] = $this->execute(['--strict-baseline'], $root);
         self::assertSame(1, $code);
         self::assertSame("error: {$stale}\nModule boundaries: 1 violation(s).\n", $err);
-        self::assertStringContainsString('1 error(s), 0 warning(s), 14 baselined, 1 stale baseline entry.', $out);
+        self::assertStringContainsString('1 error(s), 0 warning(s), 16 baselined, 1 stale baseline entry.', $out);
 
-        // 4. New findings fail, and --update-baseline refuses to add them (a key counts once per occurrence).
+        // 4. New findings fail (a key counts once per occurrence); a shrink-only --update-baseline writes accepted ∩
+        //    current: it drops the fixed entry and lists, but does not add, the new enforce and warn findings.
         file_put_contents($root . '/src/Uptime/Legacy/Two.php', "<?php\nnamespace App\\Uptime\\Legacy;\nfunction f(\$a, \$b): void { \$a->flush(); \$b->flush(); }\n");
+        file_put_contents($root . '/src/Billing/Controller/Extra.php', "<?php\nnamespace App\\Billing\\Controller;\nuse Doctrine\\ORM\\EntityManagerInterface;\n");
         [$code, , $err] = $this->execute([], $root);
         self::assertSame(1, $code);
         self::assertSame(2, substr_count($err, 'error: src/Uptime/Legacy/Two.php:3 calls ->flush()'));
+        chmod($baseline, 0o640);
         [$code, $out, $err] = $this->execute(['--update-baseline'], $root);
-        self::assertSame([1, ''], [$code, $out]);
-        self::assertStringStartsWith("error: refusing to add 2 entries to the baseline {$baseline} (fix them, or pass --allow-grow):\n  src/Uptime/Legacy/Two.php:3 calls ->flush()", $err);
-        self::assertSame($content, file_get_contents($baseline));
+        self::assertSame([0, ''], [$code, $err]);
+        self::assertSame(3, substr_count($out, 'not added (fix it, or pass --allow-grow): '));
+        self::assertStringContainsString('not added (fix it, or pass --allow-grow): src/Billing/Controller/Extra.php:3 references Doctrine\\ORM\\EntityManagerInterface (Billing UI, layer rule ui-no-persistence)', $out);
+        self::assertStringEndsWith("Baseline updated: {$baseline} (16 entries; 0 added, 1 removed; 3 new finding(s) not added).\n", $out);
+        $shrunk = (string) file_get_contents($baseline);
+        self::assertStringNotContainsString('Helper.php', $shrunk);
+        self::assertStringNotContainsString('Two.php', $shrunk);
+        self::assertStringNotContainsString('Extra.php', $shrunk);
+        self::assertSame(0o640, fileperms($baseline) & 0o777, 'the atomic rewrite keeps the file mode');
+        self::assertSame([], glob($root . '/config/quality/.*.tmp'), 'no temporary file is left behind');
+        self::assertSame(1, $this->execute([], $root)[0]);
 
-        // 5. --allow-grow accepts them (and drops the stale entry).
+        // 5. --allow-grow accepts them.
         self::assertSame(
-            [0, "Baseline updated: {$baseline} (16 entries; 2 added, 1 removed).\n", ''],
+            [0, "Baseline updated: {$baseline} (19 entries; 3 added, 0 removed).\n", ''],
             $this->execute(['--update-baseline', '--allow-grow'], $root),
         );
         self::assertSame(2, substr_count((string) file_get_contents($baseline), "flush-in-application|src/Uptime/Legacy/Two.php|->flush()\n"));
 
         // 6. Shrinking needs no flag; an explicit --baseline (relative to the working directory) is honoured.
         unlink($root . '/src/Uptime/Legacy/Two.php');
+        unlink($root . '/src/Billing/Controller/Extra.php');
         self::assertSame(
-            [0, "Baseline updated: {$baseline} (14 entries; 0 added, 2 removed).\n", ''],
+            [0, "Baseline updated: {$baseline} (16 entries; 0 added, 3 removed).\n", ''],
             $this->execute(['--update-baseline', '--baseline=' . self::BASELINE], $root),
         );
         self::assertSame(0, $this->execute(['--strict-baseline'], $root)[0]);

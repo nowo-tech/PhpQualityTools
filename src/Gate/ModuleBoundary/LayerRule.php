@@ -76,6 +76,7 @@ final readonly class LayerRule
         $name = strtolower($name);
         $pattern = strtolower($pattern);
         if (false !== strpbrk($pattern, '*?')) {
+            $pattern = (string) preg_replace('/\*+/', '*', $pattern); // `a**b` = `a*b`, and fewer backtracking paths
             $regex = '~^' . strtr(preg_quote($pattern, '~'), ['\*' => '.*', '\?' => '.']) . '$~';
 
             return 1 === preg_match($regex, $name);

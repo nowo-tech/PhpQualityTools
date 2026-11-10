@@ -38,8 +38,8 @@ final class ModuleBoundaryCommand
         Layer rules (config with a "layers" section):
           --baseline=<file>   accepted layer findings (default: layers.baseline under the root)
           --strict-baseline   fail when a baseline entry no longer occurs (default: reported only)
-          --update-baseline   rewrite the baseline from the current findings (drops fixed ones) and exit;
-                              refuses to add entries to an existing baseline unless --allow-grow is given
+          --update-baseline   rewrite the baseline (drops fixed findings) and exit; on an existing baseline
+                              new findings are listed but only added with --allow-grow
         Exit codes: 0 OK, 1 violations, 2 usage or configuration error.
         TXT;
 
@@ -226,30 +226,32 @@ final class ModuleBoundaryCommand
         $violations = $this->layerChecker->check($config, $root)['violations'];
         $applied = LayerBaseline::apply($accepted, $violations);
         $exists = file_exists($baseline);
-        if ($exists && [] !== $applied['new'] && !$allowGrow) {
-            fwrite($this->stderr, \sprintf("error: refusing to add %d entr%s to the baseline %s (fix them, or pass --allow-grow):\n", \count($applied['new']), 1 === \count($applied['new']) ? 'y' : 'ies', $baseline));
-            foreach ($applied['new'] as $violation) {
-                fwrite($this->stderr, '  ' . $violation->describe() . "\n");
-            }
-
-            return 1;
-        }
+        // Shrink-only by default: an existing baseline keeps the accepted findings that still occur (accepted ∩
+        // current); new findings (enforce or warn) are listed and left out unless --allow-grow is given.
+        $grow = !$exists || $allowGrow;
+        $kept = $grow ? $violations : $applied['matched'];
 
         try {
-            LayerBaseline::write($root, $baseline, LayerBaseline::render($violations));
+            LayerBaseline::write($root, $baseline, LayerBaseline::render($kept));
         } catch (ConfigException $e) {
             fwrite($this->stderr, 'ERROR: ' . $e->getMessage() . "\n");
 
             return 2;
         }
+        if (!$grow) {
+            foreach ($applied['new'] as $violation) {
+                fwrite($this->stdout, 'not added (fix it, or pass --allow-grow): ' . $violation->describe() . "\n");
+            }
+        }
         fwrite($this->stdout, \sprintf(
-            "Baseline %s: %s (%d entr%s; %d added, %d removed).\n",
+            "Baseline %s: %s (%d entr%s; %d added, %d removed%s).\n",
             $exists ? 'updated' : 'created',
             $baseline,
-            \count($violations),
-            1 === \count($violations) ? 'y' : 'ies',
-            $exists ? \count($applied['new']) : \count($violations),
+            \count($kept),
+            1 === \count($kept) ? 'y' : 'ies',
+            \count($kept) - $applied['baselined'],
             \count($applied['stale']),
+            $grow || [] === $applied['new'] ? '' : \sprintf('; %d new finding(s) not added', \count($applied['new'])),
         ));
 
         return 0;

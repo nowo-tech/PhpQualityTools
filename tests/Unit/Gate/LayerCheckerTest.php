@@ -102,10 +102,12 @@ final class LayerCheckerTest extends TestCase
             'Billing warn src/Billing/Controller/InvoiceController.php:4 references Doctrine\\ORM\\EntityManagerInterface (Billing UI, layer rule ui-no-persistence): UI must not use repositories or the entity manager directly (call an Application use case).',
             'Billing warn src/Billing/Controller/InvoiceController.php:6 calls ->flush() (Billing UI, layer rule flush-in-application): flush() belongs to the Application (transaction per use case) or Infrastructure layer.',
             'Billing warn src/Billing/Entity/Invoice.php:4 references Doctrine\\ORM\\Mapping (Billing Domain, layer rule domain-framework-free): Domain is plain PHP: no Symfony, no Doctrine (except layers.domain_allow).',
+            'Billing warn src/Billing/Entity/Invoice.php:6 references Doctrine\\ORM\\Mapping\\Entity (Billing Domain, layer rule domain-framework-free): Domain is plain PHP: no Symfony, no Doctrine (except layers.domain_allow).',
             'Identity warn src/Identity/Controller/LoginController.php:4 references App\\Identity\\Repository\\UserRepository (Identity UI, layer rule ui-no-persistence): UI must not use repositories or the entity manager directly (call an Application use case).',
             'Uptime enforce src/Uptime/Application/CreateMonitor.php:5 references Psr\\Container\\ContainerInterface (Uptime Application, layer rule no-container).',
             'Uptime enforce src/Uptime/Domain/Monitor.php:5 references Doctrine\\ORM\\Mapping (Uptime Domain, layer rule domain-framework-free): Domain is plain PHP: no Symfony, no Doctrine (except layers.domain_allow).',
             'Uptime enforce src/Uptime/Domain/Monitor.php:6 references App\\Uptime\\Infrastructure\\Doctrine\\MonitorType (Uptime Domain, layer rule domain-layer-edges): Domain must not depend on the UI or Infrastructure layer of any context.',
+            'Uptime enforce src/Uptime/Domain/Monitor.php:8 references Doctrine\\ORM\\Mapping\\Entity (Uptime Domain, layer rule domain-framework-free): Domain is plain PHP: no Symfony, no Doctrine (except layers.domain_allow).',
             'Uptime enforce src/Uptime/Domain/Monitor.php:12 references App\\Billing\\UI\\Controller\\InvoiceController (Uptime Domain, layer rule application-no-ui): use cases do not depend on controllers, forms or Twig.',
             'Uptime enforce src/Uptime/Domain/Monitor.php:12 references App\\Billing\\UI\\Controller\\InvoiceController (Uptime Domain, layer rule domain-layer-edges): Domain must not depend on the UI or Infrastructure layer of any context.',
             'Uptime enforce src/Uptime/Domain/Monitor.php:12 calls ->flush() (Uptime Domain, layer rule flush-in-application): flush() belongs to the Application (transaction per use case) or Infrastructure layer.',
@@ -180,6 +182,32 @@ final class LayerCheckerTest extends TestCase
         );
     }
 
+    /**
+     * KU-M1: a qualified name whose first segment is an imported namespace alias is resolved through the alias.
+     */
+    public function testNamespaceAliasesDoNotHideFindings(): void
+    {
+        $root = $this->makeTree([
+            'src/Uptime/Domain/ViaModuleAlias.php' => "<?php\nnamespace App\\Uptime\\Domain;\n\nuse App\\Uptime;\n\nfunction f(Uptime\\Infrastructure\\Persistence\\MonitorRepository \$r): void {}\n",
+            'src/Uptime/Domain/ViaRootAlias.php' => "<?php\nnamespace App\\Uptime\\Domain;\n\nuse App;\n\nconst C = App\\Uptime\\UI\\Controller::class;\n",
+            'src/Uptime/UI/OrmAlias.php' => "<?php\nnamespace App\\Uptime\\UI;\n\nuse Doctrine\\ORM;\nuse App\\Uptime\\Infrastructure\\Persistence as P;\n\nfunction g(ORM\\EntityManagerInterface \$em, P\\MonitorRepository \$r): void {}\n",
+        ]);
+        $config = ModuleBoundaryConfig::fromArray([
+            'modules' => ['Uptime' => ['namespace' => 'App\\Uptime', 'path' => 'src/Uptime']],
+            'layers' => ['contexts' => ['Uptime' => 'enforce']],
+        ]);
+
+        self::assertSame([
+            'src/Uptime/Domain/ViaModuleAlias.php:6 App\\Uptime\\Infrastructure\\Persistence\\MonitorRepository domain-layer-edges',
+            'src/Uptime/Domain/ViaRootAlias.php:6 App\\Uptime\\UI\\Controller domain-layer-edges',
+            'src/Uptime/UI/OrmAlias.php:7 App\\Uptime\\Infrastructure\\Persistence\\MonitorRepository ui-no-persistence',
+            'src/Uptime/UI/OrmAlias.php:7 Doctrine\\ORM\\EntityManagerInterface ui-no-persistence',
+        ], array_map(
+            static fn (LayerViolation $v): string => $v->file . ':' . $v->line . ' ' . $v->subject . ' ' . $v->rule,
+            (new LayerChecker())->check($config, $root)['violations'],
+        ));
+    }
+
     public function testNameMatches(): void
     {
         self::assertTrue(LayerRule::nameMatches('Symfony\\Component\\X', 'symfony\\'));
@@ -193,5 +221,6 @@ final class LayerCheckerTest extends TestCase
         self::assertTrue(LayerRule::nameMatches('App\\X.Y', 'App\\X.Y'));
         self::assertFalse(LayerRule::nameMatches('App\\XzY', 'App\\X.*Y'));
         self::assertFalse(LayerRule::nameMatchesAny('A', []));
+        self::assertTrue(LayerRule::nameMatches('App\\X\\Y', 'App**Y'));
     }
 }
