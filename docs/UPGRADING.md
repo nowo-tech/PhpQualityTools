@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.12.0](#to-1120)
 - [To 1.11.0](#to-1110)
 - [To 1.10.1](#to-1101)
 - [To 1.10.0](#to-1100)
@@ -60,7 +61,9 @@
 
 ## Unreleased
 
-Target **1.12.0**, from **1.11.0** (minor release, nothing to change):
+## To 1.12.0
+
+From **1.11.0** (minor release, nothing to change):
 
 ```bash
 composer update nowo-tech/php-quality-tools

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.12.0] - 2026-11-10](#1120---2026-11-10)
 - [[1.11.0] - 2026-11-05](#1110---2026-11-05)
 - [[1.10.1] - 2026-11-04](#1101---2026-11-04)
 - [[1.10.0] - 2026-11-04](#1100---2026-11-04)
@@ -47,10 +48,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Target **1.12.0** (minor): layer rules per context in `check-module-boundaries`, requested by Symfony Beacon spec 225
+## [1.12.0] - 2026-11-10
+
+Layer rules per context in `check-module-boundaries`, requested by Symfony Beacon spec 225
 (incremental DDD migration, step 0, T002). Opt-in: a map without a `layers` section behaves exactly as in 1.11.0. See
-[UPGRADING](UPGRADING.md#unreleased), [Usage → Layer rules per context](USAGE.md#layer-rules-per-context-since-1120)
-and spec [`specs/007-module-boundary-layers`](../specs/007-module-boundary-layers/spec.md).
+[UPGRADING](https://github.com/nowo-tech/PhpQualityTools/blob/v1.12.0/docs/UPGRADING.md#to-1120), [Usage → Layer rules per context](https://github.com/nowo-tech/PhpQualityTools/blob/v1.12.0/docs/USAGE.md#layer-rules-per-context-since-1120)
+and spec [`specs/007-module-boundary-layers`](https://github.com/nowo-tech/PhpQualityTools/blob/v1.12.0/specs/007-module-boundary-layers/spec.md).
 
 ### Added
 
@@ -75,7 +78,9 @@ and spec [`specs/007-module-boundary-layers`](../specs/007-module-boundary-layer
   ones without adding them (`--allow-grow` adds them). The write is atomic (temporary file + rename), only inside the
   project root and never through a symbolic link.
 
-[Unreleased]: https://github.com/nowo-tech/PhpQualityTools/compare/v1.11.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/PhpQualityTools/compare/v1.12.0...HEAD
+
+[1.12.0]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.12.0
 
 ## [1.11.0] - 2026-11-05
 
