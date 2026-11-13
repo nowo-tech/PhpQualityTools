@@ -129,7 +129,7 @@ jobs:
         run: composer install --prefer-dist --no-progress
 
       - name: Generate coverage report
-        run: composer test-coverage
+        run: composer test-coverage-100
 
       - name: Ensure tests did not modify composer.json / composer.lock
         run: git diff --exit-code -- composer.json composer.lock
