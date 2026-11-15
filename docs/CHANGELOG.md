@@ -81,18 +81,22 @@ full run of 70–90 minutes. Opt-in: nothing changes until a host calls `bin/cov
     a file that is not rerun. `--trust-junit-failures` reruns only the failing files instead (never when the log
     names no failing test case). A run that failed only the coverage gate is not concerned. `save` takes the tests'
     status (`--tests-status`) apart from the overall one.
-  - On every resume, test files that consume another file's result (`#[DependsExternal]`, cross-file
-    `#[Depends]`) are rerun. On a source resume, test files the per-test data cannot attribute are always rerun too:
-    coverage metadata (`CoversClass`, `@covers`…, grouped attributes and aliased imports included, which filters
-    php-code-coverage's per-test data), `setUpBeforeClass()`, subprocesses (`Process::fromShellCommandline()`,
-    `PhpProcess` and backticks included).
+  - A test file that uses another test file's result (`#[DependsExternal]`, `#[DependsOnClass]`, cross-file
+    `#[Depends]`, `@depends Other::test`) means the full suite on every resume, test-only included: rerun without its
+    producer, PHPUnit skips the consumer and the run stays green. As a safety net, `merge` asks for the full suite
+    (exit 3) when a test case the kept run ran, not skipped, comes back skipped in the rerun; the state keeps the
+    skipped test cases for that.
+  - On a source resume, test files the per-test data cannot attribute are always rerun: coverage metadata
+    (`CoversClass`, `@covers`…, grouped attributes and their imports included, aliased too, also in a group `use`,
+    which filters php-code-coverage's per-test data), `setUpBeforeClass()`, subprocesses
+    (`Process::fromShellCommandline()`, `PhpProcess` and backticks included).
   - A changed function body that no test of the kept run executed (bootstrap, extension, warm-up code) means the full
     suite.
   - State files are written through a rename; `state.json` records the sha1 of `coverage.cov` and a mismatch is
     refused; counters out of range are refused; the recipe holds a per-project `flock`.
   - Documented as a fast pre-check, not a proof: the residual-risk list (static state and order, providers through a
-    wrapper, base-class `setUpBeforeClass()`, subprocesses through helpers, cross-file dependencies through base
-    classes, cached values) and "never restore the state directory from a shared CI cache".
+    wrapper, base-class `setUpBeforeClass()`, `tearDownAfterClass()`, subprocesses through helpers or an aliased
+    `Process`, cross-file dependencies through base classes or `@depends clone`, cached values) and "never restore the state directory from a shared CI cache".
 - **`resources/make/coverage-resume.mk`**: target `php-coverage-resume` for `RELEASE_PHASES` (plan, run the host's
   files or full target, merge, gate, keep, stamp in `$(COVERAGE_RESUME_STAMP)` for the `release-check OK` line);
   optional history rule `COVERAGE_RESUME_MAX_COMMITS`; `coverage-resume-forget`.
@@ -107,8 +111,10 @@ full run of 70–90 minutes. Opt-in: nothing changes until a host calls `bin/cov
   (full run, source change, resume; the merged Clover report equals a full run's), and the audit QF scenarios end to
   end (`#[CoversClass]` callers and stale merged coverage, failOnDeprecation / setUpBeforeClass / data provider
   failures of the kept run, a body only the bootstrap runs) and the audit QF-2 ones (a real failure next to a provider
-  error, grouped coverage attributes, a test-only `DependsExternal` producer). Checked by hand on PHPUnit 13.4 /
-  php-code-coverage 14.5 too.
+  error, grouped coverage attributes, a test-only `DependsExternal` producer) and QF-3 (a `DependsExternal` /
+  `DependsOnClass` consumer that runs the changed code or was edited, a consumer the text rule misses caught by the
+  merge, an aliased coverage attribute in a group `use`). Checked by hand on PHPUnit 13.4 / php-code-coverage 14.5
+  too.
 
 - CI: the coverage run is now `composer test-coverage-100` (new script, `.scripts/check-coverage.php`), so a pull request that drops statement or element coverage below **100%** fails the build; before, nothing in CI checked a threshold. The suite is already at 100%.
 

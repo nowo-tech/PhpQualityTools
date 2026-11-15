@@ -1286,7 +1286,7 @@ overall result (tests and coverage gate).
 - per source file: its skeleton hash, its function bodies (line ranges, hashes, whether a test executed a line of
   each), and the declared and parent class names;
 - which test files executed each source file;
-- the failed test files and the tests' status;
+- the failed test files and the tests' status, and the skipped or incomplete test cases;
 - the PHP, PHPUnit and php-code-coverage versions, and the coverage driver;
 - the run mode and stamp, the resume counters, and the sha1 of `coverage.cov`.
 
@@ -1302,12 +1302,11 @@ Counters that are negative or above 1000 are refused.
 - every test that executed any line of a changed source file;
 - the tests of every class that extends, implements or uses (trait) a class declared in a changed file, transitively;
 - every test file that names a changed class (`--no-name-references` turns this off);
-- on every resume, test files that consume another file's result (`#[DependsExternal]`,
-  `#[Depends…('Other::test')]`, `@depends Other::test`): a changed producer test changes what they receive;
 - when a source file changed, the test files the per-test data cannot attribute:
   - files with no recorded line at all;
   - files with coverage metadata (`CoversClass`, `CoversMethod`, `CoversFunction`, `CoversTrait`, `CoversNothing`
-    attributes, grouped or not, an import of one, `@covers`, `@coversDefaultClass`). php-code-coverage keeps only
+    attributes, grouped or not; their import, also aliased in a group `use` (`use …\Attributes\{Small, CoversClass as
+    Target}`); `@covers`, `@coversDefaultClass`). php-code-coverage keeps only
     the covered targets of such a test, so the code it runs elsewhere is not recorded against it;
   - files with `setUpBeforeClass()` / `BeforeClass`;
   - files that start a subprocess (`shell_exec`, `exec`, `system`, `passthru`, `proc_open`, `popen`, `new Process`,
@@ -1322,6 +1321,12 @@ data. A line that only a rerun test reached before, and no longer reaches, is un
 run. Dropping only the changed files would not be enough: if `Other::thrice()` stops calling `Calc::triple()`,
 `Calc.php` is unchanged but `triple()` must become uncovered. php-code-coverage itself writes the merged data, as
 `--coverage-php` and Clover, so the report has the same shape and counts as a full run's.
+
+The merge refuses (exit 3, the recipe then runs the full suite) when a test case that ran in the kept run, and was not
+skipped there, comes back **skipped** in the rerun. It catches a test that depends on another test file that was not
+rerun, when the textual rule below misses the dependency: PHPUnit skips it ("depends on … which has not run"), and a
+skipped test does not fail the run. A test skipped for another reason (a `markTestSkipped()` that now applies) also
+asks for the full suite.
 
 **Full suite instead** when any of these holds (`plan` prints the reasons):
 
@@ -1340,6 +1345,7 @@ run. Dropping only the changed files would not be enough: if `Other::thrice()` s
 | a source file changed **outside function bodies**: signature, constant, property default, attribute, doc comment, import, `extends` / `implements`, trait use, a function made a generator | code that runs without executing the file's lines (constants, defaults, reflection on attributes, autoloading, inheritance) |
 | a changed function that no test of the kept run executed (code run only by the bootstrap, an extension, a warm-up or a subprocess; an empty body; a body ignored by an annotation) | nobody is recorded as calling it |
 | more than `--max-src-files` source files changed (default 10) | a big change is cheaper to verify with the full suite |
+| any test file uses another test file's result: `#[DependsExternal…]`, `#[DependsOnClass…]`, `#[Depends…('Other::test')]`, `@depends Other::test` (test-only resumes included) | rerun without its producer, PHPUnit skips the consumer, and a skipped test does not fail the run; a changed producer also changes what it receives. Projects that use them always run the full suite |
 | nothing to rerun | — |
 
 Changes are detected by **content**, not by commit: uncommitted, amended and rebased changes all count. The release
@@ -1377,9 +1383,13 @@ audit QF of PR #74, and none of them is detected:
   `Process::fromShellCommandline()`, backticks…), and test files with no recorded line at all. A test that starts the
   process through a helper, a trait or a base class (`tests/Support/…`), and also executes at least one recorded
   line, is not rerun.
-- **`#[DependsExternal]` and cross-file `#[Depends]`.** A consumer in another file that never executes the changed
-  code keeps its old result. Test files that declare the dependency are rerun; a dependency reached through a base
-  class is not.
+- **Cross-file test dependencies the text rule misses.** A test file with `#[DependsExternal]`, `#[DependsOnClass]`,
+  a cross-file `#[Depends]` or `@depends Other::test` means the full suite. A dependency declared in a base class or
+  a trait, or written `@depends clone Other::test` / `@depends !clone Other::test` (annotations only, removed in
+  PHPUnit 12), is not seen. When such a consumer is rerun, it is skipped and the merge asks for the full suite (see
+  **Merge**); when it is not rerun (it never executes the changed code), it keeps its old result.
+- **`tearDownAfterClass()` / `#[AfterClass]`** run outside any test's coverage, like `setUpBeforeClass()`, but they
+  are not part of the text rule: an assertion there that runs changed code is not rerun.
 - **Values computed once and cached across tests** by changed code. The first test that ran the code is recorded;
   later tests that use the cached value are not. Container compilation is covered by the `--full-glob` wiring paths;
   other warm-up code is not.
@@ -1389,6 +1399,8 @@ audit QF of PR #74, and none of them is detected:
   runs the full suite.
 - **Coverage metadata hidden from a textual scan** (an attribute applied through a constant or a macro-like helper)
   is not seen.
+- **A `Process` imported under an alias** (`use Symfony\Component\Process\Process as P; new P(…)`) is not seen as a
+  subprocess; `Process::from…()`, `PhpProcess` and the fully qualified or plain `new Process` are.
 
 That is why a resumed run:
 

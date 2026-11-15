@@ -87,9 +87,21 @@ cannot tell which tests a source change affects nor drop what a rerun test no lo
   are documented as not seen.
 - **QF2-I2**: the `release-check` example fails on an unknown coverage stamp.
 
+## Audit QF-3 (2026-11-15) — changes
+
+- **QF3-M1**: a rerun `DependsExternal` / `DependsOnClass` consumer is skipped without its producer, so the resume was
+  green. Any test file with a cross-file dependency (`DependsExternal`, `DependsOnClass`, `Depends…('X::t')`,
+  `@depends X::t`) now means the full suite (replaces QF2-L2's rerun). Safety net: `merge` exits 3 when a test case
+  that ran, not skipped, in the kept run is skipped in the rerun (the state keeps the skipped cases). End-to-end
+  fixtures s5c, s5d, s5e, s5f.
+- **QF3-L1**: an aliased coverage attribute inside a group `use` is matched (`\bCovers\w+\s+as\b`); fixture s9e.
+- **QF3-I1**: `@depends clone X::t`, `tearDownAfterClass()` / `#[AfterClass]` and `new P(…)` through an aliased
+  `Process` import are documented under Residual risk.
+
 ## Residual risk
 
 Tests that were not rerun keep their old result and coverage; see USAGE → Residual risk for the reproduced cases
 (static state and order, providers through a wrapper, `setUpBeforeClass()` in a base class, subprocesses through a
-helper, cross-file dependencies through a base class, cached values). A resumed green run is therefore a pre-check:
+helper or an aliased `Process`, `tearDownAfterClass()`, cross-file dependencies through a base class or
+`@depends clone`, cached values). A resumed green run is therefore a pre-check:
 the release proof should require a full run (`--require-coverage=full`).
