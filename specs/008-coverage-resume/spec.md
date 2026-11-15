@@ -76,6 +76,17 @@ cannot tell which tests a source change affects nor drop what a rerun test no lo
   hash in the state, per-project lock; `assert-release-proof --require-coverage=full`; counters validated, CI-cache
   warning; the stamp says "test files" and "source files".
 
+## Audit QF-2 (2026-11-15) — changes
+
+- **QF2-M1**: a kept run whose tests failed resumes only with `--trust-junit-failures`, whatever the PHPUnit
+  configuration (a data provider error or a runner warning is not in the JUnit log either); the `failOn*`
+  configuration rule and `--phpunit-config` are gone. End-to-end fixture s13c.
+- **QF2-L1**: coverage metadata matched anywhere (grouped attributes) and through an aliased import (s9c).
+- **QF2-L2**: `DependsExternal` / cross-file `Depends` consumers rerun on every resume, test-only included (s5b).
+- **QF2-I1**: `Process::from…()`, `PhpProcess` and backticks count as subprocesses; helpers, traits and base classes
+  are documented as not seen.
+- **QF2-I2**: the `release-check` example fails on an unknown coverage stamp.
+
 ## Residual risk
 
 Tests that were not rerun keep their old result and coverage; see USAGE → Residual risk for the reproduced cases

@@ -76,13 +76,16 @@ full run of 70–90 minutes. Opt-in: nothing changes until a host calls `bin/cov
   - Changes are detected by file content, not by commit, so the fix-below-the-release-commit flow still resumes.
   - `status` prints the stamp of the last **saved** run (`coverage: full` or `coverage: resumed (k test files, m
     source files)`) only while it passed and the files are those it ran on; a plan never writes it.
-  - A kept run whose tests failed is resumed only when its JUnit log names the failing test cases and the PHPUnit
-    configuration sets no `failOn*` option (`--trust-junit-failures` to accept that risk): `failOn*` issues, runner
-    warnings, `setUpBeforeClass()` and data provider errors are not in the JUnit log. `save` takes the tests' status
-    (`--tests-status`) apart from the overall one.
-  - On a source resume, test files the per-test data cannot attribute are always rerun: coverage metadata
-    (`#[CoversClass]`, `@covers`…, which filters php-code-coverage's per-test data), `setUpBeforeClass()`,
-    `#[DependsExternal]` / cross-file `#[Depends]`, subprocesses.
+  - A kept run whose tests failed runs the full suite, whatever the PHPUnit configuration: data provider errors,
+    runner warnings and `failOn*` issues are not in the JUnit log, so they may sit next to the failing test cases in
+    a file that is not rerun. `--trust-junit-failures` reruns only the failing files instead (never when the log
+    names no failing test case). A run that failed only the coverage gate is not concerned. `save` takes the tests'
+    status (`--tests-status`) apart from the overall one.
+  - On every resume, test files that consume another file's result (`#[DependsExternal]`, cross-file
+    `#[Depends]`) are rerun. On a source resume, test files the per-test data cannot attribute are always rerun too:
+    coverage metadata (`CoversClass`, `@covers`…, grouped attributes and aliased imports included, which filters
+    php-code-coverage's per-test data), `setUpBeforeClass()`, subprocesses (`Process::fromShellCommandline()`,
+    `PhpProcess` and backticks included).
   - A changed function body that no test of the kept run executed (bootstrap, extension, warm-up code) means the full
     suite.
   - State files are written through a rename; `state.json` records the sha1 of `coverage.cov` and a mismatch is
@@ -103,7 +106,8 @@ full run of 70–90 minutes. Opt-in: nothing changes until a host calls `bin/cov
   PHPUnit 12+ payload with test doubles), the Makefile snippet with a stub, and an end-to-end run on a sample project
   (full run, source change, resume; the merged Clover report equals a full run's), and the audit QF scenarios end to
   end (`#[CoversClass]` callers and stale merged coverage, failOnDeprecation / setUpBeforeClass / data provider
-  failures of the kept run, a body only the bootstrap runs). Checked by hand on PHPUnit 13.4 /
+  failures of the kept run, a body only the bootstrap runs) and the audit QF-2 ones (a real failure next to a provider
+  error, grouped coverage attributes, a test-only `DependsExternal` producer). Checked by hand on PHPUnit 13.4 /
   php-code-coverage 14.5 too.
 
 - CI: the coverage run is now `composer test-coverage-100` (new script, `.scripts/check-coverage.php`), so a pull request that drops statement or element coverage below **100%** fails the build; before, nothing in CI checked a threshold. The suite is already at 100%.

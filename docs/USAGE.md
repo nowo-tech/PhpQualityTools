@@ -1302,14 +1302,18 @@ Counters that are negative or above 1000 are refused.
 - every test that executed any line of a changed source file;
 - the tests of every class that extends, implements or uses (trait) a class declared in a changed file, transitively;
 - every test file that names a changed class (`--no-name-references` turns this off);
+- on every resume, test files that consume another file's result (`#[DependsExternal]`,
+  `#[Depends…('Other::test')]`, `@depends Other::test`): a changed producer test changes what they receive;
 - when a source file changed, the test files the per-test data cannot attribute:
   - files with no recorded line at all;
-  - files with coverage metadata (`#[CoversClass]`, `#[CoversMethod]`, `#[CoversFunction]`, `#[CoversTrait]`,
-    `#[CoversNothing]`, `@covers`, `@coversDefaultClass`). php-code-coverage keeps only the covered targets of such a
-    test, so the code it runs elsewhere is not recorded against it;
-  - files with `setUpBeforeClass()` / `#[BeforeClass]`;
-  - files with `#[DependsExternal]`, `#[Depends…('Other::test')]` or `@depends Other::test`;
-  - files that start a subprocess (`shell_exec`, `exec`, `system`, `passthru`, `proc_open`, `popen`, `new Process`);
+  - files with coverage metadata (`CoversClass`, `CoversMethod`, `CoversFunction`, `CoversTrait`, `CoversNothing`
+    attributes, grouped or not, an import of one, `@covers`, `@coversDefaultClass`). php-code-coverage keeps only
+    the covered targets of such a test, so the code it runs elsewhere is not recorded against it;
+  - files with `setUpBeforeClass()` / `BeforeClass`;
+  - files that start a subprocess (`shell_exec`, `exec`, `system`, `passthru`, `proc_open`, `popen`, `new Process`,
+    `Process::fromShellCommandline()` and the other `Process::from…()` factories, `PhpProcess`, shell backticks);
+  - detection is textual, in the test file itself: the same call in a trait, a base class or a helper elsewhere is
+    not seen (see [Residual risk](#residual-risk));
 - changed and new test files, the kept run's failed test files, and the `--always` (gate) test files.
 
 **Merge.** From the kept data it drops every line of the changed source files (their line numbers belong to the old
@@ -1326,8 +1330,8 @@ run. Dropping only the changed files would not be enough: if `Other::thrice()` s
 | `--force-full`, `FORCE_COVERAGE=1`, `COVERAGE_RESUME=0` | nightly / pre-release CI, or by hand |
 | no kept run, another state format or project root, a `coverage.cov` that is not the state's | nothing to resume from |
 | kept run made with another PHP, PHPUnit or php-code-coverage version; the merge also refuses another driver (exit 3) or branch / path data | per-test data and executable lines differ between them |
-| the kept run's tests failed and its JUnit log names no failing test case | PHPUnit failed it for `failOn*` issues, runner warnings, a `setUpBeforeClass()` or data provider error: rerunning failing files cannot find it |
-| the kept run's tests failed and the PHPUnit configuration sets a `failOn*` option (`--phpunit-config`, default `phpunit.xml`, `phpunit.xml.dist`, `phpunit.dist.xml`) | the JUnit log does not record deprecations, notices or warnings, so the failure may come from a file that is not rerun. `--trust-junit-failures` reruns only the failing files: use it only when the failing test cases are the only possible cause |
+| the kept run's tests failed and its JUnit log names no failing test case | PHPUnit failed it for `failOn*` issues, runner warnings, a data provider error…: rerunning failing files cannot find it (even with `--trust-junit-failures`) |
+| the kept run's tests failed at all, unless `--trust-junit-failures` | the JUnit log does not record data provider errors, runner warnings or `failOn*` issues, whatever the configuration: next to a real failing test case, such a failure may sit in a file that is not rerun. `--trust-junit-failures` reruns only the failing files: use it only when the failing test cases are the only possible cause. A run that failed only the coverage gate (tests passed) is not concerned |
 | a resumed run already passed since the last full run (`--max-green-resumes`, default 1) | a resume never stands in for the last full green run for more than one release |
 | `--max-resumes` resumes chained since the last full run (default 5) | bounds drift while fixing a failed run |
 | a changed file outside the source and test directories (configuration, migrations, `composer.json` / `.lock`, the installed packages, `.env*`, PHPUnit configuration, templates, translations…) | may affect any test |
@@ -1367,11 +1371,11 @@ audit QF of PR #74, and none of them is detected:
   test file that names the changed class, but not one whose provider calls it through a wrapper
   (`Wrapper::double()` → `Calc::double()`): it looks only one hop away.
 - **`setUpBeforeClass()` / `#[BeforeClass]`** run outside any test's coverage. Test files that declare them are rerun
-  on every source resume. The same code reached from a shared base class or a trait that the test file does not name
-  is not rerun.
+  on every source resume. The same code reached from a shared base class or a trait is not rerun.
 - **Subprocesses.** Code a test runs in another process is not in its coverage. On every source resume these are
-  rerun: test files that call `shell_exec`, `exec`, `proc_open`… or `new Process` directly, and test files with no
-  recorded line at all. A test that starts the process through a helper, and also executes at least one recorded
+  rerun: test files that start one themselves (`shell_exec`, `exec`, `proc_open`, `Process`, `PhpProcess`,
+  `Process::fromShellCommandline()`, backticks…), and test files with no recorded line at all. A test that starts the
+  process through a helper, a trait or a base class (`tests/Support/…`), and also executes at least one recorded
   line, is not rerun.
 - **`#[DependsExternal]` and cross-file `#[Depends]`.** A consumer in another file that never executes the changed
   code keeps its old result. Test files that declare the dependency are rerun; a dependency reached through a base
@@ -1379,10 +1383,12 @@ audit QF of PR #74, and none of them is detected:
 - **Values computed once and cached across tests** by changed code. The first test that ran the code is recorded;
   later tests that use the cached value are not. Container compilation is covered by the `--full-glob` wiring paths;
   other warm-up code is not.
-- **A failed kept run resumed with `--trust-junit-failures`**: a `failOn*` issue in a file that is not rerun is
-  forgotten.
-- **PHPUnit options outside the configuration file** (`--fail-on-deprecation` on the command line) are not seen by
-  the `failOn*` rule.
+- **A failed kept run resumed with `--trust-junit-failures`**: a data provider error, a runner warning or a `failOn*`
+  issue in a file that is not rerun is forgotten (reproduced: a real failure in `CalcTest` plus a provider error in
+  `BrokenTest`; the fix of `Calc` resumes `CalcTest` only). Without the flag, a kept run whose tests failed always
+  runs the full suite.
+- **Coverage metadata hidden from a textual scan** (an attribute applied through a constant or a macro-like helper)
+  is not seen.
 
 That is why a resumed run:
 
@@ -1407,7 +1413,8 @@ COVERAGE_RESUME_OPTIONS := --always=tests/Gate/*
 
 RELEASE_PHASES := check-fast quick=release-quick php-coverage=php-coverage-resume
 release-check: release-phases
-	@echo "release-check OK — $$($(MAKE) -s coverage-resume-status) — safe to tag."
+	@stamp=$$($(MAKE) -s coverage-resume-status) || { echo "release-check: $$stamp — not safe to tag"; exit 1; }; \
+	echo "release-check OK — $$stamp — safe to tag."
 
 test-coverage-full:   # the suite: per-test data, JUnit and Clover
 	$(QUALITY_PHP_EXEC) vendor/bin/paratest --processes=2 --coverage-php $(COVERAGE_RESUME_COV) \
@@ -1457,7 +1464,7 @@ fails.
 | `COVERAGE_RESUME_COV`, `COVERAGE_RESUME_JUNIT`, `COVERAGE_RESUME_CLOVER` | `var/coverage/coverage.cov`, `var/coverage/junit.xml`, `var/coverage/clover.xml` |
 | `COVERAGE_RESUME_PART_COV`, `COVERAGE_RESUME_PART_JUNIT` | `var/coverage/resume-part.cov`, `var/coverage/resume-part.xml` |
 | `COVERAGE_RESUME_GATE` | `check-coverage-threshold $(COVERAGE_RESUME_CLOVER) 100 --metric=statements` |
-| `COVERAGE_RESUME_OPTIONS` | — (`bin/coverage-resume` options: `--src`, `--tests`, `--always`, `--max-src-files`, `--phpunit-config`…) |
+| `COVERAGE_RESUME_OPTIONS` | — (`bin/coverage-resume` options: `--src`, `--tests`, `--always`, `--max-src-files`, `--trust-junit-failures`…) |
 | `COVERAGE_RESUME_GIT_FILES`, `COVERAGE_RESUME_MAX_COMMITS` | `1`, — |
 
 The per-test data is larger than Clover, because each executable line lists its tests. Expect tens of MB for a suite
