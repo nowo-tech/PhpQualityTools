@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.13.0](#to-1130)
 - [To 1.12.0](#to-1120)
 - [To 1.11.0](#to-1110)
 - [To 1.10.1](#to-1101)
@@ -60,6 +61,14 @@
 - [Related Documentation](#related-documentation)
 
 ## Unreleased
+
+## To 1.13.0
+
+From **1.12.0**:
+
+```bash
+composer update nowo-tech/php-quality-tools
+```
 
 Target 1.13.0, from **1.12.0** (minor release, nothing to change): `bin/coverage-resume` and `coverage-resume.mk` are
 new and opt-in. To use them in a release gate, see [Usage → `coverage-resume.mk`](USAGE.md#makefile-snippet-coverage-resumemk-since-1130):

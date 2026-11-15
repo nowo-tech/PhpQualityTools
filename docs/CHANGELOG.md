@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.13.0] - 2026-11-15](#1130---2026-11-15)
 - [[1.12.0] - 2026-11-10](#1120---2026-11-10)
 - [[1.11.0] - 2026-11-05](#1110---2026-11-05)
 - [[1.10.1] - 2026-11-04](#1101---2026-11-04)
@@ -47,6 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2024-12-11](#100---2024-12-11)
 
 ## [Unreleased]
+
+## [1.13.0] - 2026-11-15
 
 Target 1.13.0. Requested by Symfony Beacon (owner-approved): extend the release gate's coverage resume (decision
 D-20261112-04, tests-only fixes) to small `src/` fixes, so a failed coverage gate fixed by a few lines no longer costs a
@@ -118,6 +121,8 @@ full run of 70–90 minutes. Opt-in: nothing changes until a host calls `bin/cov
 
 - CI: the coverage run is now `composer test-coverage-100` (new script, `.scripts/check-coverage.php`), so a pull request that drops statement or element coverage below **100%** fails the build; before, nothing in CI checked a threshold. The suite is already at 100%.
 
+[1.13.0]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.13.0
+
 ## [1.12.0] - 2026-11-10
 
 Layer rules per context in `check-module-boundaries`, requested by Symfony Beacon spec 225
@@ -148,7 +153,7 @@ and spec [`specs/007-module-boundary-layers`](https://github.com/nowo-tech/PhpQu
   ones without adding them (`--allow-grow` adds them). The write is atomic (temporary file + rename), only inside the
   project root and never through a symbolic link.
 
-[Unreleased]: https://github.com/nowo-tech/PhpQualityTools/compare/v1.12.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/PhpQualityTools/compare/v1.13.0...HEAD
 
 [1.12.0]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.12.0
 
