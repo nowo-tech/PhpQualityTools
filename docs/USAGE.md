@@ -41,6 +41,8 @@
   - [`check-changed-src-tested`](#check-changed-src-tested)
   - [`coverage-gaps`](#coverage-gaps)
   - [`slowest-tests`](#slowest-tests)
+  - [`coverage-resume` (since 1.13.0)](#coverage-resume-since-1130)
+  - [Makefile snippet: `coverage-resume.mk` (since 1.13.0)](#makefile-snippet-coverage-resumemk-since-1130)
   - [Makefile snippets: `heavy.mk`, `quiet.mk`, `release-phases.mk`](#makefile-snippets-heavymk-quietmk-release-phasesmk)
 - [Test hygiene gates (since 1.11.0)](#test-hygiene-gates-since-1110)
   - [`check-coverage-annotations`](#check-coverage-annotations)
@@ -472,6 +474,8 @@ Succeeds only when the **annotated** tag message has the line `release-check: OK
 ```bash
 git tag -a vX.Y.Z -m "Release vX.Y.Z" -m "release-check: OK $(git rev-parse HEAD)"
 ```
+
+When the tag message also has a line `release-check coverage: full` or `release-check coverage: resumed (k tests, m files)` (since 1.13.0, from [`coverage-resume`](#coverage-resume-since-1130)), the result shows it. Keep it on its own line: the proof line must stay exactly `release-check: OK <sha>`.
 
 Tag-triggered deploys use it as the gate while hosted CI cannot run (or as a second gate next to a green `ci.yml`). A lightweight tag, or a proof line for another commit, fails (exit 1). `--github-output` writes `proof=true|false` and exits 0; `--allow-skip` accepts `RELEASE_GATE=skip` from the environment and prints a `::warning` (emergency override, logged in the run). Exit 2 on usage or git errors (needs the tags fetched: `actions/checkout` `fetch-depth: 0`).
 
@@ -1080,6 +1084,7 @@ vendor/bin/release-phase php-coverage make test-coverage                  # log 
 vendor/bin/check-changed-src-tested                                       # changed classes no test names (hint)
 vendor/bin/coverage-gaps var/coverage/clover.xml                          # files below 100 % and their lines
 vendor/bin/slowest-tests var/coverage/junit.xml 10                        # slowest test files of the last run
+vendor/bin/coverage-resume plan                                           # since 1.13.0: tests a small change can affect
 ```
 
 ### `heavy-lock`
@@ -1242,6 +1247,153 @@ slowest-tests [--limit=<n>] [--strip-prefix=<path>]... [<junit.xml>] [<limit>]
 Sums the test case times of a JUnit log (PHPUnit / ParaTest `--log-junit`; default `var/coverage/junit.xml`) per test
 file (the class when there is no `file` attribute) and prints the slowest `<limit>` files (default 20) with their share
 of the total. Exit codes: `0`, `2` usage error or missing / unreadable log; append `|| true` after a suite.
+
+### `coverage-resume` (since 1.13.0)
+
+```text
+coverage-resume plan | merge | save | status | forget [<options>]
+```
+
+After a coverage run (failed or green), the next run reruns only the tests that a **small change** can affect and
+merges them into the kept run, instead of the whole suite. It extends the tests-only "resume" of the release gate
+(Symfony Beacon D-20261112-04) to small fixes in `src/`. It works from **PHPUnit's per-test coverage**: a
+`--coverage-php` file records, for every executable line, the tests that executed it (Clover does not).
+
+```bash
+vendor/bin/coverage-resume plan > var/rerun.txt   # exit 0: resume, prints the test files; exit 3: full suite (reasons on stderr)
+# resume: run the listed test files with --coverage-php var/part.cov --log-junit var/part.xml, then
+vendor/bin/coverage-resume merge --coverage=var/part.cov --junit=var/part.xml --clover=var/coverage/clover.xml
+# full:   run the suite with --coverage-php var/run.cov --log-junit var/junit.xml --coverage-clover var/coverage/clover.xml
+# then the gate (check-coverage-threshold) on the Clover report, and keep the run for the next resume:
+vendor/bin/coverage-resume save --coverage=var/run.cov --junit=var/junit.xml --status=passed   # (resume: <state>/merged.cov)
+vendor/bin/coverage-resume status                 # coverage: full | coverage: resumed (k tests, m files)
+```
+
+`coverage-resume.mk` (below) wires the whole cycle; use the commands directly only in a custom recipe. Run them in the
+same PHP environment as the tests (same container), from the project root.
+
+**What is kept** (`--state`, default `var/coverage/resume/`): the run's `coverage.cov`; `state.json` with the content
+hash of every project file when the run started, per source file its skeleton hash, function-body line ranges and
+hashes, and whether the run saw an executable line in each body, the declared and parent class names, which test
+files executed each source file, the failed test files, the PHP / PHPUnit / php-code-coverage versions and the coverage
+driver, the run mode and the resume counters. `pending.json` is the last plan, `stamp.txt` its stamp.
+
+**Selection.** A resume reruns, by test file:
+
+- every test that executed any line of a changed source file;
+- the tests of every class that extends, implements or uses (trait) a class declared in a changed file, transitively;
+- every test file that names a changed class (`--no-name-references` turns this off): a data provider runs before
+  coverage starts, so a test that only uses a class in its provider is not in the per-test data;
+- test files with no recorded line at all (they run code in a subprocess, or nothing that is measured), when a source
+  file changed;
+- changed and new test files, the kept run's failed test files, and the `--always` (gate) test files.
+
+**Merge.** From the kept data it drops every line of the changed source files (their line numbers belong to the old
+content) and **every contribution of the rerun and deleted test classes, on every file**; then it adds the new run's
+data. A line that only a rerun test reached before, and no longer reaches, is uncovered after the merge, as in a full
+run. (Dropping only the changed files would not be enough: if `Other::thrice()` stops calling `Calc::triple()`,
+`Calc.php` is unchanged but `triple()` must become uncovered.) The merged data is written by php-code-coverage itself,
+as `--coverage-php` and Clover, so the report has the same shape and counts as a full run's.
+
+**Full suite instead** when any of these holds (`plan` prints the reasons):
+
+| Rule | Why |
+| --- | --- |
+| `--force-full`, `FORCE_COVERAGE=1`, `COVERAGE_RESUME=0` | nightly / pre-release CI, or by hand |
+| no kept run, another state format or project root | nothing to resume from |
+| kept run made with another PHP, PHPUnit or php-code-coverage version; the merge also refuses another driver (exit 3) or branch / path data | per-test data and executable lines differ between them |
+| a resumed run already passed since the last full run (`--max-green-resumes`, default 1) | a resume never stands in for the last full green run for more than one release |
+| `--max-resumes` resumes chained since the last full run (default 5) | bounds drift while fixing a failed run |
+| a changed file outside the source and test directories (configuration, migrations, `composer.json` / `.lock`, the installed packages, `.env*`, PHPUnit configuration, templates, translations…) | may affect any test |
+| a non-test file under the test directories changed, added or deleted (bootstrap, helpers, fixtures) | shared by any test |
+| a source file added, deleted or renamed; not PHP; or matching `--full-glob` (default: `*/DependencyInjection/*`, `*Kernel.php`, `*Bundle.php`, `*/Migrations/*`, `*/DataFixtures/*`, `*/Fixtures/*`, `*/Resources/config/*`) | new code has no per-test data; container wiring runs once per kernel boot, not per test |
+| a source file changed **outside function bodies**: signature, constant, property default, attribute, doc comment, import, `extends` / `implements`, trait use, a function made a generator | code that runs without executing the file's lines (constants, defaults, reflection on attributes, autoloading, inheritance) |
+| a changed function had no executable line in the kept run (empty body, or ignored by an annotation) | nobody is recorded as calling it |
+| more than `--max-src-files` source files changed (default 10) | a big change is cheaper to verify with the full suite |
+| nothing to rerun | — |
+
+Changes are detected by **content**, not by commit: uncommitted, amended and rebased changes all count, and the
+release flow that puts a fix *below* the release commit (the old commit is then no longer an ancestor of `HEAD`) still
+resumes. `--files-from` limits the comparison to a file list (e.g. `git ls-files -co --exclude-standard`, so ignored
+build output does not count); without it every file under the root is hashed except `--exclude` (defaults: `.git/`,
+`vendor/` but `vendor/composer/installed.json`, `var/`, `node_modules/`, PHPUnit and CS caches, `coverage/`). Write the
+resumed run's own files (a generated PHPUnit configuration…) under an excluded or ignored path, or exclude them: a file
+that changes during the run means nothing is kept.
+
+**Residual risk.** A resume is exactly a full run when every test that was not rerun would behave as before. That
+holds for code that runs by executing lines of the changed files, whatever reaches it (direct calls, static calls,
+reflection, DI, `@runInSeparateProcess`, whose coverage PHPUnit attributes to the test). It can miss:
+
+- **order-dependent tests**: a test not rerun that relied on state left by a rerun test (a static cache, a database row,
+  a compiled container) keeps its old result and coverage;
+- **code that runs before or outside a test's coverage**: data providers (mitigated by the name references),
+  `setUpBeforeClass`, PHPUnit extensions and bootstrap, subprocesses (mitigated: tests with no recorded line rerun);
+- **values computed once and cached across tests** by changed code: a container or Doctrine metadata cache built by
+  the first test (wiring paths force the full suite; other warm-up code does not);
+- a test that executed a line only through such a cache, so it is not recorded against the changed file.
+
+That is why a resumed run is stamped (`coverage: resumed (k tests, m files)`), may stand in for the full run for at
+most one green release, and CI or the next release runs the full suite.
+
+Exit codes: `0` OK (`plan`: resume), `3` full suite needed, `1` missing or unreadable data, `2` usage error.
+
+### Makefile snippet: `coverage-resume.mk` (since 1.13.0)
+
+```make
+QUALITY_PHP_EXEC := docker compose exec -T php
+COVERAGE_RESUME_FULL := test-coverage-full
+COVERAGE_RESUME_FILES := test-coverage-files
+COVERAGE_RESUME_OPTIONS := --always=tests/Gate/*
+-include vendor/nowo-tech/php-quality-tools/resources/make/coverage-resume.mk
+-include vendor/nowo-tech/php-quality-tools/resources/make/release-phases.mk
+
+RELEASE_PHASES := check-fast quick=release-quick php-coverage=php-coverage-resume
+release-check: release-phases
+	@echo "release-check OK — $$(cat $(COVERAGE_RESUME_STAMP)) — safe to tag."
+
+test-coverage-full:   # the suite: per-test data, JUnit and Clover
+	$(QUALITY_PHP_EXEC) vendor/bin/paratest --processes=2 --coverage-php $(COVERAGE_RESUME_COV) \
+		--log-junit $(COVERAGE_RESUME_JUNIT) --coverage-clover $(COVERAGE_RESUME_CLOVER)
+test-coverage-files:  # only $(FILES): per-test data and JUnit (here a host script that writes a git-ignored
+                      # phpunit configuration listing $(FILES) and runs ParaTest on it)
+	$(QUALITY_PHP_EXEC) sh scripts/paratest-files.sh 2 --coverage-php $(COVERAGE_RESUME_PART_COV) \
+		--log-junit $(COVERAGE_RESUME_PART_JUNIT) $(FILES)
+```
+
+`php-coverage-resume` plans, runs `COVERAGE_RESUME_FILES` (with `FILES=<test files>`) and merges, or runs
+`COVERAGE_RESUME_FULL`; then the gate (`COVERAGE_RESUME_GATE`, default `check-coverage-threshold <clover> 100
+--metric=statements`) unless the tests failed, then `save` (a failed run is kept too: the next run resumes from it),
+and prints `php-coverage: passed|failed — coverage: full|resumed (k tests, m files)`. A merge that refuses (another
+driver) falls back to the full suite in the same run. The file list comes from `git ls-files -co --exclude-standard`
+on the host (`COVERAGE_RESUME_GIT_FILES=` turns it off). `FORCE_COVERAGE=1`, `NO_RESUME=1` or `COVERAGE_RESUME=0`
+force the full suite; `COVERAGE_RESUME_MAX_COMMITS=<n>` adds a history rule (the kept run's commit must be an ancestor
+of `HEAD`, at most `n` commits back — off by default, since it also refuses the fix-below-the-release-commit flow).
+`make coverage-resume-forget` drops the kept run.
+
+Put the stamp in the tag message on its own line, after the proof line (deploy guards match the proof line exactly):
+
+```bash
+git tag -a vX.Y.Z -m "Release vX.Y.Z" -m "release-check: OK $(git rev-parse HEAD)" \
+  -m "release-check $(cat var/coverage/resume/stamp.txt)"
+```
+
+`assert-release-proof` then prints `OK: vX.Y.Z records a passing release-check for <sha> (coverage: resumed (3 tests, 1 files)).`
+
+| Variable | Default |
+| --- | --- |
+| `COVERAGE_RESUME_FULL`, `COVERAGE_RESUME_FILES` | — (required: targets) |
+| `COVERAGE_RESUME_DIR` | `var/coverage/resume` |
+| `COVERAGE_RESUME_COV`, `COVERAGE_RESUME_JUNIT`, `COVERAGE_RESUME_CLOVER` | `var/coverage/coverage.cov`, `var/coverage/junit.xml`, `var/coverage/clover.xml` |
+| `COVERAGE_RESUME_PART_COV`, `COVERAGE_RESUME_PART_JUNIT` | `var/coverage/resume-part.cov`, `var/coverage/resume-part.xml` |
+| `COVERAGE_RESUME_GATE` | `check-coverage-threshold $(COVERAGE_RESUME_CLOVER) 100 --metric=statements` |
+| `COVERAGE_RESUME_OPTIONS` | — (`bin/coverage-resume` options: `--src`, `--tests`, `--always`, `--max-src-files`…) |
+| `COVERAGE_RESUME_GIT_FILES`, `COVERAGE_RESUME_MAX_COMMITS` | `1`, — |
+| `COVERAGE_RESUME_STAMP` | `$(COVERAGE_RESUME_DIR)/stamp.txt` |
+
+The per-test data is larger than Clover (each executable line lists its tests): expect tens of MB for a suite of
+thousands of tests, and `merge` / `save` to hold a few copies of it in memory (`bin/coverage-resume` raises a lower
+`memory_limit` to `COVERAGE_RESUME_MEMORY_LIMIT`, default `2G`). php-code-coverage up to 11 (PHPUnit 10 / 11) and its later serialized format (PHPUnit 12+, checked
+with PHPUnit 13.4 / php-code-coverage 14.5) are both read.
 
 ### Makefile snippets: `heavy.mk`, `quiet.mk`, `release-phases.mk`
 

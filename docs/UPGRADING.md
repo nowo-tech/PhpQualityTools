@@ -61,6 +61,11 @@
 
 ## Unreleased
 
+Target 1.13.0, from **1.12.0** (minor release, nothing to change): `bin/coverage-resume` and `coverage-resume.mk` are
+new and opt-in. To use them in a release gate, see [Usage → `coverage-resume.mk`](USAGE.md#makefile-snippet-coverage-resumemk-since-1130):
+the full suite must also write `--coverage-php` (per-test data) and a JUnit log, and a second target runs a list of test
+files. The first run after enabling it is the full suite.
+
 ## To 1.12.0
 
 From **1.11.0** (minor release, nothing to change):

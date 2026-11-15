@@ -48,7 +48,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target 1.13.0. Requested by Symfony Beacon (owner-approved): extend the release gate's coverage resume (decision
+D-20261112-04, tests-only fixes) to small `src/` fixes, so a failed coverage gate fixed by a few lines no longer costs a
+full run of 70–90 minutes. Opt-in: nothing changes until a host calls `bin/coverage-resume` or includes
+`coverage-resume.mk`. See [Usage → `coverage-resume`](USAGE.md#coverage-resume-since-1130) and spec
+[`specs/008-coverage-resume`](../specs/008-coverage-resume/spec.md).
+
+### Added
+
+- **`bin/coverage-resume`** (`plan`, `merge`, `save`, `status`, `forget`): after a coverage run, reruns only the test
+  files a small change can affect and merges them into the kept run, from PHPUnit's per-test coverage
+  (`--coverage-php`; php-code-coverage up to 11 and the serialized format of PHPUnit 12+).
+  - Selection: tests that executed any line of a changed source file, tests of subclasses / implementations / trait
+    users (transitively), test files naming a changed class (data providers run outside coverage), test files with
+    no recorded line, changed / new / failed test files and `--always` gate tests.
+  - Merge: drops the kept data of the changed source files **and every contribution of the rerun and deleted test
+    classes on every file**, so a line only a rerun test reached before is uncovered, as in a full run; the merged
+    `--coverage-php` file and Clover report are written by php-code-coverage itself.
+  - Full suite instead (reasons printed) for: a new, deleted or renamed source file; a change outside function bodies
+    (signature, constant, property default, attribute, doc comment, import, inheritance, generator); a changed
+    function without an executable line in the kept run; DI / kernel / bundle / migrations / fixtures paths
+    (`--full-glob`); any change outside the source and test directories (configuration, Composer files, installed
+    packages, `.env*`, PHPUnit configuration…) or to a non-test file under the test directories; more than 10 source
+    files (`--max-src-files`); another PHP, PHPUnit, php-code-coverage version or driver; and the marker policy: once
+    a resumed run passed since the last full run (`--max-green-resumes=1`), or after 5 chained resumes, the next run
+    is the full suite. `--force-full`, `FORCE_COVERAGE=1` or `COVERAGE_RESUME=0` force it (nightly / pre-release CI).
+  - Changes are detected by file content, not by commit, so the fix-below-the-release-commit flow still resumes.
+  - `status` prints the stamp: `coverage: full` or `coverage: resumed (k tests, m files)`.
+- **`resources/make/coverage-resume.mk`**: target `php-coverage-resume` for `RELEASE_PHASES` (plan, run the host's
+  files or full target, merge, gate, keep, stamp in `$(COVERAGE_RESUME_STAMP)` for the `release-check OK` line);
+  optional history rule `COVERAGE_RESUME_MAX_COMMITS`; `coverage-resume-forget`.
+- **`assert-release-proof`**: shows a `release-check coverage: …` line of the tag message with the result (the proof
+  line itself is unchanged).
+
 ### Tests
+
+- One fixture per fallback rule, the stale-line merge, both data formats (the installed php-code-coverage and the
+  PHPUnit 12+ payload with test doubles), the Makefile snippet with a stub, and an end-to-end run on a sample project
+  (full run, source change, resume; the merged Clover report equals a full run's). Checked by hand on PHPUnit 13.4 /
+  php-code-coverage 14.5 too.
 
 - CI: the coverage run is now `composer test-coverage-100` (new script, `.scripts/check-coverage.php`), so a pull request that drops statement or element coverage below **100%** fails the build; before, nothing in CI checked a threshold. The suite is already at 100%.
 
