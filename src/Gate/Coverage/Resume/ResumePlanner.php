@@ -10,8 +10,8 @@ namespace NowoTech\PhpQualityTools\Gate\Coverage\Resume;
  * Full suite when:
  * - forced, there is no kept run, or the kept run is from another format, project root, PHP, PHPUnit or
  *   php-code-coverage version;
- * - the kept run's tests failed and the JUnit log names no failing test case, or the PHPUnit configuration sets a
- *   `failOn*` option (its issues are not in the JUnit log) unless `--trust-junit-failures`;
+ * - the kept run's tests failed and the JUnit log names no failing test case; or they failed at all, unless
+ *   `--trust-junit-failures` (the log does not record data provider errors, runner warnings or `failOn*` issues);
  * - the marker policy says so: a resumed run already passed since the last full run (`--max-green-resumes`, default
  *   1), or too many resumes were chained (`--max-resumes`, default 5);
  * - any changed file is not a source or test file (configuration, migrations, Composer files, PHPUnit
@@ -36,10 +36,20 @@ final class ResumePlanner
 {
     private const MAX_REASONS = 5;
 
-    /** See {@see unattributableTests()}. */
-    private const UNATTRIBUTABLE = '/#\[\s*\\\\?(?:PHPUnit\\\\Framework\\\\Attributes\\\\)?(?:Covers\w*|BeforeClass|DependsExternal\w*|Depends\w*\(\s*[^)]*::)'
-        . '|@(?:covers|coversDefaultClass|beforeClass)\b|@depends\s+\S+::|\bsetUpBeforeClass\s*\('
-        . '|\b(?:shell_exec|exec|proc_open|system|passthru|popen|pcntl_exec)\s*\(|\bnew\s+\\\\?(?:Symfony\\\\Component\\\\Process\\\\)?Process\b/';
+    /**
+     * Test files that use another file's test result ({@see unattributableTests()}): rerun on every resume.
+     */
+    private const DEPENDS = '/\bDependsExternal\w*\s*\(|\bDepends\w*\s*\(\s*[^)]*::|@depends\s+\S+::/';
+
+    /**
+     * Test files whose per-test data cannot show the source code they depend on ({@see unattributableTests()}):
+     * rerun on every source resume. Attributes are matched anywhere (grouped `#[Small, CoversClass(…)]`), and so is
+     * the import of a coverage attribute (an aliased one).
+     */
+    private const SOURCE_BLIND = '/\bCovers(?:Class|Method|Function|Trait|Namespace|ClassesThat\w+)\s*\(|\bCoversNothing\b'
+        . '|\\\\Attributes\\\\Covers\w*|@covers(?:DefaultClass)?\b|\bBeforeClass\b|@beforeClass\b|\bsetUpBeforeClass\s*\('
+        . '|\b(?:shell_exec|exec|proc_open|system|passthru|popen|pcntl_exec)\s*\(|\bProcess::from\w+\s*\(|\bPhpProcess\b'
+        . '|\bnew\s+\\\\?(?:Symfony\\\\Component\\\\Process\\\\)?Process\b/';
 
     /**
      * @param array<string, string> $snapshot  the current files ({@see Snapshot::take()})
@@ -108,9 +118,9 @@ final class ResumePlanner
             foreach ($this->testsNaming($options, $state, $changedSrc, $snapshot) as $test) {
                 $selected[$test] = true;
             }
-            foreach ($this->unattributableTests($options, $snapshot) as $test) {
-                $selected[$test] = true;
-            }
+        }
+        foreach ($this->unattributableTests($options, $snapshot, [] !== $changedSrc) as $test) {
+            $selected[$test] = true;
         }
         foreach ([...$changedTests, ...$state->failed] as $test) {
             $selected[$test] = true;
@@ -149,8 +159,8 @@ final class ResumePlanner
         }
         if ('failed' === $state->testsStatus && [] === $state->failed) {
             $reasons[] = 'the kept run\'s tests failed outside any test case the JUnit log names (failOn* issues, runner warnings, setUpBeforeClass or data provider errors)';
-        } elseif ('failed' === $state->testsStatus && !$options->trustJunitFailures && [] !== $failOn = $options->failOnOptions()) {
-            $reasons[] = 'the kept run\'s tests failed and the PHPUnit configuration sets ' . implode(', ', $failOn) . ', whose issues the JUnit log does not record (--trust-junit-failures reruns only the failing files)';
+        } elseif ('failed' === $state->testsStatus && !$options->trustJunitFailures) {
+            $reasons[] = 'the kept run\'s tests failed, and the JUnit log may not record every cause (data provider errors, runner warnings, failOn* issues): --trust-junit-failures reruns only the failing files';
         }
         if ($state->greenResumes >= $options->maxGreenResumes) {
             $reasons[] = \sprintf('%d resumed run(s) already passed since the last full run (--max-green-resumes=%d)', $state->greenResumes, $options->maxGreenResumes);
@@ -260,29 +270,53 @@ final class ResumePlanner
     }
 
     /**
-     * Test files whose per-test data cannot show what they depend on, rerun on every source resume:
-     * - coverage metadata (`#[CoversClass]`, `#[CoversMethod]`, `@covers`…): php-code-coverage keeps only the covered
-     *   targets of such a test, so the code it runs elsewhere is not recorded against it;
-     * - `setUpBeforeClass()` / `#[BeforeClass]`: runs outside any test's coverage;
-     * - `#[DependsExternal]` / `#[Depends*('Other::test')]` / `@depends Other::test`: consumes another file's result;
-     * - subprocesses (`shell_exec`, `exec`, `proc_open`, `system`, `passthru`, `popen`, Symfony `Process`): run code
-     *   no coverage of this process records.
+     * Test files whose per-test data cannot show what they depend on:
+     * - on every resume, test files that consume another file's result (`#[DependsExternal]`, `#[Depends*('Other::t')]`,
+     *   `@depends Other::t`): a changed producer test changes what they receive;
+     * - on a source resume, also coverage metadata (`#[CoversClass]`, `@covers`…: php-code-coverage keeps only the
+     *   covered targets of such a test), `setUpBeforeClass()` / `#[BeforeClass]` (runs outside any test's coverage),
+     *   and subprocesses (`shell_exec`, `exec`, `proc_open`, `system`, `passthru`, `popen`, `Process`, `PhpProcess`,
+     *   `Process::fromShellCommandline()`, backticks): code no coverage of this process records.
+     *
+     * Detection is textual and per test file: a trait, a base class or a helper elsewhere is not seen.
      *
      * @param array<string, string> $snapshot
      *
      * @return list<string>
      */
-    private function unattributableTests(ResumeOptions $options, array $snapshot): array
+    private function unattributableTests(ResumeOptions $options, array $snapshot, bool $sourceChanged): array
     {
         $tests = [];
         foreach (array_keys($snapshot) as $path) {
             $path = (string) $path;
-            if ($options->isTestFile($path) && 1 === preg_match(self::UNATTRIBUTABLE, (string) file_get_contents($options->root . '/' . $path))) {
+            if (!$options->isTestFile($path)) {
+                continue;
+            }
+            $code = (string) file_get_contents($options->root . '/' . $path);
+            if (1 === preg_match(self::DEPENDS, $code)
+                || ($sourceChanged && (1 === preg_match(self::SOURCE_BLIND, $code) || $this->hasBackticks($code)))) {
                 $tests[] = $path;
             }
         }
 
         return $tests;
+    }
+
+    /**
+     * A shell command in backticks (a token, not a backtick in a comment or a string).
+     */
+    private function hasBackticks(string $code): bool
+    {
+        if (!str_contains($code, '`')) {
+            return false;
+        }
+        foreach (\PhpToken::tokenize($code) as $token) {
+            if ('`' === $token->text) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

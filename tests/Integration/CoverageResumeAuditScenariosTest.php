@@ -44,7 +44,17 @@ final class CoverageResumeAuditScenariosTest extends TestCase
         }
     }
 
-    public function testS9ACoversClassTestThatRunsTheChangedCodeIsRerun(): void
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function coversAttributes(): iterable
+    {
+        yield 's9' => ['', '#[CoversClass(\\App\\Wrapper::class)]'];
+        yield 's9c grouped (QF2-L1)' => ["use PHPUnit\\Framework\\Attributes\\Small;\n", '#[Small, CoversClass(\\App\\Wrapper::class)]'];
+    }
+
+    #[DataProvider('coversAttributes')]
+    public function testS9ACoversClassTestThatRunsTheChangedCodeIsRerun(string $import, string $attribute): void
     {
         $this->project([
             'src/Calc.php' => self::CALC_DOUBLE,
@@ -52,7 +62,7 @@ final class CoverageResumeAuditScenariosTest extends TestCase
             'src/Wrapper.php' => "<?php\nnamespace App;\nfinal class Wrapper\n{\n    public static function double(int \$x): int\n    {\n        return Calc::double(\$x);\n    }\n}\n",
             'tests/CalcTest.php' => "<?php\nnamespace Tests;\nuse PHPUnit\\Framework\\TestCase;\nuse PHPUnit\\Framework\\Attributes\\CoversClass;\n#[CoversClass(\\App\\Calc::class)]\nfinal class CalcTest extends TestCase\n{\n    public function testDouble(): void { self::assertIsInt(\\App\\Calc::double(2)); }\n}\n",
             'tests/OtherTest.php' => self::OTHER_TEST,
-            'tests/WrapperTest.php' => "<?php\nnamespace Tests;\nuse PHPUnit\\Framework\\TestCase;\nuse PHPUnit\\Framework\\Attributes\\CoversClass;\n#[CoversClass(\\App\\Wrapper::class)]\nfinal class WrapperTest extends TestCase\n{\n    public function testDouble(): void { self::assertSame(4, \\App\\Wrapper::double(2)); }\n}\n",
+            'tests/WrapperTest.php' => "<?php\nnamespace Tests;\nuse PHPUnit\\Framework\\TestCase;\nuse PHPUnit\\Framework\\Attributes\\CoversClass;\n{$import}{$attribute}\nfinal class WrapperTest extends TestCase\n{\n    public function testDouble(): void { self::assertSame(4, \\App\\Wrapper::double(2)); }\n}\n",
         ]);
         self::assertSame(0, $this->keepFullRun());
         $this->replace('src/Calc.php', 'return 2 * $x;', 'return 2 * $x + 1;');
@@ -91,7 +101,7 @@ final class CoverageResumeAuditScenariosTest extends TestCase
     }
 
     /**
-     * @return iterable<string, array{array<string, string>, string, int}>
+     * @return iterable<string, array{0: array<string, string>, 1: string, 2: int, 3?: string, 4?: string}>
      */
     public static function failuresOutsideTestCases(): iterable
     {
@@ -100,10 +110,16 @@ final class CoverageResumeAuditScenariosTest extends TestCase
         ], 'failOnDeprecation="true"', 3];
         yield 's13a setUpBeforeClass error' => [[
             'tests/BrokenTest.php' => "<?php\nnamespace Tests;\nuse PHPUnit\\Framework\\TestCase;\nfinal class BrokenTest extends TestCase\n{\n    public static function setUpBeforeClass(): void { throw new \\RuntimeException('boom'); }\n    public function testX(): void { self::assertSame(1, \\App\\Other::id(1)); }\n}\n",
-        ], '', 0];
+        ], '', 3];
         yield 's13b data provider error' => [[
             'tests/BrokenTest.php' => "<?php\nnamespace Tests;\nuse PHPUnit\\Framework\\TestCase;\nuse PHPUnit\\Framework\\Attributes\\DataProvider;\nfinal class BrokenTest extends TestCase\n{\n    public static function cases(): array { throw new \\RuntimeException('boom'); }\n    #[DataProvider('cases')]\n    public function testX(int \$v): void { self::assertSame(1, \\App\\Other::id(\$v)); }\n}\n",
         ], '', 3];
+        // QF2-M1: a real test failure (Calc is wrong) plus a data provider error, no failOn*: the fix of Calc would
+        // resume only CalcTest; the provider error is not in the JUnit log, so the kept failure is not trusted.
+        yield 's13c real failure + provider error' => [[
+            'src/Calc.php' => str_replace('return 2 * $x;', 'return 2 * $x + 1;', self::CALC_DOUBLE),
+            'tests/BrokenTest.php' => "<?php\nnamespace Tests;\nuse PHPUnit\\Framework\\TestCase;\nuse PHPUnit\\Framework\\Attributes\\DataProvider;\nfinal class BrokenTest extends TestCase\n{\n    public static function cases(): array { throw new \\RuntimeException('boom'); }\n    #[DataProvider('cases')]\n    public function testX(int \$v): void { self::assertSame(1, \\App\\Other::id(\$v)); }\n}\n",
+        ], '', 3, 'return 2 * $x + 1;', 'return 2 * $x;'];
     }
 
     /**
@@ -113,7 +129,7 @@ final class CoverageResumeAuditScenariosTest extends TestCase
      * @param array<string, string> $files
      */
     #[DataProvider('failuresOutsideTestCases')]
-    public function testAKeptRunThatFailedOutsideATestCaseStaysRed(array $files, string $attributes, int $expectedPlan): void
+    public function testAKeptRunThatFailedOutsideATestCaseStaysRed(array $files, string $attributes, int $expectedPlan, string $search = 'return 2 * $x;', string $replace = 'return $x + $x;'): void
     {
         $this->project($files + [
             'src/Calc.php' => self::CALC_DOUBLE,
@@ -122,7 +138,7 @@ final class CoverageResumeAuditScenariosTest extends TestCase
             'tests/OtherTest.php' => self::OTHER_TEST,
         ], $attributes);
         self::assertNotSame(0, $this->keepFullRun(), 'the kept run is red');
-        $this->replace('src/Calc.php', 'return 2 * $x;', 'return $x + $x;');
+        $this->replace('src/Calc.php', $search, $replace);
 
         [$plan, , $tests] = $this->resume();
 
@@ -130,6 +146,26 @@ final class CoverageResumeAuditScenariosTest extends TestCase
         if (0 === $plan) {
             self::assertNotSame(0, $tests, 'the failing file is rerun and stays red');
         }
+        self::assertNotSame(0, $this->truth());
+    }
+
+    public function testS5bATestOnlyResumeRerunsTheConsumerOfAChangedProducer(): void
+    {
+        $this->project([
+            'src/Calc.php' => self::CALC_DOUBLE,
+            'src/Other.php' => self::OTHER_ID,
+            'tests/AProducerTest.php' => "<?php\nnamespace Tests;\nuse PHPUnit\\Framework\\TestCase;\nfinal class AProducerTest extends TestCase\n{\n    public function testProduce(): int { \$v = \\App\\Calc::double(2); self::assertIsInt(\$v); return \$v; }\n}\n",
+            'tests/BConsumerTest.php' => "<?php\nnamespace Tests;\nuse PHPUnit\\Framework\\TestCase;\nuse PHPUnit\\Framework\\Attributes\\DependsExternal;\nfinal class BConsumerTest extends TestCase\n{\n    #[DependsExternal(AProducerTest::class, 'testProduce')]\n    public function testConsume(int \$v): void { self::assertSame(4, \\App\\Other::id(\$v)); }\n}\n",
+            'tests/OtherTest.php' => self::OTHER_TEST,
+        ]);
+        self::assertSame(0, $this->keepFullRun());
+        $this->replace('tests/AProducerTest.php', 'return $v; }', 'return $v + 1; }');
+
+        [$plan, $files, $tests] = $this->resume();
+
+        self::assertSame(0, $plan);
+        self::assertSame(['tests/AProducerTest.php', 'tests/BConsumerTest.php'], $files, 'QF2-L2: the consumer is rerun');
+        self::assertNotSame(0, $tests);
         self::assertNotSame(0, $this->truth());
     }
 

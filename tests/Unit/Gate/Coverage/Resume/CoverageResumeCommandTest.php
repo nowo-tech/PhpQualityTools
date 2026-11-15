@@ -82,7 +82,8 @@ final class CoverageResumeCommandTest extends TestCase
 
         // 3. A body-only fix of Other.php: Other no longer calls Calc::triple().
         file_put_contents($other, str_replace('return (new Calc())->triple($a);', 'return $a * 3;', self::OTHER));
-        [$code, $out, $err] = $this->cli('plan');
+        self::assertSame(3, $this->cli('plan')[0], 'QF2-M1: a kept run whose tests failed resumes only when trusted');
+        [$code, $out, $err] = $this->cli('plan', '--trust-junit-failures');
         self::assertSame(0, $code, $err);
         self::assertSame("tests/OtherTest.php\n", $out);
         self::assertSame("coverage-resume: resumed — 1 test file(s) for 1 changed source file(s): src/Other.php\n", $err);

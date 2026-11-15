@@ -33,8 +33,6 @@ final readonly class ResumeOptions
         'coverage.xml', '.php-cs-fixer.cache', '.php-cs-fixer.php.cache', '.idea/', '.vscode/',
     ];
 
-    public const DEFAULT_PHPUNIT_CONFIGS = ['phpunit.xml', 'phpunit.xml.dist', 'phpunit.dist.xml'];
-
     public const DEFAULT_INPUTS = [
         'vendor/composer/installed.json', '.env', '.env.local', '.env.test', '.env.test.local',
     ];
@@ -42,12 +40,11 @@ final readonly class ResumeOptions
     /**
      * @param list<string>      $srcDirs
      * @param list<string>      $testDirs
-     * @param list<string>      $always         test file globs always rerun (gate tests)
+     * @param list<string>      $always    test file globs always rerun (gate tests)
      * @param list<string>      $fullGlobs
      * @param list<string>      $excludes
      * @param list<string>      $inputs
-     * @param list<string>|null $files          the --files-from list
-     * @param list<string>      $phpunitConfigs PHPUnit configuration files read for `failOn*` options (first found)
+     * @param list<string>|null $files     the --files-from list
      */
     public function __construct(
         public string $root,
@@ -66,7 +63,6 @@ final readonly class ResumeOptions
         public bool $nameReferences = true,
         public bool $forceFull = false,
         public bool $trustJunitFailures = false,
-        public array $phpunitConfigs = self::DEFAULT_PHPUNIT_CONFIGS,
     ) {
     }
 
@@ -81,7 +77,7 @@ final readonly class ResumeOptions
     public static function parse(string $root, array $args, array $env = []): array
     {
         $single = ['state' => 'var/coverage/resume', 'test-suffix' => 'Test.php', 'max-src-files' => '10', 'max-green-resumes' => '1', 'max-resumes' => '5'];
-        $lists = ['src' => [], 'tests' => [], 'always' => [], 'full-glob' => [], 'exclude' => [], 'input' => [], 'phpunit-config' => []];
+        $lists = ['src' => [], 'tests' => [], 'always' => [], 'full-glob' => [], 'exclude' => [], 'input' => []];
         $flags = ['no-name-references' => false, 'force-full' => false, 'trust-junit-failures' => false];
         $filesFrom = null;
         $rest = [];
@@ -141,7 +137,6 @@ final readonly class ResumeOptions
             !$flags['no-name-references'],
             $force,
             $flags['trust-junit-failures'],
-            [] === $lists['phpunit-config'] ? self::DEFAULT_PHPUNIT_CONFIGS : $lists['phpunit-config'],
         ), $rest];
     }
 
@@ -176,26 +171,6 @@ final readonly class ResumeOptions
         }
 
         return false;
-    }
-
-    /**
-     * The `failOn*` options set to true in the first PHPUnit configuration found: PHPUnit then fails a run for issues
-     * the JUnit log does not record.
-     *
-     * @return list<string>
-     */
-    public function failOnOptions(): array
-    {
-        foreach ($this->phpunitConfigs as $config) {
-            $path = str_starts_with($config, '/') ? $config : $this->root . '/' . $config;
-            if (is_file($path)) {
-                preg_match_all('/\\b(failOn[A-Za-z]+)\\s*=\\s*"true"/', (string) file_get_contents($path), $matches);
-
-                return array_values(array_unique($matches[1]));
-            }
-        }
-
-        return [];
     }
 
     public function isAlways(string $path): bool

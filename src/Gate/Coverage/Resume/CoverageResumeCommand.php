@@ -59,10 +59,10 @@ final class CoverageResumeCommand
                                      --exclude-standard); default: every file under the root
           --no-name-references       do not rerun the test files that only name a changed class
           --force-full               always the full suite (also FORCE_COVERAGE=1 or COVERAGE_RESUME=0)
-          --trust-junit-failures     after a kept run whose tests failed, rerun only the failing files although the
-                                     PHPUnit configuration sets failOn* (issues the JUnit log does not record)
-          --phpunit-config=<file>    PHPUnit configuration read for failOn*, repeatable (default: phpunit.xml,
-                                     phpunit.xml.dist, phpunit.dist.xml; the first found)
+          --trust-junit-failures     after a kept run whose tests failed, resume (rerun the failing files) instead
+                                     of the full suite: only when the failing test cases are the only possible
+                                     cause (the JUnit log does not record data provider errors, runner warnings or
+                                     failOn* issues)
         Exit codes: 0 OK (plan: resume), 3 full suite needed, 1 run failure (missing or unreadable data), 2 usage.
         TXT;
 

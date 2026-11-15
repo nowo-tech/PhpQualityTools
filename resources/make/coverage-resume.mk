@@ -22,7 +22,8 @@
 #
 #   RELEASE_PHASES := ... php-coverage=php-coverage-resume
 #   release-check: release-phases
-#   	@echo "release-check OK — $$($(MAKE) -s coverage-resume-status) — safe to tag."
+#   	@stamp=$$($(MAKE) -s coverage-resume-status) || { echo "release-check: $$stamp — not safe to tag"; exit 1; }; \
+#   	echo "release-check OK — $$stamp — safe to tag."
 #
 # Targets:
 #   php-coverage-resume     plan; resume (FILES target, merge into the kept run) or the full suite (FULL target); the

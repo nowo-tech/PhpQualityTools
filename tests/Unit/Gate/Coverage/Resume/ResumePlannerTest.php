@@ -231,23 +231,23 @@ final class ResumePlannerTest extends TestCase
         $this->write('tests/CalcTest.php', '<?php // changed');
 
         $decision = (new ResumePlanner())->plan($this->options(), $failedOutside, $this->snapshot(), self::TOOLCHAIN);
+        self::assertSame($decision->reasons, (new ResumePlanner())->plan($this->options([], false), $failedOutside, $this->snapshot(), self::TOOLCHAIN)->reasons, 'not even when trusted');
 
         self::assertFalse($decision->resume);
         self::assertSame(["the kept run's tests failed outside any test case the JUnit log names (failOn* issues, runner warnings, setUpBeforeClass or data provider errors)"], $decision->reasons);
         self::assertTrue((new ResumePlanner())->plan($this->options(), $gateOnly, $this->snapshot(), self::TOOLCHAIN)->resume, 'only the coverage gate failed');
     }
 
-    public function testAFailedKeptRunWithFailOnIssuesIsNotResumedUnlessTrusted(): void
+    public function testAKeptRunWhoseTestsFailedResumesOnlyWhenTrusted(): void
     {
-        $this->write('phpunit.xml.dist', '<phpunit failOnDeprecation="true" failOnNotice="false" failOnWarning = "true">');
+        // QF2-M1: a real failure plus a data provider error or a runner warning, which the JUnit log does not record.
         $failed = $this->state();
         $green = $this->state(['failed' => []]);
         $this->write('tests/CalcTest.php', '<?php // changed');
 
-        self::assertSame(["the kept run's tests failed and the PHPUnit configuration sets failOnDeprecation, failOnWarning, whose issues the JUnit log does not record (--trust-junit-failures reruns only the failing files)"], $this->planWith($failed)->reasons);
+        self::assertSame(["the kept run's tests failed, and the JUnit log may not record every cause (data provider errors, runner warnings, failOn* issues): --trust-junit-failures reruns only the failing files"], $this->planWith($failed)->reasons);
         self::assertSame(['tests/CalcTest.php', 'tests/FailedTest.php'], $this->planWith($failed, ['--trust-junit-failures'])->testFiles);
-        self::assertTrue($this->planWith($failed, ['--phpunit-config=missing.xml'])->resume, 'no configuration found');
-        self::assertTrue($this->planWith($green)->resume, 'a green kept run is not concerned');
+        self::assertTrue($this->planWith($green)->resume, 'a kept run whose tests passed (only the gate failed, or green) is not concerned');
     }
 
     public function testASourceResumeRerunsTheTestsThePerTestDataCannotAttribute(): void
@@ -272,14 +272,37 @@ final class DependsOnTest { #[Depends('OtherTest::testX')] public function testY
 final class ShellTest { public function testY(): void { shell_exec('php bin/x'); } }",
             'tests/ProcessTest.php' => "<?php
 final class ProcessTest { public function testY(): void { (new Process(['bin/x']))->run(); } }",
+            // QF2-L1: grouped and aliased attributes; QF2-I1: more subprocess forms.
+            'tests/GroupedTest.php' => '<?php
+#[Small, CoversClass(\\App\\Wrapper::class)]
+final class GroupedTest {}',
+            'tests/AliasTest.php' => '<?php
+use PHPUnit\\Framework\\Attributes\\CoversClass as Target;
+#[Target(Foo::class)]
+final class AliasTest {}',
+            'tests/GroupedBeforeTest.php' => '<?php
+final class GroupedBeforeTest { #[Test, BeforeClass] public static function prepare(): void {} }',
+            'tests/ShellLineTest.php' => "<?php
+final class ShellLineTest { public function testY(): void { Process::fromShellCommandline('php x')->run(); } }",
+            'tests/PhpProcessTest.php' => "<?php
+final class PhpProcessTest { public function testY(): void { (new \\Symfony\\Component\\Process\\PhpProcess('<?php echo 1;'))->run(); } }",
+            'tests/BacktickTest.php' => '<?php
+final class BacktickTest { public function testY(): void { \\strlen(`php -v`); } }',
         ];
-        foreach ($unattributable + ['tests/PlainTest.php' => "<?php
-final class PlainTest { #[Depends('testX')] public function testY(): void {} }"] as $path => $content) {
+        $plain = [
+            'tests/PlainTest.php' => "<?php
+final class PlainTest { #[Depends('testX')] public function testY(): void {} }",
+            'tests/DocTest.php' => "<?php
+/** Runs `make` in its description only. */
+final class DocTest { public function testY(): void { \\strlen('`x`'); } }",
+        ];
+        foreach ($unattributable + $plain as $path => $content) {
             $this->write($path, $content);
         }
         $state = $this->state(['failed' => []]);
-        $this->write('tests/CalcTest.php', '<?php // a test-only change does not need them');
-        self::assertSame(['tests/CalcTest.php'], (new ResumePlanner())->plan($this->options(), $state, $this->snapshot(), self::TOOLCHAIN)->testFiles);
+        // QF2-L2: a test-only resume reruns the test files that consume another file's result.
+        $this->write('tests/CalcTest.php', '<?php // a test-only change');
+        self::assertSame(['tests/CalcTest.php', 'tests/DependsOnTest.php', 'tests/DependsTest.php'], (new ResumePlanner())->plan($this->options(), $state, $this->snapshot(), self::TOOLCHAIN)->testFiles);
 
         $this->replace('src/Base.php', 'return 1;', 'return 2;');
         $decision = (new ResumePlanner())->plan($this->options(['--no-name-references']), $state, $this->snapshot(), self::TOOLCHAIN);
@@ -351,15 +374,16 @@ final class PlainTest { #[Depends('testX')] public function testY(): void {} }"]
      */
     private function planWith(ResumeState $state, array $args = []): ResumeDecision
     {
-        return (new ResumePlanner())->plan($this->options($args), $state, $this->snapshot(), self::TOOLCHAIN);
+        return (new ResumePlanner())->plan($this->options($args, false), $state, $this->snapshot(), self::TOOLCHAIN);
     }
 
     /**
      * @param list<string> $args
      */
-    private function options(array $args = []): ResumeOptions
+    private function options(array $args = [], bool $trustJunitFailures = true): ResumeOptions
     {
-        return ResumeOptions::parse($this->root, $args)[0];
+        // The fixture's kept run has a failing test file: most tests are about the selection, so they trust it.
+        return ResumeOptions::parse($this->root, $trustJunitFailures ? ['--trust-junit-failures', ...$args] : $args)[0];
     }
 
     /**
