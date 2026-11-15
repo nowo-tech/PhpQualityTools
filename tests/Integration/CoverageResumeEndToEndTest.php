@@ -110,7 +110,10 @@ final class CoverageResumeEndToEndTest extends TestCase
 
     protected function setUp(): void
     {
-        if (!\extension_loaded('pcov') && (!\extension_loaded('xdebug') || !str_contains((string) \ini_get('xdebug.mode'), 'coverage'))) {
+        // PCOV enabled, or Xdebug's effective mode (XDEBUG_MODE overrides the ini value) includes coverage.
+        $pcov = \extension_loaded('pcov') && (bool) \ini_get('pcov.enabled');
+        $xdebug = \function_exists('xdebug_info') && \in_array('coverage', (array) xdebug_info('mode'), true);
+        if (!$pcov && !$xdebug) {
             self::markTestSkipped('needs PCOV or Xdebug in coverage mode');
         }
         $autoload = \dirname(__DIR__, 2) . '/vendor/autoload.php';
@@ -162,7 +165,8 @@ final class CoverageResumeEndToEndTest extends TestCase
 
     private function phpunit(string $config, string $coverage, string $junit, ?string $clover = null): void
     {
-        $command = [\PHP_BINARY, \dirname(__DIR__, 2) . '/vendor/bin/phpunit', '-c', $config, '--coverage-php', $coverage, '--log-junit', $junit];
+        // A pcov.directory from php.ini (e.g. this repository's src/) would not record the sample's files.
+        $command = [\PHP_BINARY, '-d', 'pcov.directory=' . $this->root . '/src', \dirname(__DIR__, 2) . '/vendor/bin/phpunit', '-c', $config, '--coverage-php', $coverage, '--log-junit', $junit];
         if (null !== $clover) {
             $command[] = '--coverage-clover';
             $command[] = $clover;
