@@ -8,6 +8,7 @@ use NowoTech\PhpQualityTools\Gate\Coverage\Resume\CoverageResumeCommand;
 use NowoTech\PhpQualityTools\Tests\Unit\Gate\TempTreeTrait;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Runner\Version;
 use Symfony\Component\Process\Process;
 
 /**
@@ -17,7 +18,10 @@ use Symfony\Component\Process\Process;
  * - s9 / s9b (QF-H2): `#[CoversClass]` hides callers from the per-test data (test result, and stale merged coverage);
  * - s11b / s13a / s13b (QF-H1): a kept run that failed outside a JUnit test case (failOnDeprecation,
  *   setUpBeforeClass, data provider error);
- * - s12 (QF-M1): a changed body only the bootstrap executes.
+ * - s12 (QF-M1): a changed body only the bootstrap executes;
+ * - s5b / s5c / s5d / s5e (QF2-L2, QF3-M1): a test file that uses another file's result means the full suite (rerun
+ *   without its producer, PHPUnit skips it); s5f: a consumer the text rule misses is caught by the merge (skipped);
+ * - s9c / s9d / s9e (QF2-L1, QF3-L1): grouped and aliased coverage attributes.
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
@@ -49,8 +53,11 @@ final class CoverageResumeAuditScenariosTest extends TestCase
      */
     public static function coversAttributes(): iterable
     {
-        yield 's9' => ['', '#[CoversClass(\\App\\Wrapper::class)]'];
-        yield 's9c grouped (QF2-L1)' => ["use PHPUnit\\Framework\\Attributes\\Small;\n", '#[Small, CoversClass(\\App\\Wrapper::class)]'];
+        $import = "use PHPUnit\\Framework\\Attributes\\CoversClass;\n";
+        yield 's9' => [$import, '#[CoversClass(\\App\\Wrapper::class)]'];
+        yield 's9c grouped (QF2-L1)' => ["{$import}use PHPUnit\\Framework\\Attributes\\Small;\n", '#[Small, CoversClass(\\App\\Wrapper::class)]'];
+        yield 's9d alias (QF2-L1)' => ["use PHPUnit\\Framework\\Attributes\\CoversClass as Target;\n", '#[Target(\\App\\Wrapper::class)]'];
+        yield 's9e alias in a group use (QF3-L1)' => ["use PHPUnit\\Framework\\Attributes\\{Small, CoversClass as Target};\n", "#[Small]\n#[Target(\\App\\Wrapper::class)]"];
     }
 
     #[DataProvider('coversAttributes')]
@@ -62,7 +69,7 @@ final class CoverageResumeAuditScenariosTest extends TestCase
             'src/Wrapper.php' => "<?php\nnamespace App;\nfinal class Wrapper\n{\n    public static function double(int \$x): int\n    {\n        return Calc::double(\$x);\n    }\n}\n",
             'tests/CalcTest.php' => "<?php\nnamespace Tests;\nuse PHPUnit\\Framework\\TestCase;\nuse PHPUnit\\Framework\\Attributes\\CoversClass;\n#[CoversClass(\\App\\Calc::class)]\nfinal class CalcTest extends TestCase\n{\n    public function testDouble(): void { self::assertIsInt(\\App\\Calc::double(2)); }\n}\n",
             'tests/OtherTest.php' => self::OTHER_TEST,
-            'tests/WrapperTest.php' => "<?php\nnamespace Tests;\nuse PHPUnit\\Framework\\TestCase;\nuse PHPUnit\\Framework\\Attributes\\CoversClass;\n{$import}{$attribute}\nfinal class WrapperTest extends TestCase\n{\n    public function testDouble(): void { self::assertSame(4, \\App\\Wrapper::double(2)); }\n}\n",
+            'tests/WrapperTest.php' => "<?php\nnamespace Tests;\nuse PHPUnit\\Framework\\TestCase;\n{$import}{$attribute}\nfinal class WrapperTest extends TestCase\n{\n    public function testDouble(): void { self::assertSame(4, \\App\\Wrapper::double(2)); }\n}\n",
         ]);
         self::assertSame(0, $this->keepFullRun());
         $this->replace('src/Calc.php', 'return 2 * $x;', 'return 2 * $x + 1;');
@@ -149,23 +156,71 @@ final class CoverageResumeAuditScenariosTest extends TestCase
         self::assertNotSame(0, $this->truth());
     }
 
-    public function testS5bATestOnlyResumeRerunsTheConsumerOfAChangedProducer(): void
+    /**
+     * @return iterable<string, array{string, string, string, string, string}>
+     */
+    public static function crossFileDependencies(): iterable
+    {
+        $external = "use PHPUnit\\Framework\\Attributes\\DependsExternal;\n";
+        $consume = "#[DependsExternal(AProducerTest::class, 'testProduce')]\n    public function testConsume(int \$v): void";
+        // QF2-L2: a test-only change of the producer.
+        yield 's5b producer edit' => ['$v = \\App\\Calc::double(2); self::assertIsInt($v); return $v;', $external, "{$consume} { self::assertSame(4, \\App\\Other::id(\$v)); }", 'tests/AProducerTest.php', 'return $v; }|return $v + 1; }'];
+        // QF3-M1: the consumer runs the changed code, the producer does not.
+        yield 's5c consumer runs the changed source' => ['self::assertSame(2, \\App\\Other::id(2)); return 2;', $external, "{$consume} { self::assertSame(4, \\App\\Calc::double(\$v)); }", 'src/Calc.php', 'return 2 * $x;|return 2 * $x + 1;'];
+        yield 's5d test-only edit of the consumer' => ['$v = \\App\\Calc::double(2); self::assertIsInt($v); return $v;', $external, "{$consume} { self::assertSame(4, \\App\\Other::id(\$v)); }", 'tests/BConsumerTest.php', 'assertSame(4,|assertSame(5,'];
+        yield 's5e DependsOnClass' => ['self::assertSame(2, \\App\\Other::id(2)); return 2;', "use PHPUnit\\Framework\\Attributes\\DependsOnClass;\n", "#[DependsOnClass(AProducerTest::class)]\n    public function testConsume(): void { self::assertSame(4, \\App\\Calc::double(2)); }", 'src/Calc.php', 'return 2 * $x;|return 2 * $x + 1;'];
+    }
+
+    /**
+     * QF2-L2 / QF3-M1: rerun alone, the consumer would be skipped ("depends on … which has not run") and the resume
+     * green; any test file that uses another file's result means the full suite.
+     */
+    #[DataProvider('crossFileDependencies')]
+    public function testATestFileThatUsesAnotherFilesResultMeansTheFullSuite(string $produce, string $import, string $consume, string $path, string $change): void
     {
         $this->project([
             'src/Calc.php' => self::CALC_DOUBLE,
             'src/Other.php' => self::OTHER_ID,
-            'tests/AProducerTest.php' => "<?php\nnamespace Tests;\nuse PHPUnit\\Framework\\TestCase;\nfinal class AProducerTest extends TestCase\n{\n    public function testProduce(): int { \$v = \\App\\Calc::double(2); self::assertIsInt(\$v); return \$v; }\n}\n",
-            'tests/BConsumerTest.php' => "<?php\nnamespace Tests;\nuse PHPUnit\\Framework\\TestCase;\nuse PHPUnit\\Framework\\Attributes\\DependsExternal;\nfinal class BConsumerTest extends TestCase\n{\n    #[DependsExternal(AProducerTest::class, 'testProduce')]\n    public function testConsume(int \$v): void { self::assertSame(4, \\App\\Other::id(\$v)); }\n}\n",
+            'tests/AProducerTest.php' => "<?php\nnamespace Tests;\nuse PHPUnit\\Framework\\TestCase;\nfinal class AProducerTest extends TestCase\n{\n    public function testProduce(): int { {$produce} }\n}\n",
+            'tests/BConsumerTest.php' => "<?php\nnamespace Tests;\nuse PHPUnit\\Framework\\TestCase;\n{$import}final class BConsumerTest extends TestCase\n{\n    {$consume}\n}\n",
+            'tests/CalcTest.php' => self::CALC_TEST,
             'tests/OtherTest.php' => self::OTHER_TEST,
         ]);
         self::assertSame(0, $this->keepFullRun());
-        $this->replace('tests/AProducerTest.php', 'return $v; }', 'return $v + 1; }');
+        $this->replace($path, ...explode('|', $change));
 
-        [$plan, $files, $tests] = $this->resume();
+        [$plan, , , $err] = $this->resume();
+
+        self::assertSame(3, $plan);
+        self::assertStringContainsString("tests/BConsumerTest.php uses another test file's result", $err);
+        self::assertNotSame(0, $this->truth());
+    }
+
+    /**
+     * QF3-M1 safety net (QF3-I1): a cloning depends annotation on another class's test escapes the text rule; the
+     * consumer reruns for the changed code without its producer and is skipped, so the merge asks for the full suite.
+     */
+    public function testS5fAConsumerTheTextRuleMissesIsCaughtByTheMerge(): void
+    {
+        if (version_compare(Version::id(), '12', '>=')) {
+            self::markTestSkipped('PHPUnit 12 no longer reads annotations');
+        }
+        $this->project([
+            'src/Calc.php' => self::CALC_DOUBLE,
+            'src/Other.php' => self::OTHER_ID,
+            'tests/AProducerTest.php' => "<?php\nnamespace Tests;\nuse PHPUnit\\Framework\\TestCase;\nfinal class AProducerTest extends TestCase\n{\n    public function testProduce(): int { self::assertSame(2, \\App\\Other::id(2)); return 2; }\n}\n",
+            'tests/BConsumerTest.php' => "<?php\nnamespace Tests;\nuse PHPUnit\\Framework\\TestCase;\nfinal class BConsumerTest extends TestCase\n{\n    /** @depends clone Tests\\AProducerTest::testProduce */\n    public function testConsume(int \$v): void { self::assertSame(4, \\App\\Calc::double(\$v)); }\n}\n",
+            'tests/CalcTest.php' => self::CALC_TEST,
+            'tests/OtherTest.php' => self::OTHER_TEST,
+        ]);
+        self::assertSame(0, $this->keepFullRun());
+        $this->replace('src/Calc.php', 'return 2 * $x;', 'return 2 * $x + 1;');
+
+        [$plan, $files, , , $merge] = $this->resume(3);
 
         self::assertSame(0, $plan);
-        self::assertSame(['tests/AProducerTest.php', 'tests/BConsumerTest.php'], $files, 'QF2-L2: the consumer is rerun');
-        self::assertNotSame(0, $tests);
+        self::assertContains('tests/BConsumerTest.php', $files);
+        self::assertStringContainsString('Tests\\BConsumerTest::testConsume ran in the kept run and is skipped in the rerun', $merge);
         self::assertNotSame(0, $this->truth());
     }
 
@@ -222,21 +277,22 @@ final class CoverageResumeAuditScenariosTest extends TestCase
     /**
      * Plan; on a resume run the listed files and merge.
      *
-     * @return array{0: int, 1: list<string>, 2: int|null, 3: string} plan exit code, files, tests exit code, plan stderr
+     * @return array{0: int, 1: list<string>, 2: int|null, 3: string, 4: string} plan exit code, files, tests exit code, plan stderr, merge stderr
      */
-    private function resume(): array
+    private function resume(int $merge = 0): array
     {
         [$plan, $out, $err] = $this->cli('plan');
         if (0 !== $plan) {
-            return [$plan, [], null, $err];
+            return [$plan, [], null, $err, ''];
         }
         $files = array_values(array_filter(explode("\n", $out)));
         file_put_contents($this->root . '/var/resume.xml', str_replace('bootstrap.php', '../bootstrap.php', $this->phpunitXml(implode('', array_map(static fn (string $file): string => "<file>../{$file}</file>", $files)))));
         file_put_contents($this->root . '/var/resume.xml', str_replace(['<directory>src</directory>', 'var/phpunit-cache'], ['<directory>../src</directory>', 'phpunit-cache'], (string) file_get_contents($this->root . '/var/resume.xml')));
         $tests = $this->phpunit('var/resume.xml', 'var/part.cov', 'var/part.xml');
-        self::assertSame(0, $this->cli('merge', '--coverage=var/part.cov', '--junit=var/part.xml', '--clover=var/resumed.xml')[0]);
+        [$code, , $mergeErr] = $this->cli('merge', '--coverage=var/part.cov', '--junit=var/part.xml', '--clover=var/resumed.xml');
+        self::assertSame($merge, $code, $mergeErr);
 
-        return [$plan, $files, $tests, $err];
+        return [$plan, $files, $tests, $err, $mergeErr];
     }
 
     private function truth(): int

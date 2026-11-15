@@ -75,6 +75,7 @@ final class SnapshotTest extends TestCase
               </testsuite>
               <testcase name="c" class="App\Tests\BTest" file="/app/tests/BTest.php"><error>boom</error></testcase>
               <testcase name="d" class="App\Tests\CTest" file="/elsewhere/CTest.php"/>
+              <testcase name="e with data set #0" class="App\Tests\CTest" file="/elsewhere/CTest.php"><skipped/></testcase>
               <testcase name="x.phpt" file="/app/tests/x.phpt"/>
               <testsuite name="App\Tests\BrokenTest" file="/app/tests/BrokenTest.php" tests="0" errors="0" failures="0"/>
             </testsuite></testsuites>
@@ -84,6 +85,7 @@ final class SnapshotTest extends TestCase
 
         self::assertSame(['App\Tests\ATest' => 'tests/ATest.php', 'App\Tests\BTest' => 'tests/BTest.php', 'App\Tests\CTest' => '/elsewhere/CTest.php'], $junit->classes);
         self::assertSame(['tests/ATest.php', 'tests/BTest.php', 'tests/BrokenTest.php'], $junit->failed, 'QF-H1: a suite without test cases failed before its tests');
+        self::assertSame(['App\Tests\CTest::e with data set #0'], $junit->skipped);
     }
 
     public function testJunitMissingOrInvalid(): void

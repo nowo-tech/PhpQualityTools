@@ -127,6 +127,47 @@ final class CoverageResumeCommandTest extends TestCase
         self::assertSame(['full', 0, 0], [$this->state()['mode'], $this->state()['resumes'], $this->state()['greenResumes']]);
     }
 
+    /**
+     * QF3-M1 safety net: a test the kept run did not skip comes back skipped in the rerun (it depends on a test that
+     * was not rerun): the merge asks for the full suite. A test skipped in the kept run too is not concerned, and the
+     * kept skipped cases survive a resume.
+     */
+    public function testATestThatComesBackSkippedInTheRerunMeansTheFullSuite(): void
+    {
+        $this->cli('plan');
+        $this->writeLegacyCoverage($this->root . '/var/run.cov', [
+            $this->root . '/src/Calc.php' => [7 => ['App\Tests\CalcTest::testAdd'], 12 => ['App\Tests\OtherTest::testThrice']],
+            $this->root . '/src/Other.php' => [7 => ['App\Tests\OtherTest::testThrice']],
+        ]);
+        $all = ['App\Tests\A' => 'tests/A.php', 'App\Tests\B' => 'tests/B.php', 'App\Tests\C' => 'tests/C.php', 'App\Tests\CalcTest' => 'tests/CalcTest.php', 'App\Tests\OtherTest' => 'tests/OtherTest.php', 'App\Tests\SlowTest' => 'tests/SlowTest.php'];
+        $this->junit('var/junit.xml', $all, [], ['App\Tests\SlowTest', 'App\Tests\B']);
+        self::assertSame(0, $this->cli('save', '--coverage=var/run.cov', '--junit=var/junit.xml', '--tests-status=passed', '--status=passed')[0]);
+        self::assertSame(['App\Tests\B::t', 'App\Tests\SlowTest::t'], $this->state()['skipped']);
+        $other = $this->root . '/src/Other.php';
+        file_put_contents($other, str_replace('return (new Calc())->triple($a);', 'return $a * 3;', self::OTHER));
+        self::assertSame(0, $this->cli('plan')[0]);
+        $this->writeLegacyCoverage($this->root . '/var/part.cov', [$other => [7 => ['App\Tests\OtherTest::testThrice']]]);
+
+        $this->junit('var/part.xml', ['App\Tests\OtherTest' => 'tests/OtherTest.php', 'App\Tests\SlowTest' => 'tests/SlowTest.php', 'App\Tests\NewTest' => 'tests/NewTest.php'], [], ['App\Tests\SlowTest', 'App\Tests\NewTest']);
+        self::assertSame(0, $this->cli('merge', '--coverage=var/part.cov', '--junit=var/part.xml', '--clover=var/clover.xml')[0], 'skipped in the kept run too, or a new test class');
+        self::assertSame(0, $this->cli('save', '--coverage=var/coverage/resume/merged.cov', '--junit=var/part.xml', '--tests-status=passed', '--status=passed')[0]);
+        self::assertSame(['App\Tests\B::t', 'App\Tests\NewTest::t', 'App\Tests\SlowTest::t'], $this->state()['skipped'], 'kept across the resume');
+
+        $cases = [
+            ['return 3 * $a;', ['App\Tests\OtherTest'], 'App\Tests\OtherTest::t'],
+            ['return $a + $a + $a;', ['App\Tests\OtherTest', 'App\Tests\CalcTest', 'App\Tests\A', 'App\Tests\B', 'App\Tests\C'], 'App\Tests\A::t, App\Tests\C::t, App\Tests\CalcTest::t and 1 more'],
+        ];
+        foreach ($cases as [$body, $skipped, $names]) {
+            file_put_contents($other, str_replace('return (new Calc())->triple($a);', $body, self::OTHER));
+            [$code, , $err] = $this->cli('plan', '--max-green-resumes=5');
+            self::assertSame(0, $code, $err);
+            $this->junit('var/part.xml', $all, [], $skipped);
+            [$code, , $err] = $this->cli('merge', '--coverage=var/part.cov', '--junit=var/part.xml', '--clover=var/clover.xml');
+            self::assertSame(3, $code);
+            self::assertSame("coverage-resume: cannot merge, run the full suite — {$names} ran in the kept run and is skipped in the rerun (it may depend on a test that was not rerun)\n", $err);
+        }
+    }
+
     public function testNothingIsKeptWhenFilesChangeDuringTheRun(): void
     {
         $this->keepFullRun();
@@ -264,12 +305,13 @@ final class CoverageResumeCommandTest extends TestCase
     /**
      * @param array<string, string> $classes
      * @param list<string>          $failed
+     * @param list<string>          $skipped test classes whose test case was skipped
      */
-    private function junit(string $path, array $classes, array $failed): void
+    private function junit(string $path, array $classes, array $failed, array $skipped = []): void
     {
         $cases = '';
         foreach ($classes as $class => $file) {
-            $failure = \in_array($file, $failed, true) ? '<failure>no</failure>' : '';
+            $failure = \in_array($file, $failed, true) ? '<failure>no</failure>' : (\in_array($class, $skipped, true) ? '<skipped/>' : '');
             $cases .= \sprintf('<testcase name="t" class="%s" file="%s/%s">%s</testcase>', $class, $this->root, $file, $failure);
         }
         if (!is_dir(\dirname($this->root . '/' . $path))) {

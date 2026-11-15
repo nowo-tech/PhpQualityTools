@@ -264,10 +264,6 @@ final class CoversShortTest {}",
 final class AnnotationTest {}",
             'tests/BeforeClassTest.php' => '<?php
 final class BeforeClassTest { public static function setUpBeforeClass(): void {} }',
-            'tests/DependsTest.php' => "<?php
-final class DependsTest { #[DependsExternal(OtherTest::class, 'testX')] public function testY(): void {} }",
-            'tests/DependsOnTest.php' => "<?php
-final class DependsOnTest { #[Depends('OtherTest::testX')] public function testY(): void {} }",
             'tests/ShellTest.php' => "<?php
 final class ShellTest { public function testY(): void { shell_exec('php bin/x'); } }",
             'tests/ProcessTest.php' => "<?php
@@ -280,6 +276,12 @@ final class GroupedTest {}',
 use PHPUnit\\Framework\\Attributes\\CoversClass as Target;
 #[Target(Foo::class)]
 final class AliasTest {}',
+            // QF3-L1: an alias in a group use.
+            'tests/GroupUseAliasTest.php' => '<?php
+use PHPUnit\\Framework\\Attributes\\{Small, CoversClass as Target};
+#[Small]
+#[Target(Foo::class)]
+final class GroupUseAliasTest {}',
             'tests/GroupedBeforeTest.php' => '<?php
 final class GroupedBeforeTest { #[Test, BeforeClass] public static function prepare(): void {} }',
             'tests/ShellLineTest.php' => "<?php
@@ -300,9 +302,8 @@ final class DocTest { public function testY(): void { \\strlen('`x`'); } }",
             $this->write($path, $content);
         }
         $state = $this->state(['failed' => []]);
-        // QF2-L2: a test-only resume reruns the test files that consume another file's result.
         $this->write('tests/CalcTest.php', '<?php // a test-only change');
-        self::assertSame(['tests/CalcTest.php', 'tests/DependsOnTest.php', 'tests/DependsTest.php'], (new ResumePlanner())->plan($this->options(), $state, $this->snapshot(), self::TOOLCHAIN)->testFiles);
+        self::assertSame(['tests/CalcTest.php'], (new ResumePlanner())->plan($this->options(), $state, $this->snapshot(), self::TOOLCHAIN)->testFiles, 'not on a test-only resume');
 
         $this->replace('src/Base.php', 'return 1;', 'return 2;');
         $decision = (new ResumePlanner())->plan($this->options(['--no-name-references']), $state, $this->snapshot(), self::TOOLCHAIN);
@@ -310,6 +311,37 @@ final class DocTest { public function testY(): void { \\strlen('`x`'); } }",
         $expected = [...array_keys($unattributable), 'tests/CalcTest.php', 'tests/ChildTest.php', 'tests/SubprocessTest.php'];
         sort($expected);
         self::assertSame($expected, $decision->testFiles);
+    }
+
+    /**
+     * QF3-M1: a consumer rerun without its producer is skipped, and a skipped test does not fail the run.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function crossFileDependencies(): iterable
+    {
+        yield 'DependsExternal' => ["#[DependsExternal(OtherTest::class, 'testX')] public function testY(): void {}"];
+        yield 'DependsOnClass' => ['#[DependsOnClass(OtherTest::class)] public function testY(): void {}'];
+        yield 'DependsExternalUsingDeepClone' => ["#[DependsExternalUsingDeepClone(OtherTest::class, 'testX')] public function testY(): void {}"];
+        yield 'Depends on Class::method' => ["#[Depends('OtherTest::testX')] public function testY(): void {}"];
+        yield '@depends Class::method' => ['/** @depends OtherTest::testX */ public function testY(): void {}'];
+    }
+
+    #[DataProvider('crossFileDependencies')]
+    public function testATestFileUsingAnotherFilesResultMeansTheFullSuite(string $method): void
+    {
+        $this->write('tests/DependsTest.php', "<?php\nfinal class DependsTest { {$method} }");
+        $state = $this->state(['failed' => []]);
+        $this->write('tests/CalcTest.php', '<?php // a test-only change');
+        $testOnly = (new ResumePlanner())->plan($this->options(), $state, $this->snapshot(), self::TOOLCHAIN);
+        $this->write('tests/CalcTest.php', self::FILES['tests/CalcTest.php']);
+        $this->replace('src/Base.php', 'return 1;', 'return 2;');
+        $source = (new ResumePlanner())->plan($this->options(), $state, $this->snapshot(), self::TOOLCHAIN);
+
+        foreach ([$testOnly, $source] as $decision) {
+            self::assertFalse($decision->resume);
+            self::assertSame(["tests/DependsTest.php uses another test file's result (DependsExternal, DependsOnClass, Depends on Other::test): rerun without its producer, PHPUnit would skip it"], $decision->reasons);
+        }
     }
 
     public function testInvalidCountersAreRefused(): void

@@ -11,6 +11,8 @@ namespace NowoTech\PhpQualityTools\Gate\Coverage\Resume;
  * - `src`: per source file, its {@see PhpSkeleton} (skeleton hash; body line ranges, hashes and whether a test of
  *   the kept run executed a line of each; declared and parent short names);
  * - `testFiles` / `testClasses` / `index`: which test files executed each source file (from the per-test data);
+ * - `skipped`: test cases (`Class::name`) skipped or incomplete in the kept run, so a merge can tell a test that
+ *   passed there and is skipped in the rerun (a dependency on a test that was not rerun);
  * - `failed`: test files with a failure or an error; `testsStatus`: whether the tests passed (apart from `status`,
  *   which also covers the coverage gate), so a failure the JUnit log does not name is not forgotten;
  * - `coverageHash`: sha1 of the kept `coverage.cov`, so a state and a coverage file of different runs are refused;
@@ -37,6 +39,7 @@ final readonly class ResumeState
      * @param array<string, int>                                                                                                                             $testClasses test class => index in $testFiles
      * @param array<string, list<int>>                                                                                                                       $index       source file => indexes in $testFiles
      * @param list<string>                                                                                                                                   $failed
+     * @param list<string>                                                                                                                                   $skipped     test cases (`Class::name`)
      */
     public function __construct(
         public string $mode,
@@ -57,6 +60,7 @@ final readonly class ResumeState
         public array $failed,
         public string $stamp,
         public string $coverageHash,
+        public array $skipped = [],
     ) {
     }
 
@@ -81,7 +85,7 @@ final readonly class ResumeState
         }
 
         /* @phpstan-ignore-next-line argument.type (file written by toArray(); its coverage hash is checked by the caller) */
-        return new self($string('mode'), $string('status'), $string('testsStatus'), $int('resumes'), $int('greenResumes'), $string('root'), $string('commit'), $string('fullCommit'), $string('createdAt'), $array('toolchain'), $array('snapshot'), $array('src'), $array('testFiles'), $array('testClasses'), $array('index'), $array('failed'), $string('stamp'), $string('coverageHash'));
+        return new self($string('mode'), $string('status'), $string('testsStatus'), $int('resumes'), $int('greenResumes'), $string('root'), $string('commit'), $string('fullCommit'), $string('createdAt'), $array('toolchain'), $array('snapshot'), $array('src'), $array('testFiles'), $array('testClasses'), $array('index'), $array('failed'), $string('stamp'), $string('coverageHash'), $array('skipped'));
     }
 
     /**

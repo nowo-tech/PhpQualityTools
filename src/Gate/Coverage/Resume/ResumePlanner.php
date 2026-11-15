@@ -20,12 +20,15 @@ namespace NowoTech\PhpQualityTools\Gate\Coverage\Resume;
  *   migrations, fixtures), changed outside its function bodies ({@see PhpSkeleton}), or changed a function no test of
  *   the kept run executed (nothing records who calls it);
  * - more than `--max-src-files` source files changed (default 10);
+ * - a test file uses another test file's result (`#[DependsExternal]`, `#[DependsOnClass]`, `#[Depends…('Other::t')]`,
+ *   `@depends Other::t`): rerun without its producer, PHPUnit skips it, and a skipped test does not fail the run;
  * - there is nothing to rerun.
  *
  * A resume reruns, by test file: the tests that executed any line of a changed source file or of a class extending,
  * implementing or using one of its classes (transitively); every test file naming one of those classes (data
  * providers run outside the per-test coverage); the test files with no recorded coverage at all and those the
- * per-test data cannot attribute ({@see unattributableTests()}); the changed and new test files; the kept run's failed test files; and the `--always` (gate) test files.
+ * per-test data cannot attribute ({@see unattributableTests()}); the changed and new test files; the kept run's failed
+ * test files; and the `--always` (gate) test files.
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
@@ -37,17 +40,18 @@ final class ResumePlanner
     private const MAX_REASONS = 5;
 
     /**
-     * Test files that use another file's test result ({@see unattributableTests()}): rerun on every resume.
+     * Test files that use another file's test result ({@see dependingTests()}): the full suite.
      */
     private const DEPENDS = '/\bDependsExternal\w*\s*\(|\bDepends\w*\s*\(\s*[^)]*::|@depends\s+\S+::/';
 
     /**
      * Test files whose per-test data cannot show the source code they depend on ({@see unattributableTests()}):
      * rerun on every source resume. Attributes are matched anywhere (grouped `#[Small, CoversClass(…)]`), and so is
-     * the import of a coverage attribute (an aliased one).
+     * the import of a coverage attribute, aliased too (`use …\Attributes\{Small, CoversClass as Target}`).
      */
     private const SOURCE_BLIND = '/\bCovers(?:Class|Method|Function|Trait|Namespace|ClassesThat\w+)\s*\(|\bCoversNothing\b'
-        . '|\\\\Attributes\\\\Covers\w*|@covers(?:DefaultClass)?\b|\bBeforeClass\b|@beforeClass\b|\bsetUpBeforeClass\s*\('
+        . '|\\\\Attributes\\\\Covers\w*|\bCovers\w+\s+as\b'
+        . '|@covers(?:DefaultClass)?\b|\bBeforeClass\b|@beforeClass\b|\bsetUpBeforeClass\s*\('
         . '|\b(?:shell_exec|exec|proc_open|system|passthru|popen|pcntl_exec)\s*\(|\bProcess::from\w+\s*\(|\bPhpProcess\b'
         . '|\bnew\s+\\\\?(?:Symfony\\\\Component\\\\Process\\\\)?Process\b/';
 
@@ -101,6 +105,9 @@ final class ResumePlanner
         foreach ($changedSrc as $path) {
             array_push($reasons, ...$this->sourceReasons($options, $state, $path));
         }
+        foreach ($this->dependingTests($options, $snapshot) as $path) {
+            $reasons[] = "{$path} uses another test file's result (DependsExternal, DependsOnClass, Depends on Other::test): rerun without its producer, PHPUnit would skip it";
+        }
         if ([] !== $reasons) {
             return ResumeDecision::full(\array_slice($reasons, 0, self::MAX_REASONS));
         }
@@ -119,8 +126,10 @@ final class ResumePlanner
                 $selected[$test] = true;
             }
         }
-        foreach ($this->unattributableTests($options, $snapshot, [] !== $changedSrc) as $test) {
-            $selected[$test] = true;
+        if ([] !== $changedSrc) {
+            foreach ($this->unattributableTests($options, $snapshot) as $test) {
+                $selected[$test] = true;
+            }
         }
         foreach ([...$changedTests, ...$state->failed] as $test) {
             $selected[$test] = true;
@@ -270,13 +279,36 @@ final class ResumePlanner
     }
 
     /**
-     * Test files whose per-test data cannot show what they depend on:
-     * - on every resume, test files that consume another file's result (`#[DependsExternal]`, `#[Depends*('Other::t')]`,
-     *   `@depends Other::t`): a changed producer test changes what they receive;
-     * - on a source resume, also coverage metadata (`#[CoversClass]`, `@covers`…: php-code-coverage keeps only the
-     *   covered targets of such a test), `setUpBeforeClass()` / `#[BeforeClass]` (runs outside any test's coverage),
-     *   and subprocesses (`shell_exec`, `exec`, `proc_open`, `system`, `passthru`, `popen`, `Process`, `PhpProcess`,
-     *   `Process::fromShellCommandline()`, backticks): code no coverage of this process records.
+     * Test files that consume another test file's result (`#[DependsExternal]`, `#[DependsOnClass]`,
+     * `#[Depends*('Other::t')]`, `@depends Other::t`). A resume cannot rerun them: without their producer in the same
+     * run PHPUnit skips them, and a skipped test does not fail the run (audit QF3-M1). Their producer can change
+     * (test-only) or run other code than they do, so any of them anywhere means the full suite.
+     *
+     * Detection is textual and per test file.
+     *
+     * @param array<string, string> $snapshot
+     *
+     * @return list<string>
+     */
+    private function dependingTests(ResumeOptions $options, array $snapshot): array
+    {
+        $tests = [];
+        foreach (array_keys($snapshot) as $path) {
+            $path = (string) $path;
+            if ($options->isTestFile($path) && 1 === preg_match(self::DEPENDS, (string) file_get_contents($options->root . '/' . $path))) {
+                $tests[] = $path;
+            }
+        }
+
+        return $tests;
+    }
+
+    /**
+     * Test files whose per-test data cannot show the source code they depend on, rerun on a source resume: coverage
+     * metadata (`#[CoversClass]`, `@covers`…: php-code-coverage keeps only the covered targets of such a test),
+     * `setUpBeforeClass()` / `#[BeforeClass]` (runs outside any test's coverage), and subprocesses (`shell_exec`,
+     * `exec`, `proc_open`, `system`, `passthru`, `popen`, `Process`, `PhpProcess`, `Process::fromShellCommandline()`,
+     * backticks): code no coverage of this process records.
      *
      * Detection is textual and per test file: a trait, a base class or a helper elsewhere is not seen.
      *
@@ -284,7 +316,7 @@ final class ResumePlanner
      *
      * @return list<string>
      */
-    private function unattributableTests(ResumeOptions $options, array $snapshot, bool $sourceChanged): array
+    private function unattributableTests(ResumeOptions $options, array $snapshot): array
     {
         $tests = [];
         foreach (array_keys($snapshot) as $path) {
@@ -293,8 +325,7 @@ final class ResumePlanner
                 continue;
             }
             $code = (string) file_get_contents($options->root . '/' . $path);
-            if (1 === preg_match(self::DEPENDS, $code)
-                || ($sourceChanged && (1 === preg_match(self::SOURCE_BLIND, $code) || $this->hasBackticks($code)))) {
+            if (1 === preg_match(self::SOURCE_BLIND, $code) || $this->hasBackticks($code)) {
                 $tests[] = $path;
             }
         }

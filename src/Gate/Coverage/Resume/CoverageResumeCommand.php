@@ -14,7 +14,8 @@ use PHPUnit\Runner\Version;
  *   plan    decide (print the test files to rerun, exit 0) or ask for the full suite (exit 3, reasons on stderr);
  *           remembers the decision and the files as they are now in <state>/pending.json
  *   merge   after the resumed run: drop the kept data of the changed source files and every contribution of the
- *           rerun / deleted test classes, add the new run's data; write the merged --coverage-php file and Clover
+ *           rerun / deleted test classes, add the new run's data; write the merged --coverage-php file and Clover;
+ *           ask for the full suite (exit 3) when a test the kept run did not skip is skipped in the rerun
  *   save    after any run: keep its per-test data and analysis as the base of the next resume (nothing is kept when
  *           files changed during the run)
  *   status  print the stamp of the last saved run ("coverage: full" or "coverage: resumed (k test files, m source
@@ -41,7 +42,9 @@ final class CoverageResumeCommand
         plan prints the test files a resume reruns (exit 0) or the reasons for the full suite (stderr, exit 3).
         Run the tests with --coverage-php and --log-junit; after a resume, merge into the kept run; after any run,
         save it (--tests-status: PHPUnit's exit status; --status: the tests and the coverage gate). The merged
-        Clover report replaces the full run's. status prints the stamp of the saved run for the files as they are now.
+        Clover report replaces the full run's; merge exits 3 (run the full suite) when the data cannot be merged or
+        a test the kept run did not skip is skipped in the rerun. status prints the stamp of the saved run for the
+        files as they are now.
           --state=<dir>              kept state (default var/coverage/resume)
           --src=<dir>                source directory, repeatable (default src)
           --tests=<dir>              test directory, repeatable (default tests)
@@ -193,6 +196,10 @@ final class CoverageResumeCommand
         $refusal = match (true) {
             $kept->driver !== $new->driver => "coverage driver changed ({$kept->driver} → {$new->driver})",
             $kept->hasBranchData || $new->hasBranchData => 'branch / path coverage data cannot be merged',
+            [] !== ($skipped = $this->newlySkipped($state, $junit)) => \sprintf(
+                '%s ran in the kept run and is skipped in the rerun (it may depend on a test that was not rerun)',
+                implode(', ', \array_slice($skipped, 0, 3)) . (\count($skipped) > 3 ? \sprintf(' and %d more', \count($skipped) - 3) : ''),
+            ),
             default => null,
         };
         if (null !== $refusal) {
@@ -247,6 +254,7 @@ final class CoverageResumeCommand
         $junit = JunitTests::read($this->required($rest, 'junit', $options), $options->root);
 
         $classes = $junit->classes;
+        $skipped = $junit->skipped;
         if ($state instanceof ResumeState) {
             $dropped = array_flip($this->droppedClasses($state, $pending, $junit, null));
             foreach ($state->testClasses as $class => $i) {
@@ -254,6 +262,12 @@ final class CoverageResumeCommand
                     $classes[$class] ??= $state->testFiles[$i];
                 }
             }
+            foreach ($state->skipped as $case) {
+                if (!isset($dropped[PerTestCoverage::testClass($case)])) {
+                    $skipped[] = $case;
+                }
+            }
+            sort($skipped);
         }
         ksort($classes);
         $testFiles = array_values(array_unique(array_values($classes)));
@@ -295,6 +309,7 @@ final class CoverageResumeCommand
             $junit->failed,
             $pending['stamp'],
             (string) sha1_file($coverageFile),
+            array_values(array_unique($skipped)),
         );
         // coverage.cov first, then state.json, each through a rename: an interrupted save leaves a state whose
         // coverage hash does not match, which is refused.
@@ -313,6 +328,19 @@ final class CoverageResumeCommand
         ));
 
         return 0;
+    }
+
+    /**
+     * Test cases skipped in the rerun whose class ran in the kept run, where they were not skipped (audit QF3-M1: a
+     * test that uses the result of a test not rerun is skipped, and a skipped test does not fail the run).
+     *
+     * @return list<string>
+     */
+    private function newlySkipped(ResumeState $state, JunitTests $junit): array
+    {
+        $kept = array_flip($state->skipped);
+
+        return array_values(array_filter($junit->skipped, static fn (string $case): bool => isset($state->testClasses[PerTestCoverage::testClass($case)]) && !isset($kept[$case])));
     }
 
     /**
