@@ -12,6 +12,9 @@ use NowoTech\PhpQualityTools\Process\ExecCommandRunner;
  * for its own commit — a line `release-check: OK <full commit sha>` in the tag message, written right
  * after a green `make release-check` (`git tag -a vX.Y.Z -m "Release vX.Y.Z" -m "release-check: OK $(git rev-parse HEAD)"`).
  *
+ * A line `release-check coverage: full` or `release-check coverage: resumed (k test files, m source files)` (from
+ * `bin/coverage-resume status`) is shown with the result when the tag message has one.
+ *
  * Tag-triggered deploys use it as the gate while hosted CI cannot run (billing, outage); with green CI the
  * workflow may skip it. An explicit override (`--allow-skip` with `RELEASE_GATE=skip`) is logged.
  *
@@ -27,16 +30,26 @@ use NowoTech\PhpQualityTools\Process\ExecCommandRunner;
 final class ReleaseProofCommand
 {
     public const USAGE = <<<'TXT'
-        Usage: assert-release-proof [<tag>] [--github-output] [--allow-skip]
+        Usage: assert-release-proof [<tag>] [--github-output] [--allow-skip] [--require-coverage=full]
 
         Checks that the annotated <tag> message contains "release-check: OK <sha>" where <sha> is the
         full commit the tag points to. <tag> defaults to GITHUB_REF_NAME (refs/tags/ is stripped).
           --github-output  append proof=true|false to $GITHUB_OUTPUT and exit 0
           --allow-skip     accept RELEASE_GATE=skip from the environment (prints a warning; for emergencies)
+          --require-coverage=full
+                           also require the line "release-check coverage: full" (a resumed coverage run is a
+                           pre-check, not a proof)
         Exit codes: 0 proof found / decision written / logged skip, 1 no proof, 2 usage or git error.
         TXT;
 
     public const PROOF_PREFIX = 'release-check: OK ';
+
+    /**
+     * Optional line of the tag message, kept apart from the proof line (which deploy guards match exactly): how the
+     * coverage phase ran (`bin/coverage-resume status`), e.g. `release-check coverage: resumed (12 test files, 2 source
+     * files)`. `--require-coverage=full` requires `release-check coverage: full`.
+     */
+    public const COVERAGE_PREFIX = 'release-check coverage: ';
 
     private readonly CommandRunnerInterface $runner;
 
@@ -62,6 +75,7 @@ final class ReleaseProofCommand
         $positional = [];
         $githubOutput = false;
         $allowSkip = false;
+        $requireFull = false;
         foreach ($args as $arg) {
             if ('-h' === $arg || '--help' === $arg) {
                 fwrite($this->stdout, self::USAGE . "\n");
@@ -72,6 +86,8 @@ final class ReleaseProofCommand
                 $githubOutput = true;
             } elseif ('--allow-skip' === $arg) {
                 $allowSkip = true;
+            } elseif ('--require-coverage=full' === $arg) {
+                $requireFull = true;
             } elseif (str_starts_with($arg, '-')) {
                 return $this->usageError("Unknown option {$arg}");
             } else {
@@ -108,15 +124,21 @@ final class ReleaseProofCommand
         }
 
         $commit = trim($sha['output'][0]);
-        $hasProof = \in_array(self::PROOF_PREFIX . $commit, array_map(trim(...), $message['output']), true);
-        if ($hasProof) {
-            fwrite($this->stdout, "OK: {$tag} records a passing release-check for {$commit}.\n");
+        $lines = array_map(trim(...), $message['output']);
+        $hasProof = \in_array(self::PROOF_PREFIX . $commit, $lines, true);
+        $coverage = array_values(array_filter($lines, static fn (string $line): bool => str_starts_with($line, self::COVERAGE_PREFIX)));
+        $fullCoverage = $requireFull ? 1 === \count($coverage) && self::COVERAGE_PREFIX . 'full' === $coverage[0] : true;
+        if ($hasProof && $fullCoverage) {
+            $mode = [] === $coverage ? '' : ' (' . substr($coverage[0], \strlen('release-check ')) . ')';
+            fwrite($this->stdout, "OK: {$tag} records a passing release-check for {$commit}{$mode}.\n");
         } else {
-            $reason = \sprintf('%s has no "%s%s" line (lightweight tag, or proof for another commit)', $tag, self::PROOF_PREFIX, $commit);
+            $reason = $hasProof
+                ? \sprintf('%s has no single "%sfull" line (--require-coverage=full; a resumed coverage run is not a proof)', $tag, self::COVERAGE_PREFIX)
+                : \sprintf('%s has no "%s%s" line (lightweight tag, or proof for another commit)', $tag, self::PROOF_PREFIX, $commit);
             fwrite($githubOutput ? $this->stdout : $this->stderr, $githubOutput ? "::error title=No release-check proof::{$reason}\n" : "ERROR: {$reason}.\n");
         }
 
-        return $this->decide($githubOutput, $outputFile, $hasProof);
+        return $this->decide($githubOutput, $outputFile, $hasProof && $fullCoverage);
     }
 
     private function decide(bool $githubOutput, string $outputFile, bool $ok): int

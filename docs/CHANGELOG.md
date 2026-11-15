@@ -48,7 +48,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target 1.13.0. Requested by Symfony Beacon (owner-approved): extend the release gate's coverage resume (decision
+D-20261112-04, tests-only fixes) to small `src/` fixes, so a failed coverage gate fixed by a few lines no longer costs a
+full run of 70–90 minutes. Opt-in: nothing changes until a host calls `bin/coverage-resume` or includes
+`coverage-resume.mk`. See [Usage → `coverage-resume`](USAGE.md#coverage-resume-since-1130) and spec
+[`specs/008-coverage-resume`](../specs/008-coverage-resume/spec.md).
+
+### Added
+
+- **`bin/coverage-resume`** (`plan`, `merge`, `save`, `status`, `forget`): after a coverage run, reruns only the test
+  files a small change can affect and merges them into the kept run, from PHPUnit's per-test coverage
+  (`--coverage-php`; php-code-coverage up to 11 and the serialized format of PHPUnit 12+).
+  - Selection: tests that executed any line of a changed source file, tests of subclasses / implementations / trait
+    users (transitively), test files naming a changed class (data providers run outside coverage), test files with
+    no recorded line, changed / new / failed test files and `--always` gate tests.
+  - Merge: drops the kept data of the changed source files **and every contribution of the rerun and deleted test
+    classes on every file**, so a line only a rerun test reached before is uncovered, as in a full run; the merged
+    `--coverage-php` file and Clover report are written by php-code-coverage itself.
+  - Full suite instead (reasons printed) for: a new, deleted or renamed source file; a change outside function bodies
+    (signature, constant, property default, attribute, doc comment, import, inheritance, generator); a changed
+    function without an executable line in the kept run; DI / kernel / bundle / migrations / fixtures paths
+    (`--full-glob`); any change outside the source and test directories (configuration, Composer files, installed
+    packages, `.env*`, PHPUnit configuration…) or to a non-test file under the test directories; more than 10 source
+    files (`--max-src-files`); another PHP, PHPUnit, php-code-coverage version or driver; and the marker policy: once
+    a resumed run passed since the last full run (`--max-green-resumes=1`), or after 5 chained resumes, the next run
+    is the full suite. `--force-full`, `FORCE_COVERAGE=1` or `COVERAGE_RESUME=0` force it (nightly / pre-release CI).
+  - Changes are detected by file content, not by commit, so the fix-below-the-release-commit flow still resumes.
+  - `status` prints the stamp of the last **saved** run (`coverage: full` or `coverage: resumed (k test files, m
+    source files)`) only while it passed and the files are those it ran on; a plan never writes it.
+  - A kept run whose tests failed runs the full suite, whatever the PHPUnit configuration: data provider errors,
+    runner warnings and `failOn*` issues are not in the JUnit log, so they may sit next to the failing test cases in
+    a file that is not rerun. `--trust-junit-failures` reruns only the failing files instead (never when the log
+    names no failing test case). A run that failed only the coverage gate is not concerned. `save` takes the tests'
+    status (`--tests-status`) apart from the overall one.
+  - A test file that uses another test file's result (`#[DependsExternal]`, `#[DependsOnClass]`, cross-file
+    `#[Depends]`, `@depends Other::test`) means the full suite on every resume, test-only included: rerun without its
+    producer, PHPUnit skips the consumer and the run stays green. As a safety net, `merge` asks for the full suite
+    (exit 3) when a test case the kept run ran, not skipped, comes back skipped in the rerun; the state keeps the
+    skipped test cases for that.
+  - On a source resume, test files the per-test data cannot attribute are always rerun: coverage metadata
+    (`CoversClass`, `@covers`…, grouped attributes and their imports included, aliased too, also in a group `use`,
+    which filters php-code-coverage's per-test data), `setUpBeforeClass()`, subprocesses
+    (`Process::fromShellCommandline()`, `PhpProcess` and backticks included).
+  - A changed function body that no test of the kept run executed (bootstrap, extension, warm-up code) means the full
+    suite.
+  - State files are written through a rename; `state.json` records the sha1 of `coverage.cov` and a mismatch is
+    refused; counters out of range are refused; the recipe holds a per-project `flock`.
+  - Documented as a fast pre-check, not a proof: the residual-risk list (static state and order, providers through a
+    wrapper, base-class `setUpBeforeClass()`, `tearDownAfterClass()`, subprocesses through helpers or an aliased
+    `Process`, cross-file dependencies through base classes or `@depends clone`, cached values) and "never restore the state directory from a shared CI cache".
+- **`resources/make/coverage-resume.mk`**: target `php-coverage-resume` for `RELEASE_PHASES` (plan, run the host's
+  files or full target, merge, gate, keep, stamp in `$(COVERAGE_RESUME_STAMP)` for the `release-check OK` line);
+  optional history rule `COVERAGE_RESUME_MAX_COMMITS`; `coverage-resume-forget`.
+- **`assert-release-proof`**: shows a `release-check coverage: …` line of the tag message with the result (the proof
+  line itself is unchanged); `--require-coverage=full` also requires `release-check coverage: full`, recommended for
+  deploy guards (a resumed run is a pre-check, not a proof).
+
 ### Tests
+
+- One fixture per fallback rule, the stale-line merge, both data formats (the installed php-code-coverage and the
+  PHPUnit 12+ payload with test doubles), the Makefile snippet with a stub, and an end-to-end run on a sample project
+  (full run, source change, resume; the merged Clover report equals a full run's), and the audit QF scenarios end to
+  end (`#[CoversClass]` callers and stale merged coverage, failOnDeprecation / setUpBeforeClass / data provider
+  failures of the kept run, a body only the bootstrap runs) and the audit QF-2 ones (a real failure next to a provider
+  error, grouped coverage attributes, a test-only `DependsExternal` producer) and QF-3 (a `DependsExternal` /
+  `DependsOnClass` consumer that runs the changed code or was edited, a consumer the text rule misses caught by the
+  merge, an aliased coverage attribute in a group `use`). Checked by hand on PHPUnit 13.4 / php-code-coverage 14.5
+  too.
 
 - CI: the coverage run is now `composer test-coverage-100` (new script, `.scripts/check-coverage.php`), so a pull request that drops statement or element coverage below **100%** fails the build; before, nothing in CI checked a threshold. The suite is already at 100%.
 
