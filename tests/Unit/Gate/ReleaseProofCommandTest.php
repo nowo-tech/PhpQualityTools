@@ -27,6 +27,14 @@ final class ReleaseProofCommandTest extends TestCase
         }
     }
 
+    public function testTheCoverageModeLineIsShown(): void
+    {
+        [$code, $out] = $this->execute(['v1.2.3'], ['Release v1.2.3', '', 'release-check: OK ' . self::SHA, 'release-check coverage: resumed (3 tests, 1 files)']);
+
+        self::assertSame(0, $code);
+        self::assertStringContainsString('records a passing release-check for ' . self::SHA . ' (coverage: resumed (3 tests, 1 files)).', $out);
+    }
+
     public function testProofForTheTaggedCommitPasses(): void
     {
         [$code, $out] = $this->execute(['v1.2.3'], ['Release v1.2.3', '', 'release-check: OK ' . self::SHA]);

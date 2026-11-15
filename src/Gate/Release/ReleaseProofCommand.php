@@ -12,6 +12,9 @@ use NowoTech\PhpQualityTools\Process\ExecCommandRunner;
  * for its own commit — a line `release-check: OK <full commit sha>` in the tag message, written right
  * after a green `make release-check` (`git tag -a vX.Y.Z -m "Release vX.Y.Z" -m "release-check: OK $(git rev-parse HEAD)"`).
  *
+ * A line `release-check coverage: full` or `release-check coverage: resumed (k tests, m files)` (from
+ * `bin/coverage-resume status`) is shown with the result when the tag message has one.
+ *
  * Tag-triggered deploys use it as the gate while hosted CI cannot run (billing, outage); with green CI the
  * workflow may skip it. An explicit override (`--allow-skip` with `RELEASE_GATE=skip`) is logged.
  *
@@ -37,6 +40,12 @@ final class ReleaseProofCommand
         TXT;
 
     public const PROOF_PREFIX = 'release-check: OK ';
+
+    /**
+     * Optional line of the tag message, kept apart from the proof line (which deploy guards match exactly): how the
+     * coverage phase ran (`bin/coverage-resume status`), e.g. `release-check coverage: resumed (12 tests, 2 files)`.
+     */
+    public const COVERAGE_PREFIX = 'release-check coverage: ';
 
     private readonly CommandRunnerInterface $runner;
 
@@ -108,9 +117,12 @@ final class ReleaseProofCommand
         }
 
         $commit = trim($sha['output'][0]);
-        $hasProof = \in_array(self::PROOF_PREFIX . $commit, array_map(trim(...), $message['output']), true);
+        $lines = array_map(trim(...), $message['output']);
+        $hasProof = \in_array(self::PROOF_PREFIX . $commit, $lines, true);
         if ($hasProof) {
-            fwrite($this->stdout, "OK: {$tag} records a passing release-check for {$commit}.\n");
+            $coverage = array_values(array_filter($lines, static fn (string $line): bool => str_starts_with($line, self::COVERAGE_PREFIX)));
+            $mode = [] === $coverage ? '' : ' (' . substr($coverage[0], \strlen('release-check ')) . ')';
+            fwrite($this->stdout, "OK: {$tag} records a passing release-check for {$commit}{$mode}.\n");
         } else {
             $reason = \sprintf('%s has no "%s%s" line (lightweight tag, or proof for another commit)', $tag, self::PROOF_PREFIX, $commit);
             fwrite($githubOutput ? $this->stdout : $this->stderr, $githubOutput ? "::error title=No release-check proof::{$reason}\n" : "ERROR: {$reason}.\n");

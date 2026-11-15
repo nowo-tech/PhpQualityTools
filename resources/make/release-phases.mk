@@ -25,6 +25,8 @@
 #   coverage-gaps             files below 100 % of COVERAGE_GAPS_REPORT (default var/coverage/clover.xml; LCOV works).
 #   test-slowest              slowest test files of SLOWEST_TESTS_JUNIT (default var/coverage/junit.xml), N=30 files.
 # In a custom recipe, `$(call release_phase,<name>,<command>)` runs one phase the same way.
+# A php-coverage phase that resumes after a small fix instead of rerunning the whole suite: coverage-resume.mk
+# (since 1.13.0), e.g. RELEASE_PHASES := ... php-coverage=php-coverage-resume.
 
 QUALITY_TOOLS_BIN ?= vendor/nowo-tech/php-quality-tools/bin
 QUALITY_PHP_EXEC ?=

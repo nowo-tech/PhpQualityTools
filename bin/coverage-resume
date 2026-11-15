@@ -1,0 +1,23 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Resume a failed (or one-commit-later) coverage run: rerun only the tests a small change can affect, using the
+ * per-test data of the kept --coverage-php run, and merge them into it. See docs/USAGE.md ("Coverage resume") or
+ * run with --help.
+ */
+
+use NowoTech\PhpQualityTools\Gate\Coverage\Resume\CoverageResumeCommand;
+
+require __DIR__ . '/autoload.php';
+
+// The per-test data of a large suite is big (every executable line lists its tests): raise a lower memory limit.
+$limit = (string) (getenv('COVERAGE_RESUME_MEMORY_LIMIT') ?: '2G');
+$current = ini_parse_quantity((string) ini_get('memory_limit'));
+if ($current >= 0 && ($limit === '-1' || $current < ini_parse_quantity($limit))) {
+    ini_set('memory_limit', $limit);
+}
+
+exit((new CoverageResumeCommand(\STDOUT, \STDERR, (string) getcwd(), getenv()))->run(array_slice($argv, 1)));
