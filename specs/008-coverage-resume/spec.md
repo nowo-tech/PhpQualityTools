@@ -58,15 +58,27 @@ cannot tell which tests a source change affects nor drop what a rerun test no lo
   `--coverage-php` and Clover files in the library's format.
 - **FR-004**: `save` keeps nothing when files changed during the run; a full run resets the counters.
 - **FR-005**: `coverage-resume.mk` runs the cycle as one release phase and stamps `coverage: full` or
-  `coverage: resumed (k tests, m files)`; `assert-release-proof` shows a `release-check coverage:` tag line.
+  `coverage: resumed (k test files, m source files)`; `assert-release-proof` shows a `release-check coverage:` tag line.
 - **FR-006**: 100 % line coverage; PHPStan level 8; Rector, CS Fixer clean; an end-to-end test on a sample project
   shows the merged Clover report equals a full run's.
 
+## Audit QF (2026-11-15) — changes
+
+- **QF-H1**: the tests' status is kept apart from the gate's; a kept run whose tests failed with no failing JUnit
+  test case, or under a `failOn*` configuration (unless `--trust-junit-failures`), means the full suite; a JUnit
+  test-class suite without test cases counts as failed.
+- **QF-H2**: test files with coverage metadata are rerun on every source resume (their per-test data is filtered to
+  the covered targets).
+- **QF-M1**: the "nobody calls it" rule checks executed lines, not executable ones.
+- **QF-M2**: the residual risk is documented case by case; setUpBeforeClass, DependsExternal / cross-file Depends and
+  subprocess test files are rerun on every source resume; a resumed run is a pre-check, not a proof.
+- **QF-L1 / L2 / L3, I1, I2**: stamp written only by `save` and bound to the content hashes; atomic writes, coverage
+  hash in the state, per-project lock; `assert-release-proof --require-coverage=full`; counters validated, CI-cache
+  warning; the stamp says "test files" and "source files".
+
 ## Residual risk
 
-Tests that were not rerun keep their old result and coverage. That is wrong only when they depend on the change
-without executing the changed lines in their own coverage: order-dependent tests (state left by a rerun test), code
-run outside a test's coverage (providers — mitigated by name references —, `setUpBeforeClass`, extensions, bootstrap,
-subprocesses — mitigated by rerunning tests with no recorded line), and values computed once and cached across tests
-(a compiled container — wiring paths force the full suite —, metadata caches). Hence the stamp, the one-green-resume
-limit, and a full run in CI.
+Tests that were not rerun keep their old result and coverage; see USAGE → Residual risk for the reproduced cases
+(static state and order, providers through a wrapper, `setUpBeforeClass()` in a base class, subprocesses through a
+helper, cross-file dependencies through a base class, cached values). A resumed green run is therefore a pre-check:
+the release proof should require a full run (`--require-coverage=full`).

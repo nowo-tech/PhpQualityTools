@@ -74,18 +74,36 @@ full run of 70–90 minutes. Opt-in: nothing changes until a host calls `bin/cov
     a resumed run passed since the last full run (`--max-green-resumes=1`), or after 5 chained resumes, the next run
     is the full suite. `--force-full`, `FORCE_COVERAGE=1` or `COVERAGE_RESUME=0` force it (nightly / pre-release CI).
   - Changes are detected by file content, not by commit, so the fix-below-the-release-commit flow still resumes.
-  - `status` prints the stamp: `coverage: full` or `coverage: resumed (k tests, m files)`.
+  - `status` prints the stamp of the last **saved** run (`coverage: full` or `coverage: resumed (k test files, m
+    source files)`) only while it passed and the files are those it ran on; a plan never writes it.
+  - A kept run whose tests failed is resumed only when its JUnit log names the failing test cases and the PHPUnit
+    configuration sets no `failOn*` option (`--trust-junit-failures` to accept that risk): `failOn*` issues, runner
+    warnings, `setUpBeforeClass()` and data provider errors are not in the JUnit log. `save` takes the tests' status
+    (`--tests-status`) apart from the overall one.
+  - On a source resume, test files the per-test data cannot attribute are always rerun: coverage metadata
+    (`#[CoversClass]`, `@covers`…, which filters php-code-coverage's per-test data), `setUpBeforeClass()`,
+    `#[DependsExternal]` / cross-file `#[Depends]`, subprocesses.
+  - A changed function body that no test of the kept run executed (bootstrap, extension, warm-up code) means the full
+    suite.
+  - State files are written through a rename; `state.json` records the sha1 of `coverage.cov` and a mismatch is
+    refused; counters out of range are refused; the recipe holds a per-project `flock`.
+  - Documented as a fast pre-check, not a proof: the residual-risk list (static state and order, providers through a
+    wrapper, base-class `setUpBeforeClass()`, subprocesses through helpers, cross-file dependencies through base
+    classes, cached values) and "never restore the state directory from a shared CI cache".
 - **`resources/make/coverage-resume.mk`**: target `php-coverage-resume` for `RELEASE_PHASES` (plan, run the host's
   files or full target, merge, gate, keep, stamp in `$(COVERAGE_RESUME_STAMP)` for the `release-check OK` line);
   optional history rule `COVERAGE_RESUME_MAX_COMMITS`; `coverage-resume-forget`.
 - **`assert-release-proof`**: shows a `release-check coverage: …` line of the tag message with the result (the proof
-  line itself is unchanged).
+  line itself is unchanged); `--require-coverage=full` also requires `release-check coverage: full`, recommended for
+  deploy guards (a resumed run is a pre-check, not a proof).
 
 ### Tests
 
 - One fixture per fallback rule, the stale-line merge, both data formats (the installed php-code-coverage and the
   PHPUnit 12+ payload with test doubles), the Makefile snippet with a stub, and an end-to-end run on a sample project
-  (full run, source change, resume; the merged Clover report equals a full run's). Checked by hand on PHPUnit 13.4 /
+  (full run, source change, resume; the merged Clover report equals a full run's), and the audit QF scenarios end to
+  end (`#[CoversClass]` callers and stale merged coverage, failOnDeprecation / setUpBeforeClass / data provider
+  failures of the kept run, a body only the bootstrap runs). Checked by hand on PHPUnit 13.4 /
   php-code-coverage 14.5 too.
 
 - CI: the coverage run is now `composer test-coverage-100` (new script, `.scripts/check-coverage.php`), so a pull request that drops statement or element coverage below **100%** fails the build; before, nothing in CI checked a threshold. The suite is already at 100%.
