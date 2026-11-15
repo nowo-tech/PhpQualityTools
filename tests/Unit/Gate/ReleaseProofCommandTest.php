@@ -29,10 +29,26 @@ final class ReleaseProofCommandTest extends TestCase
 
     public function testTheCoverageModeLineIsShown(): void
     {
-        [$code, $out] = $this->execute(['v1.2.3'], ['Release v1.2.3', '', 'release-check: OK ' . self::SHA, 'release-check coverage: resumed (3 tests, 1 files)']);
+        [$code, $out] = $this->execute(['v1.2.3'], ['Release v1.2.3', '', 'release-check: OK ' . self::SHA, 'release-check coverage: resumed (3 test files, 1 source files)']);
 
         self::assertSame(0, $code);
-        self::assertStringContainsString('records a passing release-check for ' . self::SHA . ' (coverage: resumed (3 tests, 1 files)).', $out);
+        self::assertStringContainsString('records a passing release-check for ' . self::SHA . ' (coverage: resumed (3 test files, 1 source files)).', $out);
+    }
+
+    public function testRequireCoverageFullRefusesAResumedOrMissingCoverageLine(): void
+    {
+        $proof = ['Release v1.2.3', '', 'release-check: OK ' . self::SHA];
+
+        [$code, $out] = $this->execute(['v1.2.3', '--require-coverage=full'], [...$proof, 'release-check coverage: full']);
+        self::assertSame(0, $code, $out);
+        self::assertStringContainsString('(coverage: full).', $out);
+
+        foreach ([[], ['release-check coverage: resumed (1 test files, 1 source files)'], ['release-check coverage: full', 'release-check coverage: resumed (1 test files, 1 source files)']] as $extra) {
+            [$code, , $err] = $this->execute(['v1.2.3', '--require-coverage=full'], [...$proof, ...$extra]);
+            self::assertSame(1, $code, $err);
+            self::assertStringContainsString('has no single "release-check coverage: full" line', $err);
+        }
+        self::assertSame(2, $this->execute(['v1.2.3', '--require-coverage=resumed'], $proof)[0]);
     }
 
     public function testProofForTheTaggedCommitPasses(): void

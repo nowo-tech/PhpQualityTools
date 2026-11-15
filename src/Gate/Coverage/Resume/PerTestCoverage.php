@@ -114,12 +114,13 @@ final readonly class PerTestCoverage
     }
 
     /**
-     * Whether the file has an executable line between $first and $last (inclusive).
+     * Whether a recorded test executed a line of the file between $first and $last (inclusive). Code run only from the
+     * bootstrap, an extension, a warm-up or a subprocess has executable lines no test executed.
      */
-    public function hasExecutableLine(string $file, int $first, int $last): bool
+    public function hasExecutedLine(string $file, int $first, int $last): bool
     {
         foreach ($this->lines[$file] ?? [] as $line => $hits) {
-            if (null !== $hits && $line >= $first && $line <= $last) {
+            if (null !== $hits && [] !== $hits && $line >= $first && $line <= $last) {
                 return true;
             }
         }

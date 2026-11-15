@@ -53,7 +53,7 @@ final readonly class ResumeDecision
     public function stamp(): string
     {
         return $this->resume
-            ? \sprintf('coverage: resumed (%d tests, %d files)', \count($this->testFiles), \count($this->changedSrc))
+            ? \sprintf('coverage: resumed (%d test files, %d source files)', \count($this->testFiles), \count($this->changedSrc))
             : 'coverage: full';
     }
 }

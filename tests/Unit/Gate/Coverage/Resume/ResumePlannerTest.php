@@ -112,7 +112,7 @@ final class ResumePlannerTest extends TestCase
         yield 'kernel' => [static fn (self $t) => $t->replace('src/Kernel.php', 'echo 1;', 'echo 2;'), 'src/Kernel.php changed: wiring or code shared by every test (--full-glob)'];
         yield 'signature' => [static fn (self $t) => $t->replace('src/Calc.php', 'int $b)', 'int $b = 0)'), 'src/Calc.php changed outside function bodies (signature, property, constant, attribute, import, inheritance)'];
         yield 'parent class' => [static fn (self $t) => $t->replace('src/Child.php', 'final class', 'class'), 'src/Child.php changed outside function bodies (signature, property, constant, attribute, import, inheritance)'];
-        yield 'body without executable line' => [static fn (self $t) => $t->replace('src/Silent.php', "    {\n    }", "    {\n        \$this->x = 1;\n    }"), 'src/Silent.php: the function at lines 6-7 changed and had no executable line in the kept run, so no test is known to call it'];
+        yield 'body without executable line' => [static fn (self $t) => $t->replace('src/Silent.php', "    {\n    }", "    {\n        \$this->x = 1;\n    }"), 'src/Silent.php: the function at lines 6-7 changed and no test of the kept run executed it (bootstrap, extension, warm-up or subprocess code, or an empty body), so no test is known to call it'];
     }
 
     /**
@@ -181,7 +181,7 @@ final class ResumePlannerTest extends TestCase
         self::assertSame(['tests/CalcTest.php', 'tests/FailedTest.php', 'tests/Gate/RoutesTest.php', 'tests/NewTest.php'], $decision->testFiles);
         self::assertSame([], $decision->changedSrc);
         self::assertSame(['tests/ChildTest.php'], $decision->deletedTests);
-        self::assertSame('coverage: resumed (4 tests, 0 files)', $decision->stamp());
+        self::assertSame('coverage: resumed (4 test files, 0 source files)', $decision->stamp());
     }
 
     public function testABodyChangeRerunsTheTestsThatExecutedTheFileTheNamingTestsAndTheUnattributedOnes(): void
@@ -194,7 +194,7 @@ final class ResumePlannerTest extends TestCase
         self::assertTrue($decision->resume, implode(', ', $decision->reasons));
         self::assertSame(['tests/CalcTest.php', 'tests/ProviderTest.php', 'tests/SubprocessTest.php'], $decision->testFiles);
         self::assertSame(['src/Calc.php'], $decision->changedSrc);
-        self::assertSame('coverage: resumed (3 tests, 1 files)', $decision->stamp());
+        self::assertSame('coverage: resumed (3 test files, 1 source files)', $decision->stamp());
 
         $withoutNames = (new ResumePlanner())->plan($this->options(['--no-name-references']), $state, $this->snapshot(), self::TOOLCHAIN);
         self::assertSame(['tests/CalcTest.php', 'tests/SubprocessTest.php'], $withoutNames->testFiles);
@@ -221,6 +221,84 @@ final class ResumePlannerTest extends TestCase
         $decision = (new ResumePlanner())->plan($this->options(), $state, $this->snapshot(), self::TOOLCHAIN);
 
         self::assertSame(['tests/CalcTest.php', 'tests/SubprocessTest.php'], $decision->testFiles);
+    }
+
+    public function testAKeptRunThatFailedOutsideAnyTestCaseIsNotResumed(): void
+    {
+        // QF-H1: failOn* issues, runner warnings, setUpBeforeClass or provider errors leave no failing test case.
+        $failedOutside = $this->state(['failed' => [], 'testsStatus' => 'failed']);
+        $gateOnly = $this->state(['failed' => [], 'testsStatus' => 'passed', 'status' => 'failed']);
+        $this->write('tests/CalcTest.php', '<?php // changed');
+
+        $decision = (new ResumePlanner())->plan($this->options(), $failedOutside, $this->snapshot(), self::TOOLCHAIN);
+
+        self::assertFalse($decision->resume);
+        self::assertSame(["the kept run's tests failed outside any test case the JUnit log names (failOn* issues, runner warnings, setUpBeforeClass or data provider errors)"], $decision->reasons);
+        self::assertTrue((new ResumePlanner())->plan($this->options(), $gateOnly, $this->snapshot(), self::TOOLCHAIN)->resume, 'only the coverage gate failed');
+    }
+
+    public function testAFailedKeptRunWithFailOnIssuesIsNotResumedUnlessTrusted(): void
+    {
+        $this->write('phpunit.xml.dist', '<phpunit failOnDeprecation="true" failOnNotice="false" failOnWarning = "true">');
+        $failed = $this->state();
+        $green = $this->state(['failed' => []]);
+        $this->write('tests/CalcTest.php', '<?php // changed');
+
+        self::assertSame(["the kept run's tests failed and the PHPUnit configuration sets failOnDeprecation, failOnWarning, whose issues the JUnit log does not record (--trust-junit-failures reruns only the failing files)"], $this->planWith($failed)->reasons);
+        self::assertSame(['tests/CalcTest.php', 'tests/FailedTest.php'], $this->planWith($failed, ['--trust-junit-failures'])->testFiles);
+        self::assertTrue($this->planWith($failed, ['--phpunit-config=missing.xml'])->resume, 'no configuration found');
+        self::assertTrue($this->planWith($green)->resume, 'a green kept run is not concerned');
+    }
+
+    public function testASourceResumeRerunsTheTestsThePerTestDataCannotAttribute(): void
+    {
+        $unattributable = [
+            'tests/CoversTest.php' => "<?php
+#[\PHPUnit\Framework\Attributes\CoversClass(Foo::class)]
+final class CoversTest {}",
+            'tests/CoversShortTest.php' => "<?php
+#[CoversMethod(Foo::class, 'bar')]
+final class CoversShortTest {}",
+            'tests/AnnotationTest.php' => "<?php
+/** @covers \App\Foo */
+final class AnnotationTest {}",
+            'tests/BeforeClassTest.php' => '<?php
+final class BeforeClassTest { public static function setUpBeforeClass(): void {} }',
+            'tests/DependsTest.php' => "<?php
+final class DependsTest { #[DependsExternal(OtherTest::class, 'testX')] public function testY(): void {} }",
+            'tests/DependsOnTest.php' => "<?php
+final class DependsOnTest { #[Depends('OtherTest::testX')] public function testY(): void {} }",
+            'tests/ShellTest.php' => "<?php
+final class ShellTest { public function testY(): void { shell_exec('php bin/x'); } }",
+            'tests/ProcessTest.php' => "<?php
+final class ProcessTest { public function testY(): void { (new Process(['bin/x']))->run(); } }",
+        ];
+        foreach ($unattributable + ['tests/PlainTest.php' => "<?php
+final class PlainTest { #[Depends('testX')] public function testY(): void {} }"] as $path => $content) {
+            $this->write($path, $content);
+        }
+        $state = $this->state(['failed' => []]);
+        $this->write('tests/CalcTest.php', '<?php // a test-only change does not need them');
+        self::assertSame(['tests/CalcTest.php'], (new ResumePlanner())->plan($this->options(), $state, $this->snapshot(), self::TOOLCHAIN)->testFiles);
+
+        $this->replace('src/Base.php', 'return 1;', 'return 2;');
+        $decision = (new ResumePlanner())->plan($this->options(['--no-name-references']), $state, $this->snapshot(), self::TOOLCHAIN);
+
+        $expected = [...array_keys($unattributable), 'tests/CalcTest.php', 'tests/ChildTest.php', 'tests/SubprocessTest.php'];
+        sort($expected);
+        self::assertSame($expected, $decision->testFiles);
+    }
+
+    public function testInvalidCountersAreRefused(): void
+    {
+        foreach ([['resumes', -1], ['greenResumes', -99], ['greenResumes', 1001]] as [$counter, $value]) {
+            try {
+                $this->state([$counter => $value]);
+                self::fail('expected an exception');
+            } catch (\UnexpectedValueException $e) {
+                self::assertSame("kept state with an invalid {$counter} counter", $e->getMessage());
+            }
+        }
     }
 
     public function testDeletedTestFilesAreNotRerun(): void
@@ -266,6 +344,14 @@ final class ResumePlannerTest extends TestCase
     private function plan(array $args = [], array $state = []): ResumeDecision
     {
         return (new ResumePlanner())->plan($this->options($args), $this->state($state), $this->snapshot(), self::TOOLCHAIN);
+    }
+
+    /**
+     * @param list<string> $args
+     */
+    private function planWith(ResumeState $state, array $args = []): ResumeDecision
+    {
+        return (new ResumePlanner())->plan($this->options($args), $state, $this->snapshot(), self::TOOLCHAIN);
     }
 
     /**
@@ -318,7 +404,9 @@ final class ResumePlannerTest extends TestCase
             'testClasses' => ['CalcTest' => 0, 'ChildTest' => 1, 'GreeterTest' => 2, 'ProviderTest' => 3, 'SubprocessTest' => 4, 'FailedTest' => 5],
             'index' => ['src/Calc.php' => [0], 'src/Child.php' => [1], 'src/Grandchild.php' => [1], 'src/Greeter.php' => [2], 'src/Silent.php' => [5], 'src/functions.php' => [0], 'tests/ProviderTest.php' => [3]],
             'failed' => ['tests/FailedTest.php'],
+            'coverageHash' => 'x',
         ];
+        $data['testsStatus'] = [] === ($overrides['failed'] ?? $data['failed']) ? 'passed' : 'failed';
 
         return ResumeState::fromArray($overrides + $data);
     }

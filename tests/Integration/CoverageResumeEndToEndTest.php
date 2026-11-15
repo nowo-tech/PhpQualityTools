@@ -132,7 +132,7 @@ final class CoverageResumeEndToEndTest extends TestCase
     {
         self::assertSame(3, $this->cli('plan')[0]);
         $this->phpunit('phpunit.xml', 'var/run.cov', 'var/junit.xml');
-        self::assertSame(0, $this->cli('save', '--coverage=var/run.cov', '--junit=var/junit.xml', '--status=passed')[0]);
+        self::assertSame(0, $this->cli('save', '--coverage=var/run.cov', '--junit=var/junit.xml', '--tests-status=passed', '--status=passed')[0]);
 
         // Other::thrice() no longer calls Calc::triple(): only a full run or a correct merge sees triple() uncovered.
         file_put_contents($this->root . '/src/Other.php', str_replace('return (new Calc())->triple($a);', 'return $a * 3;', self::OTHER));

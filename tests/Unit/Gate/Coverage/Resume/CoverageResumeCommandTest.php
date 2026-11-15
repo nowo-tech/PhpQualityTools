@@ -47,7 +47,8 @@ final class CoverageResumeCommandTest extends TestCase
         self::assertStringContainsString('ERROR: Unknown action nope', $this->cli('nope')[2]);
         self::assertStringContainsString('ERROR: Unknown option --clover for plan', $this->cli('plan', '--clover=x')[2]);
         self::assertStringContainsString('ERROR: --max-resumes must be a whole number', $this->cli('plan', '--max-resumes=x')[2]);
-        self::assertStringContainsString('save needs --status=passed or --status=failed', $this->cli('save', '--status=green')[2]);
+        self::assertStringContainsString('save needs --tests-status=passed|failed and --status=passed|failed', $this->cli('save', '--status=green', '--tests-status=passed')[2]);
+        self::assertStringContainsString('save needs --tests-status=passed|failed and --status=passed|failed', $this->cli('save', '--status=passed')[2]);
     }
 
     public function testAFailedFullRunThenASourceFixResumesAndMergesLikeAFullRun(): void
@@ -59,7 +60,7 @@ final class CoverageResumeCommandTest extends TestCase
         [$code, , $err] = $this->cli('plan');
         self::assertSame(3, $code);
         self::assertStringContainsString("full suite —\n  no kept run", $err);
-        self::assertSame([0, "coverage: full\n", ''], $this->cli('status'));
+        self::assertSame([1, "coverage: unknown (no saved run)\n", ''], $this->cli('status'), 'QF-L1: a plan writes no stamp');
 
         // 2. The full run (OtherTest failed) is kept.
         $this->writeLegacyCoverage($this->root . '/var/run.cov', [
@@ -67,7 +68,7 @@ final class CoverageResumeCommandTest extends TestCase
             $other => [7 => ['App\Tests\OtherTest::testThrice']],
         ], ['App\Tests\CalcTest::testAdd' => ['size' => 'unknown', 'status' => 'success'], 'App\Tests\OtherTest::testThrice' => ['size' => 'unknown', 'status' => 'failure']]);
         $this->junit('var/junit.xml', ['App\Tests\CalcTest' => 'tests/CalcTest.php', 'App\Tests\OtherTest' => 'tests/OtherTest.php'], ['tests/OtherTest.php']);
-        [$code, $out] = $this->cli('save', '--coverage=var/run.cov', '--junit=var/junit.xml', '--status=failed', '--commit=abc123');
+        [$code, $out] = $this->cli('save', '--coverage=var/run.cov', '--junit=var/junit.xml', '--tests-status=failed', '--status=failed', '--commit=abc123');
         self::assertSame(0, $code);
         self::assertSame("coverage-resume: kept the full run (failed, 2 test file(s)) as the base of the next resume\n", $out);
         $state = $this->state();
@@ -75,6 +76,9 @@ final class CoverageResumeCommandTest extends TestCase
         self::assertSame(['src/Calc.php' => [0, 1], 'src/Other.php' => [1]], $state['index']);
         self::assertSame(['tests/OtherTest.php'], $state['failed']);
         self::assertSame(self::TOOLCHAIN + ['driver' => 'unknown'], $state['toolchain']);
+        self::assertSame('failed', $state['testsStatus']);
+        self::assertSame(sha1_file($this->root . '/var/run.cov'), $state['coverageHash']);
+        self::assertSame([1, "coverage: unknown (the saved run failed: coverage: full)\n", ''], $this->cli('status'));
 
         // 3. A body-only fix of Other.php: Other no longer calls Calc::triple().
         file_put_contents($other, str_replace('return (new Calc())->triple($a);', 'return $a * 3;', self::OTHER));
@@ -82,7 +86,7 @@ final class CoverageResumeCommandTest extends TestCase
         self::assertSame(0, $code, $err);
         self::assertSame("tests/OtherTest.php\n", $out);
         self::assertSame("coverage-resume: resumed — 1 test file(s) for 1 changed source file(s): src/Other.php\n", $err);
-        self::assertSame([0, "coverage: resumed (1 tests, 1 files)\n", ''], $this->cli('status'));
+        self::assertSame([1, "coverage: unknown (files changed since the saved run)\n", ''], $this->cli('status'), 'QF-L1: the plan did not stamp anything');
 
         // 4. The rerun of OtherTest, merged: Calc line 12 (only OtherTest reached it) is stale and dropped.
         $this->writeLegacyCoverage($this->root . '/var/part.cov', [
@@ -99,14 +103,17 @@ final class CoverageResumeCommandTest extends TestCase
         self::assertStringContainsString('<line num="12" type="stmt" count="0"/>', (string) file_get_contents($this->root . '/var/clover.xml'));
 
         // 5. The resumed run passed: kept, with one green resume.
-        [$code, $out] = $this->cli('save', '--coverage=var/coverage/resume/merged.cov', '--junit=var/part.xml', '--status=passed');
+        [$code, $out] = $this->cli('save', '--coverage=var/coverage/resume/merged.cov', '--junit=var/part.xml', '--tests-status=passed', '--status=passed');
         self::assertSame(0, $code);
         self::assertSame("coverage-resume: kept the resumed run (passed, 2 test file(s)) as the base of the next resume; 1 green resume(s) since the last full run\n", $out);
         $state = $this->state();
         self::assertSame(['resumed', 'passed', 1, 1, '', 'abc123'], [$state['mode'], $state['status'], $state['resumes'], $state['greenResumes'], $state['commit'], $state['fullCommit']]);
         self::assertSame([], $state['failed']);
         self::assertSame(['App\Tests\CalcTest' => 0, 'App\Tests\OtherTest' => 1], $state['testClasses']);
-        self::assertSame('coverage: resumed (1 tests, 1 files)', $state['stamp']);
+        self::assertSame('coverage: resumed (1 test files, 1 source files)', $state['stamp']);
+        self::assertSame([0, "coverage: resumed (1 test files, 1 source files)\n", ''], $this->cli('status'));
+        self::assertSame(3, $this->cli('plan')[0], 'a bare plan (here: full by policy)…');
+        self::assertSame([0, "coverage: resumed (1 test files, 1 source files)\n", ''], $this->cli('status'), '…does not change the stamp (QF-L1)');
 
         // 6. The marker policy: the next run is the full suite.
         file_put_contents($calc, str_replace('$a + $b', '$b + $a', self::CALC));
@@ -115,7 +122,7 @@ final class CoverageResumeCommandTest extends TestCase
         self::assertStringContainsString('1 resumed run(s) already passed since the last full run (--max-green-resumes=1)', $err);
 
         // 7. A full run resets the counters.
-        $this->cli('save', '--coverage=var/run.cov', '--junit=var/junit.xml', '--status=passed');
+        $this->cli('save', '--coverage=var/run.cov', '--junit=var/junit.xml', '--tests-status=passed', '--status=passed');
         self::assertSame(['full', 0, 0], [$this->state()['mode'], $this->state()['resumes'], $this->state()['greenResumes']]);
     }
 
@@ -126,7 +133,7 @@ final class CoverageResumeCommandTest extends TestCase
         $this->cli('plan');
         file_put_contents($this->root . '/src/Calc.php', self::CALC . "\n");
 
-        [$code, , $err] = $this->cli('save', '--coverage=var/run.cov', '--junit=var/junit.xml', '--status=passed');
+        [$code, , $err] = $this->cli('save', '--coverage=var/run.cov', '--junit=var/junit.xml', '--tests-status=passed', '--status=passed');
 
         self::assertSame(0, $code);
         self::assertSame("coverage-resume: files changed during the run — nothing kept, the next run is the full suite\n", $err);
@@ -139,8 +146,8 @@ final class CoverageResumeCommandTest extends TestCase
 
         $this->cli('plan');
         self::assertSame([1, '', "coverage-resume: nothing to merge: the last plan was not a resume\n"], $this->cli('merge'));
-        self::assertSame([1, '', "coverage-resume: --coverage=<file> is required\n"], $this->cli('save', '--status=failed'));
-        self::assertSame([1, '', "coverage-resume: coverage data not found: {$this->root}/none.cov\n"], $this->cli('save', '--status=failed', '--coverage=none.cov', '--junit=x'));
+        self::assertSame([1, '', "coverage-resume: --coverage=<file> is required\n"], $this->cli('save', '--tests-status=passed', '--status=failed'));
+        self::assertSame([1, '', "coverage-resume: coverage data not found: {$this->root}/none.cov\n"], $this->cli('save', '--tests-status=passed', '--status=failed', '--coverage=none.cov', '--junit=x'));
 
         $this->keepFullRun();
         file_put_contents($this->root . '/tests/OtherTest.php', '<?php // fixed');
@@ -155,6 +162,9 @@ final class CoverageResumeCommandTest extends TestCase
         self::assertStringContainsString('cannot merge, run the full suite — coverage driver changed (unknown → [{"name":"PHP","version":"8.4.0"},{"name":"pcov"}])', $err);
 
         $this->writeSerializedCoverage($this->root . '/var/coverage/resume/coverage.cov', [], [], [], '', ['/x.php' => ['f' => []]]);
+        $state = $this->state();
+        $state['coverageHash'] = sha1_file($this->root . '/var/coverage/resume/coverage.cov');
+        file_put_contents($this->root . '/var/coverage/resume/state.json', json_encode($state));
         $this->writeSerializedCoverage($this->root . '/var/serialized.cov', [], [], [], '', [], true);
         [$code, , $err] = $this->cli('merge', '--coverage=var/serialized.cov', '--junit=var/part.xml', '--clover=var/c.xml');
         self::assertSame(3, $code);
@@ -162,7 +172,7 @@ final class CoverageResumeCommandTest extends TestCase
 
         // The kept run vanished between the plan and the save of a resume.
         unlink($this->root . '/var/coverage/resume/state.json');
-        self::assertSame([1, '', "coverage-resume: the kept run disappeared during the resume\n"], $this->cli('save', '--status=passed', '--coverage=var/run.cov', '--junit=var/junit.xml'));
+        self::assertSame([1, '', "coverage-resume: the kept run disappeared during the resume\n"], $this->cli('save', '--tests-status=passed', '--status=passed', '--coverage=var/run.cov', '--junit=var/junit.xml'));
     }
 
     public function testAPhptTestIsItsOwnFileAndIsDroppedWhenRerun(): void
@@ -172,7 +182,7 @@ final class CoverageResumeCommandTest extends TestCase
         $this->cli('plan');
         $this->writeLegacyCoverage($this->root . '/var/run.cov', [$this->root . '/src/Calc.php' => [7 => [$phpt], 12 => [$phpt]], $this->root . '/src/Other.php' => [7 => [$phpt]]]);
         $this->junit('var/junit.xml', [], []);
-        self::assertSame(0, $this->cli('save', '--coverage=var/run.cov', '--junit=var/junit.xml', '--status=failed')[0]);
+        self::assertSame(0, $this->cli('save', '--coverage=var/run.cov', '--junit=var/junit.xml', '--tests-status=passed', '--status=failed')[0]);
         self::assertSame(['tests/calc.phpt'], $this->state()['testFiles']);
         self::assertSame(['src/Calc.php' => [0], 'src/Other.php' => [0]], $this->state()['index']);
 
@@ -188,7 +198,7 @@ final class CoverageResumeCommandTest extends TestCase
 
     public function testStatusForgetAndAStateOfAnotherFormat(): void
     {
-        self::assertSame([1, '', "coverage-resume: no run planned yet\n"], $this->cli('status'));
+        self::assertSame([1, "coverage: unknown (no saved run)\n", ''], $this->cli('status'));
 
         $this->keepFullRun();
         file_put_contents($this->root . '/var/coverage/resume/state.json', '{"format": 0}');
@@ -199,6 +209,27 @@ final class CoverageResumeCommandTest extends TestCase
 
         self::assertSame([0, "coverage-resume: kept state removed\n", ''], $this->cli('forget'));
         self::assertFileDoesNotExist($this->root . '/var/coverage/resume/coverage.cov');
+    }
+
+    public function testFailingTestsFailTheSavedRunAndAStateOfAnotherCoverageFileIsRefused(): void
+    {
+        $this->cli('plan');
+        $this->writeLegacyCoverage($this->root . '/var/run.cov', [$this->root . '/src/Calc.php' => [7 => ['App\Tests\CalcTest::testAdd']]]);
+        $this->junit('var/junit.xml', ['App\Tests\CalcTest' => 'tests/CalcTest.php'], []);
+        $this->cli('save', '--coverage=var/run.cov', '--junit=var/junit.xml', '--tests-status=failed', '--status=passed');
+        self::assertSame(['failed', 'failed'], [$this->state()['testsStatus'], $this->state()['status']], 'failing tests never make a passed run');
+        self::assertSame([], glob($this->root . '/var/coverage/resume/*.tmp'), 'QF-L2: written through temporary files');
+
+        file_put_contents($this->root . '/tests/CalcTest.php', '<?php // fixed');
+        [$code, , $err] = $this->cli('plan');
+        self::assertSame(3, $code);
+        self::assertStringContainsString("the kept run's tests failed outside any test case the JUnit log names", $err, 'QF-H1');
+
+        // QF-L2: a coverage file of another run (an interrupted save) is not this state's.
+        file_put_contents($this->root . '/var/coverage/resume/coverage.cov', '<?php return 1;');
+        [$code, , $err] = $this->cli('plan');
+        self::assertSame(3, $code);
+        self::assertStringContainsString('no kept run', $err);
     }
 
     public function testTheDefaultToolchainReadsTheInstalledVersions(): void
@@ -226,7 +257,7 @@ final class CoverageResumeCommandTest extends TestCase
             $this->root . '/src/Other.php' => [7 => ['App\Tests\OtherTest::testThrice']],
         ]);
         $this->junit('var/junit.xml', ['App\Tests\CalcTest' => 'tests/CalcTest.php', 'App\Tests\OtherTest' => 'tests/OtherTest.php'], []);
-        self::assertSame(0, $this->cli('save', '--coverage=var/run.cov', '--junit=var/junit.xml', '--status=failed')[0]);
+        self::assertSame(0, $this->cli('save', '--coverage=var/run.cov', '--junit=var/junit.xml', '--tests-status=passed', '--status=failed')[0]);
     }
 
     /**

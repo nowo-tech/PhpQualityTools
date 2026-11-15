@@ -10,20 +10,22 @@ namespace NowoTech\PhpQualityTools\Gate\Coverage\Resume;
  * Full suite when:
  * - forced, there is no kept run, or the kept run is from another format, project root, PHP, PHPUnit or
  *   php-code-coverage version;
+ * - the kept run's tests failed and the JUnit log names no failing test case, or the PHPUnit configuration sets a
+ *   `failOn*` option (its issues are not in the JUnit log) unless `--trust-junit-failures`;
  * - the marker policy says so: a resumed run already passed since the last full run (`--max-green-resumes`, default
  *   1), or too many resumes were chained (`--max-resumes`, default 5);
  * - any changed file is not a source or test file (configuration, migrations, Composer files, PHPUnit
  *   configuration, templates...), or is a non-test file under the test directories (bootstrap, helpers, fixtures);
  * - a source file was added, deleted or renamed, is not PHP, matches a `--full-glob` (container, kernel, bundle,
- *   migrations, fixtures), changed outside its function bodies ({@see PhpSkeleton}), or changed a function in which
- *   the kept run saw no executable line (nothing records who calls it);
+ *   migrations, fixtures), changed outside its function bodies ({@see PhpSkeleton}), or changed a function no test of
+ *   the kept run executed (nothing records who calls it);
  * - more than `--max-src-files` source files changed (default 10);
  * - there is nothing to rerun.
  *
  * A resume reruns, by test file: the tests that executed any line of a changed source file or of a class extending,
  * implementing or using one of its classes (transitively); every test file naming one of those classes (data
- * providers run outside the per-test coverage); the test files with no recorded coverage at all; the changed and new
- * test files; the kept run's failed test files; and the `--always` (gate) test files.
+ * providers run outside the per-test coverage); the test files with no recorded coverage at all and those the
+ * per-test data cannot attribute ({@see unattributableTests()}); the changed and new test files; the kept run's failed test files; and the `--always` (gate) test files.
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
@@ -33,6 +35,11 @@ namespace NowoTech\PhpQualityTools\Gate\Coverage\Resume;
 final class ResumePlanner
 {
     private const MAX_REASONS = 5;
+
+    /** See {@see unattributableTests()}. */
+    private const UNATTRIBUTABLE = '/#\[\s*\\\\?(?:PHPUnit\\\\Framework\\\\Attributes\\\\)?(?:Covers\w*|BeforeClass|DependsExternal\w*|Depends\w*\(\s*[^)]*::)'
+        . '|@(?:covers|coversDefaultClass|beforeClass)\b|@depends\s+\S+::|\bsetUpBeforeClass\s*\('
+        . '|\b(?:shell_exec|exec|proc_open|system|passthru|popen|pcntl_exec)\s*\(|\bnew\s+\\\\?(?:Symfony\\\\Component\\\\Process\\\\)?Process\b/';
 
     /**
      * @param array<string, string> $snapshot  the current files ({@see Snapshot::take()})
@@ -101,6 +108,9 @@ final class ResumePlanner
             foreach ($this->testsNaming($options, $state, $changedSrc, $snapshot) as $test) {
                 $selected[$test] = true;
             }
+            foreach ($this->unattributableTests($options, $snapshot) as $test) {
+                $selected[$test] = true;
+            }
         }
         foreach ([...$changedTests, ...$state->failed] as $test) {
             $selected[$test] = true;
@@ -136,6 +146,11 @@ final class ResumePlanner
             if ($kept !== $now) {
                 $reasons[] = "kept run made with {$label} {$kept}, now {$now}";
             }
+        }
+        if ('failed' === $state->testsStatus && [] === $state->failed) {
+            $reasons[] = 'the kept run\'s tests failed outside any test case the JUnit log names (failOn* issues, runner warnings, setUpBeforeClass or data provider errors)';
+        } elseif ('failed' === $state->testsStatus && !$options->trustJunitFailures && [] !== $failOn = $options->failOnOptions()) {
+            $reasons[] = 'the kept run\'s tests failed and the PHPUnit configuration sets ' . implode(', ', $failOn) . ', whose issues the JUnit log does not record (--trust-junit-failures reruns only the failing files)';
         }
         if ($state->greenResumes >= $options->maxGreenResumes) {
             $reasons[] = \sprintf('%d resumed run(s) already passed since the last full run (--max-green-resumes=%d)', $state->greenResumes, $options->maxGreenResumes);
@@ -182,7 +197,7 @@ final class ResumePlanner
         foreach ($now->bodies as $i => [, , $hash]) {
             [$first, $last, $keptHash, $executable] = $kept['bodies'][$i];
             if ($hash !== $keptHash && !$executable) {
-                return ["{$path}: the function at lines {$first}-{$last} changed and had no executable line in the kept run, so no test is known to call it"];
+                return ["{$path}: the function at lines {$first}-{$last} changed and no test of the kept run executed it (bootstrap, extension, warm-up or subprocess code, or an empty body), so no test is known to call it"];
             }
         }
 
@@ -237,6 +252,32 @@ final class ResumePlanner
         foreach (array_keys($snapshot) as $path) {
             $path = (string) $path;
             if ($options->isTestFile($path) && 1 === preg_match($pattern, (string) file_get_contents($options->root . '/' . $path))) {
+                $tests[] = $path;
+            }
+        }
+
+        return $tests;
+    }
+
+    /**
+     * Test files whose per-test data cannot show what they depend on, rerun on every source resume:
+     * - coverage metadata (`#[CoversClass]`, `#[CoversMethod]`, `@covers`…): php-code-coverage keeps only the covered
+     *   targets of such a test, so the code it runs elsewhere is not recorded against it;
+     * - `setUpBeforeClass()` / `#[BeforeClass]`: runs outside any test's coverage;
+     * - `#[DependsExternal]` / `#[Depends*('Other::test')]` / `@depends Other::test`: consumes another file's result;
+     * - subprocesses (`shell_exec`, `exec`, `proc_open`, `system`, `passthru`, `popen`, Symfony `Process`): run code
+     *   no coverage of this process records.
+     *
+     * @param array<string, string> $snapshot
+     *
+     * @return list<string>
+     */
+    private function unattributableTests(ResumeOptions $options, array $snapshot): array
+    {
+        $tests = [];
+        foreach (array_keys($snapshot) as $path) {
+            $path = (string) $path;
+            if ($options->isTestFile($path) && 1 === preg_match(self::UNATTRIBUTABLE, (string) file_get_contents($options->root . '/' . $path))) {
                 $tests[] = $path;
             }
         }

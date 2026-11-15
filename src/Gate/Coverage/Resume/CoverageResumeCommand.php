@@ -17,7 +17,8 @@ use PHPUnit\Runner\Version;
  *           rerun / deleted test classes, add the new run's data; write the merged --coverage-php file and Clover
  *   save    after any run: keep its per-test data and analysis as the base of the next resume (nothing is kept when
  *           files changed during the run)
- *   status  print the stamp of the last decision ("coverage: full" or "coverage: resumed (k tests, m files)")
+ *   status  print the stamp of the last saved run ("coverage: full" or "coverage: resumed (k test files, m source
+ *           files)") when it passed and the files are still those it ran on; otherwise "coverage: unknown …", exit 1
  *   forget  remove the kept state
  *
  * See {@see ResumePlanner} for the rules and docs/USAGE.md ("Coverage resume") for the workflow.
@@ -32,13 +33,15 @@ final class CoverageResumeCommand
     public const USAGE = <<<'TXT'
         Usage: coverage-resume plan   [<options>]
                coverage-resume merge  --coverage=<new.cov> --junit=<junit.xml> --clover=<out.xml> [--coverage-out=<file>] [<options>]
-               coverage-resume save   --coverage=<run.cov> --junit=<junit.xml> --status=passed|failed [--commit=<sha>] [<options>]
+               coverage-resume save   --coverage=<run.cov> --junit=<junit.xml> --tests-status=passed|failed
+                                      --status=passed|failed [--commit=<sha>] [<options>]
                coverage-resume status [<options>]
                coverage-resume forget [<options>]
 
         plan prints the test files a resume reruns (exit 0) or the reasons for the full suite (stderr, exit 3).
         Run the tests with --coverage-php and --log-junit; after a resume, merge into the kept run; after any run,
-        save it (--status of the tests and the coverage gate). The merged Clover report replaces the full run's.
+        save it (--tests-status: PHPUnit's exit status; --status: the tests and the coverage gate). The merged
+        Clover report replaces the full run's. status prints the stamp of the saved run for the files as they are now.
           --state=<dir>              kept state (default var/coverage/resume)
           --src=<dir>                source directory, repeatable (default src)
           --tests=<dir>              test directory, repeatable (default tests)
@@ -56,6 +59,10 @@ final class CoverageResumeCommand
                                      --exclude-standard); default: every file under the root
           --no-name-references       do not rerun the test files that only name a changed class
           --force-full               always the full suite (also FORCE_COVERAGE=1 or COVERAGE_RESUME=0)
+          --trust-junit-failures     after a kept run whose tests failed, rerun only the failing files although the
+                                     PHPUnit configuration sets failOn* (issues the JUnit log does not record)
+          --phpunit-config=<file>    PHPUnit configuration read for failOn*, repeatable (default: phpunit.xml,
+                                     phpunit.xml.dist, phpunit.dist.xml; the first found)
         Exit codes: 0 OK (plan: resume), 3 full suite needed, 1 run failure (missing or unreadable data), 2 usage.
         TXT;
 
@@ -115,7 +122,7 @@ final class CoverageResumeCommand
         } catch (\InvalidArgumentException $e) {
             return $this->usageError($e->getMessage());
         }
-        $allowed = ['plan' => [], 'status' => [], 'forget' => [], 'merge' => ['coverage', 'junit', 'clover', 'coverage-out'], 'save' => ['coverage', 'junit', 'status', 'commit']];
+        $allowed = ['plan' => [], 'status' => [], 'forget' => [], 'merge' => ['coverage', 'junit', 'clover', 'coverage-out'], 'save' => ['coverage', 'junit', 'status', 'tests-status', 'commit']];
         if (!isset($allowed[$action])) {
             return $this->usageError("Unknown action {$action}");
         }
@@ -154,7 +161,6 @@ final class CoverageResumeCommand
             'snapshot' => $snapshot,
             'toolchain' => $toolchain,
         ]);
-        file_put_contents($options->statePath('stamp.txt'), $decision->stamp() . "\n");
         if (!$decision->resume) {
             fwrite($this->stderr, "coverage-resume: full suite —\n  " . implode("\n  ", $decision->reasons) . "\n");
 
@@ -218,8 +224,12 @@ final class CoverageResumeCommand
     private function save(ResumeOptions $options, array $rest): int
     {
         $status = $rest['status'] ?? '';
-        if (!\in_array($status, ['passed', 'failed'], true)) {
-            return $this->usageError('save needs --status=passed or --status=failed');
+        $testsStatus = $rest['tests-status'] ?? '';
+        if (!\in_array($status, ['passed', 'failed'], true) || !\in_array($testsStatus, ['passed', 'failed'], true)) {
+            return $this->usageError('save needs --tests-status=passed|failed and --status=passed|failed');
+        }
+        if ('failed' === $testsStatus) {
+            $status = 'failed';
         }
         $pending = $this->pending($options);
         if ($this->snapshot($options) !== $pending['snapshot']) {
@@ -269,6 +279,7 @@ final class CoverageResumeCommand
         $new = new ResumeState(
             $resumed ? 'resumed' : 'full',
             $status,
+            $testsStatus,
             $resumed ? $state->resumes + 1 : 0,
             $resumed ? $state->greenResumes + ($green ? 1 : 0) : 0,
             $options->root,
@@ -283,9 +294,14 @@ final class CoverageResumeCommand
             $index,
             $junit->failed,
             $pending['stamp'],
+            (string) sha1_file($coverageFile),
         );
+        // coverage.cov first, then state.json, each through a rename: an interrupted save leaves a state whose
+        // coverage hash does not match, which is refused.
         if (realpath($coverageFile) !== realpath($options->statePath('coverage.cov'))) {
-            copy($coverageFile, $options->statePath('coverage.cov'));
+            $temporary = $options->statePath('coverage.cov.' . getmypid() . '.tmp');
+            copy($coverageFile, $temporary);
+            rename($temporary, $options->statePath('coverage.cov'));
         }
         $this->writeJson($options->statePath('state.json'), $new->toArray());
         fwrite($this->stdout, \sprintf(
@@ -299,22 +315,32 @@ final class CoverageResumeCommand
         return 0;
     }
 
+    /**
+     * The stamp of the last saved run, only while the files are those it ran on and it passed: the stamp a tag
+     * message may carry. Nothing else (a plan, an interrupted run) changes it.
+     */
     private function status(ResumeOptions $options): int
     {
-        $stamp = @file_get_contents($options->statePath('stamp.txt'));
-        if (false === $stamp) {
-            fwrite($this->stderr, "coverage-resume: no run planned yet\n");
+        $state = $this->state($options);
+        $problem = match (true) {
+            !$state instanceof ResumeState => 'no saved run',
+            $state->snapshot !== $this->snapshot($options) => 'files changed since the saved run',
+            'passed' !== $state->status => "the saved run failed: {$state->stamp}",
+            default => null,
+        };
+        if (null !== $problem) {
+            fwrite($this->stdout, "coverage: unknown ({$problem})\n");
 
             return 1;
         }
-        fwrite($this->stdout, $stamp);
+        fwrite($this->stdout, $state->stamp . "\n");
 
         return 0;
     }
 
     private function forget(ResumeOptions $options, bool $quiet = false): int
     {
-        foreach (['state.json', 'coverage.cov', 'merged.cov', 'pending.json'] as $file) {
+        foreach (['state.json', 'coverage.cov', 'merged.cov', 'pending.json', 'stamp.txt'] as $file) {
             @unlink($options->statePath($file));
         }
         if (!$quiet) {
@@ -371,7 +397,7 @@ final class CoverageResumeCommand
             $absolute = $options->root . '/' . $path;
             $src[$path] = [
                 'skeleton' => $analysis->skeleton,
-                'bodies' => array_map(static fn (array $body): array => [$body[0], $body[1], $body[2], $coverage->hasExecutableLine($absolute, $body[0], $body[1])], $analysis->bodies),
+                'bodies' => array_map(static fn (array $body): array => [$body[0], $body[1], $body[2], $coverage->hasExecutedLine($absolute, $body[0], $body[1])], $analysis->bodies),
                 'declares' => $analysis->declares,
                 'parents' => $analysis->parents,
             ];
@@ -396,10 +422,13 @@ final class CoverageResumeCommand
         }
 
         try {
-            return ResumeState::fromArray($data);
+            $state = ResumeState::fromArray($data);
         } catch (\UnexpectedValueException) {
             return null;
         }
+
+        // A coverage file of another run (an interrupted save, a copy) is not this state's.
+        return sha1_file($options->statePath('coverage.cov')) === $state->coverageHash ? $state : null;
     }
 
     /**
@@ -435,7 +464,9 @@ final class CoverageResumeCommand
         if (!is_dir(\dirname($file))) {
             mkdir(\dirname($file), 0o777, true);
         }
-        file_put_contents($file, json_encode($data, \JSON_UNESCAPED_SLASHES | \JSON_THROW_ON_ERROR) . "\n");
+        $temporary = $file . '.' . getmypid() . '.tmp';
+        file_put_contents($temporary, json_encode($data, \JSON_UNESCAPED_SLASHES | \JSON_THROW_ON_ERROR) . "\n");
+        rename($temporary, $file);
     }
 
     /**

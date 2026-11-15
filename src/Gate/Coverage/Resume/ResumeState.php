@@ -8,10 +8,12 @@ namespace NowoTech\PhpQualityTools\Gate\Coverage\Resume;
  * The kept run (`<state dir>/state.json`, next to its `coverage.cov`): what the next run is compared with.
  *
  * - `snapshot`: content hash of every input file when the kept run started;
- * - `src`: per source file, its {@see PhpSkeleton} (skeleton hash; body line ranges, hashes and whether the kept
- *   run saw an executable line in each; declared and parent short names);
+ * - `src`: per source file, its {@see PhpSkeleton} (skeleton hash; body line ranges, hashes and whether a test of
+ *   the kept run executed a line of each; declared and parent short names);
  * - `testFiles` / `testClasses` / `index`: which test files executed each source file (from the per-test data);
- * - `failed`: test files with a failure or an error;
+ * - `failed`: test files with a failure or an error; `testsStatus`: whether the tests passed (apart from `status`,
+ *   which also covers the coverage gate), so a failure the JUnit log does not name is not forgotten;
+ * - `coverageHash`: sha1 of the kept `coverage.cov`, so a state and a coverage file of different runs are refused;
  * - `mode`, `status`, `resumes`, `greenResumes`: the marker policy — a full run resets the counters, each resume
  *   adds one (and one green resume when it passed), so the planner can force the full suite.
  *
@@ -22,7 +24,10 @@ namespace NowoTech\PhpQualityTools\Gate\Coverage\Resume;
  */
 final readonly class ResumeState
 {
-    public const FORMAT = 1;
+    public const FORMAT = 2;
+
+    /** A counter above this is not one this tool wrote. */
+    private const MAX_COUNTER = 1000;
 
     /**
      * @param array<string, string>                                                                                                                          $toolchain   php, phpunit, codeCoverage, driver
@@ -36,6 +41,7 @@ final readonly class ResumeState
     public function __construct(
         public string $mode,
         public string $status,
+        public string $testsStatus,
         public int $resumes,
         public int $greenResumes,
         public string $root,
@@ -50,13 +56,14 @@ final readonly class ResumeState
         public array $index,
         public array $failed,
         public string $stamp,
+        public string $coverageHash,
     ) {
     }
 
     /**
      * @param array<string, mixed> $data the decoded state.json
      *
-     * @throws \UnexpectedValueException when it is not a state of this format
+     * @throws \UnexpectedValueException when it is not a state of this format, or a counter is negative or absurd
      */
     public static function fromArray(array $data): self
     {
@@ -67,8 +74,14 @@ final readonly class ResumeState
         $int = static fn (string $key): int => \is_int($data[$key] ?? null) ? $data[$key] : 0;
         $array = static fn (string $key): array => \is_array($data[$key] ?? null) ? $data[$key] : [];
 
-        /* @phpstan-ignore-next-line argument.type (trusted file written by toArray()) */
-        return new self($string('mode'), $string('status'), $int('resumes'), $int('greenResumes'), $string('root'), $string('commit'), $string('fullCommit'), $string('createdAt'), $array('toolchain'), $array('snapshot'), $array('src'), $array('testFiles'), $array('testClasses'), $array('index'), $array('failed'), $string('stamp'));
+        foreach (['resumes', 'greenResumes'] as $counter) {
+            if ($int($counter) < 0 || $int($counter) > self::MAX_COUNTER) {
+                throw new \UnexpectedValueException("kept state with an invalid {$counter} counter");
+            }
+        }
+
+        /* @phpstan-ignore-next-line argument.type (file written by toArray(); its coverage hash is checked by the caller) */
+        return new self($string('mode'), $string('status'), $string('testsStatus'), $int('resumes'), $int('greenResumes'), $string('root'), $string('commit'), $string('fullCommit'), $string('createdAt'), $array('toolchain'), $array('snapshot'), $array('src'), $array('testFiles'), $array('testClasses'), $array('index'), $array('failed'), $string('stamp'), $string('coverageHash'));
     }
 
     /**

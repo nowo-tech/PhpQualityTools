@@ -21,17 +21,19 @@ final class CoverageResumeMakeTest extends TestCase
 {
     private const ROOT = __DIR__ . '/../..';
 
-    /** The stub: logs its arguments; plan / merge answer from plan.rc, plan.out and merge.rc; plan writes the stamp. */
+    /** The stub: logs its arguments (not status); plan / merge answer from plan.rc, plan.out and merge.rc; save writes the stamp status prints. */
     private const STUB = <<<'SH'
         #!/bin/sh
-        echo "cr $*" >> calls.log
+        [ "$1" = status ] || echo "cr $*" >> calls.log
         case "$1" in
           plan)
             rc=$(cat plan.rc 2>/dev/null || echo 3)
             case " $* " in *" --force-full "*) rc=3 ;; esac
-            if [ "$rc" = 0 ]; then echo "coverage: resumed (2 tests, 1 files)" > var/resume/stamp.txt; cat plan.out; else echo "coverage: full" > var/resume/stamp.txt; fi
+            [ "$rc" = 0 ] && cat plan.out
             exit "$rc" ;;
           merge) exit "$(cat merge.rc 2>/dev/null || echo 0)" ;;
+          save) case " $* " in *merged.cov*) echo "coverage: resumed (2 test files, 1 source files)" ;; *) echo "coverage: full" ;; esac > var/resume/stamp ;;
+          status) cat var/resume/stamp 2>/dev/null || { echo "coverage: unknown (no saved run)"; exit 1; } ;;
         esac
         exit 0
         SH;
@@ -75,12 +77,12 @@ final class CoverageResumeMakeTest extends TestCase
         $process = $this->make();
 
         self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
-        self::assertSame("php-coverage: passed — coverage: full\n", $process->getOutput());
+        self::assertSame("php-coverage: passed (tests passed, gate passed) — coverage: full\n", $process->getOutput());
         self::assertSame([
             'cr plan --state=var/resume',
             'full',
             'gate',
-            'cr save --state=var/resume --coverage=var/run.cov --junit=var/junit.xml --status=passed --commit=',
+            'cr save --state=var/resume --coverage=var/run.cov --junit=var/junit.xml --tests-status=passed --status=passed --commit=',
         ], $this->calls());
     }
 
@@ -92,13 +94,13 @@ final class CoverageResumeMakeTest extends TestCase
         $process = $this->make(['COVERAGE_RESUME_OPTIONS=--always=tests/Gate/*']);
 
         self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
-        self::assertSame("php-coverage: passed — coverage: resumed (2 tests, 1 files)\n", $process->getOutput());
+        self::assertSame("php-coverage: passed (tests passed, gate passed) — coverage: resumed (2 test files, 1 source files)\n", $process->getOutput());
         self::assertSame([
             'cr plan --state=var/resume --always=tests/Gate/*',
             'files tests/ATest.php tests/BTest.php',
             'cr merge --state=var/resume --always=tests/Gate/* --coverage=var/coverage/resume-part.cov --junit=var/coverage/resume-part.xml --clover=var/coverage/clover.xml',
             'gate',
-            'cr save --state=var/resume --always=tests/Gate/* --coverage=var/resume/merged.cov --junit=var/coverage/resume-part.xml --status=passed --commit=',
+            'cr save --state=var/resume --always=tests/Gate/* --coverage=var/resume/merged.cov --junit=var/coverage/resume-part.xml --tests-status=passed --status=passed --commit=',
         ], $this->calls());
     }
 
@@ -110,7 +112,7 @@ final class CoverageResumeMakeTest extends TestCase
         $process = $this->make(['GATE_RC=1']);
 
         self::assertNotSame(0, $process->getExitCode());
-        self::assertSame("php-coverage: failed — coverage: resumed (2 tests, 1 files)\n", $process->getOutput());
+        self::assertSame("php-coverage: failed (tests passed, gate failed) — coverage: resumed (2 test files, 1 source files)\n", $process->getOutput());
         self::assertStringContainsString('--status=failed', $this->calls()[4]);
     }
 
@@ -123,7 +125,7 @@ final class CoverageResumeMakeTest extends TestCase
         $process = $this->make();
 
         self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
-        self::assertSame("php-coverage: passed — coverage: full\n", $process->getOutput());
+        self::assertSame("php-coverage: passed (tests passed, gate passed) — coverage: full\n", $process->getOutput());
         self::assertSame(['cr plan --state=var/resume --force-full', 'full', 'gate'], \array_slice($this->calls(), 3, 3));
     }
 
@@ -144,14 +146,14 @@ final class CoverageResumeMakeTest extends TestCase
         file_put_contents($this->dir . '/plan.rc', '0');
         foreach (['FORCE_COVERAGE=1', 'NO_RESUME=1', 'COVERAGE_RESUME=0'] as $force) {
             @unlink($this->dir . '/calls.log');
-            self::assertSame("php-coverage: passed — coverage: full\n", $this->make([$force])->getOutput(), $force);
+            self::assertSame("php-coverage: passed (tests passed, gate passed) — coverage: full\n", $this->make([$force])->getOutput(), $force);
             self::assertSame('cr plan --state=var/resume --force-full', $this->calls()[0]);
         }
 
         @unlink($this->dir . '/calls.log');
         $process = $this->make(['FULL_RC=1', 'COVERAGE_RESUME=no']);
         self::assertNotSame(0, $process->getExitCode());
-        self::assertSame(['full', 'cr save --state=var/resume --coverage=var/run.cov --junit=var/junit.xml --status=failed --commit='], \array_slice($this->calls(), 1), 'no gate after failing tests');
+        self::assertSame(['full', 'cr save --state=var/resume --coverage=var/run.cov --junit=var/junit.xml --tests-status=failed --status=failed --commit='], \array_slice($this->calls(), 1), 'no gate after failing tests');
 
         @unlink($this->dir . '/calls.log');
         $process = $this->make(['NODATA=1', 'FORCE_COVERAGE=1']);
@@ -177,7 +179,7 @@ final class CoverageResumeMakeTest extends TestCase
         $git('commit', '-q', '--allow-empty', '-m', 'three');
         file_put_contents($this->dir . '/plan.rc', '0');
         file_put_contents($this->dir . '/plan.out', "tests/ATest.php\n");
-        file_put_contents($this->dir . '/var/resume/state.json', '{"format":1,"commit":"' . $first . '","fullCommit":"' . $first . '"}');
+        file_put_contents($this->dir . '/var/resume/state.json', '{"format":2,"commit":"' . $first . '","fullCommit":"' . $first . '"}');
 
         $process = $this->make(['COVERAGE_RESUME_GIT_FILES=1', 'COVERAGE_RESUME_MAX_COMMITS=1']);
 
@@ -189,11 +191,40 @@ final class CoverageResumeMakeTest extends TestCase
         self::assertStringEndsWith('--commit=' . trim($git('rev-parse', 'HEAD')->getOutput()), $this->calls()[3]);
 
         @unlink($this->dir . '/calls.log');
-        self::assertSame("php-coverage: passed — coverage: resumed (2 tests, 1 files)\n", $this->make(['COVERAGE_RESUME_MAX_COMMITS=2'])->getOutput());
+        self::assertSame("php-coverage: passed (tests passed, gate passed) — coverage: resumed (2 test files, 1 source files)\n", $this->make(['COVERAGE_RESUME_MAX_COMMITS=2'])->getOutput());
+
+        $status = $this->make([], 'coverage-resume-status');
+        self::assertSame([0, "coverage: resumed (2 test files, 1 source files)\n"], [$status->getExitCode(), $status->getOutput()]);
 
         @unlink($this->dir . '/calls.log');
         $this->make([], 'coverage-resume-forget');
         self::assertSame(['cr forget --state=var/resume'], $this->calls());
+    }
+
+    public function testAFailedResumedRunAndTheProjectLock(): void
+    {
+        file_put_contents($this->dir . '/plan.rc', '0');
+        file_put_contents($this->dir . '/plan.out', "tests/ATest.php\n");
+        file_put_contents($this->dir . '/Makefile', str_replace("files:\n\t@echo", "files:\n\t@exit $(FILES_RC); echo", (string) file_get_contents($this->dir . '/Makefile')));
+
+        $process = $this->make(['FILES_RC=1']);
+
+        self::assertNotSame(0, $process->getExitCode());
+        self::assertStringStartsWith('php-coverage: failed (tests failed, gate passed)', $process->getOutput());
+        self::assertSame('cr save --state=var/resume --coverage=var/resume/merged.cov --junit=var/coverage/resume-part.xml --tests-status=failed --status=failed --commit=', $this->calls()[2], 'no gate after failing tests');
+
+        if (!$this->exec(['sh', '-c', 'command -v flock'])->isSuccessful()) {
+            return;
+        }
+        $holder = new Process(['flock', 'var/resume/.lock', 'sleep', '20'], $this->dir);
+        $holder->start();
+        for ($i = 0; $i < 100 && !$this->exec(['sh', '-c', 'flock -n var/resume/.lock true'])->getExitCode(); ++$i) {
+            usleep(50_000);
+        }
+        $process = $this->make();
+        $holder->stop(0);
+        self::assertSame(2, $process->getExitCode());
+        self::assertSame("php-coverage: another php-coverage-resume runs in this project\n", $process->getOutput());
     }
 
     /**

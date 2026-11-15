@@ -92,9 +92,11 @@ final class PerTestCoverageTest extends TestCase
 
         self::assertSame(['A::x', 'B::y'], $coverage->testsOfFile('/a.php'));
         self::assertSame([], $coverage->testsOfFile('/missing.php'));
-        self::assertTrue($coverage->hasExecutableLine('/a.php', 4, 9), 'an executable line not executed still counts');
-        self::assertFalse($coverage->hasExecutableLine('/a.php', 3, 3), 'a non-executable line');
-        self::assertFalse($coverage->hasExecutableLine('/a.php', 5, 9));
-        self::assertFalse($coverage->hasExecutableLine('/missing.php', 1, 9));
+        self::assertTrue($coverage->hasExecutedLine('/a.php', 1, 1));
+        self::assertTrue($coverage->hasExecutedLine('/a.php', 2, 9));
+        self::assertFalse($coverage->hasExecutedLine('/a.php', 4, 9), 'QF-M1: an executable line no test executed does not count');
+        self::assertFalse($coverage->hasExecutedLine('/a.php', 3, 3), 'a non-executable line');
+        self::assertFalse($coverage->hasExecutedLine('/a.php', 5, 9));
+        self::assertFalse($coverage->hasExecutedLine('/missing.php', 1, 9));
     }
 }
