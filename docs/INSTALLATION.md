@@ -1,5 +1,12 @@
 # Installation
 
+## Table of contents
+
+- [Requirements](#requirements)
+- [Install the package](#install-the-package)
+- [What happens during install](#what-happens-during-install)
+- [Verify installation](#verify-installation)
+
 ## Requirements
 
 - PHP `>= 8.1 < 8.6`

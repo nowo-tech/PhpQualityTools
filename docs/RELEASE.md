@@ -2,7 +2,14 @@
 
 Use this checklist when cutting a new version.
 
-> Current release target: **1.8.0** (`v1.8.0`).
+> Current release: **1.13.0** (`v1.13.0`).
+
+## Table of contents
+
+- [Before releasing](#before-releasing)
+- [Releasing (e.g. 1.0.14)](#releasing-eg-1014)
+- [After pushing](#after-pushing)
+- [Tag message convention](#tag-message-convention)
 
 ## Before releasing
 

@@ -1,5 +1,12 @@
 # Configuration
 
+## Table of contents
+
+- [Base files](#base-files)
+- [Project customizations](#project-customizations)
+- [Composer scripts](#composer-scripts)
+- [Gate scripts and query budgets (since 1.2.0)](#gate-scripts-and-query-budgets-since-120)
+
 ## Base files
 
 The package installs base configuration files in the project root:
