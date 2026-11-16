@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/php-quality-tools`  
-**Last audited**: 2026-10-28
+**Last audited**: 2026-11-16 (1.13.0)
 
 This file proves that **every production source artifact** under `src/` is referenced by the baseline specification. PHPUnit tests under `tests/` and shipped config templates under `config/` are out of this inventory scope unless promoted in the spec.
 
@@ -134,6 +134,32 @@ Specified in [`specs/006-test-hygiene-gates/spec.md`](../006-test-hygiene-gates/
 | `Gate/WallClock/WallClockScanner.php` | PHP / JS wall-clock detection | FR-WC-001, FR-WC-002, FR-WC-003 |
 | `Gate/WallClock/WallClockFixturesCommand.php` | `bin/check-wallclock-fixtures` | FR-WC-004, FR-WC-005 |
 
+## Coverage tools and module-boundary layers (since 1.12.0)
+
+Coverage resume is specified in [`specs/008-coverage-resume/spec.md`](../008-coverage-resume/spec.md) (008 FR-001…FR-006) and layer rules in [`specs/007-module-boundary-layers/spec.md`](../007-module-boundary-layers/spec.md) (007 FR-001…FR-005).
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Gate/Coverage/CoverageGapsCommand.php` | `bin/coverage-gaps` | FR-GATE-COV-005 |
+| `Gate/Junit/SlowestTestsCommand.php` | `bin/slowest-tests` | FR-JUNIT-002 |
+| `Gate/Coverage/Resume/CoverageFormat.php` | `bin/coverage-resume` | FR-COVR-001 (008 FR-001…FR-006) |
+| `Gate/Coverage/Resume/CoverageResumeCommand.php` | `bin/coverage-resume` | FR-COVR-001 (008 FR-001…FR-006) |
+| `Gate/Coverage/Resume/JunitTests.php` | `bin/coverage-resume` | FR-COVR-001 (008 FR-001…FR-006) |
+| `Gate/Coverage/Resume/LoadedCoverage.php` | `bin/coverage-resume` | FR-COVR-001 (008 FR-001…FR-006) |
+| `Gate/Coverage/Resume/PerTestCoverage.php` | `bin/coverage-resume` | FR-COVR-001 (008 FR-001…FR-006) |
+| `Gate/Coverage/Resume/PhpSkeleton.php` | `bin/coverage-resume` | FR-COVR-001 (008 FR-001…FR-006) |
+| `Gate/Coverage/Resume/ResumeDecision.php` | `bin/coverage-resume` | FR-COVR-001 (008 FR-001…FR-006) |
+| `Gate/Coverage/Resume/ResumeOptions.php` | `bin/coverage-resume` | FR-COVR-001 (008 FR-001…FR-006) |
+| `Gate/Coverage/Resume/ResumePlanner.php` | `bin/coverage-resume` | FR-COVR-001 (008 FR-001…FR-006) |
+| `Gate/Coverage/Resume/ResumeState.php` | `bin/coverage-resume` | FR-COVR-001 (008 FR-001…FR-006) |
+| `Gate/Coverage/Resume/Snapshot.php` | `bin/coverage-resume` | FR-COVR-001 (008 FR-001…FR-006) |
+| `Gate/ModuleBoundary/LayerBaseline.php` | Module-boundary layers | FR-GATE-MB-009 (007 FR-001…FR-005) |
+| `Gate/ModuleBoundary/LayerChecker.php` | Module-boundary layers | FR-GATE-MB-009 (007 FR-001…FR-005) |
+| `Gate/ModuleBoundary/LayerConfig.php` | Module-boundary layers | FR-GATE-MB-009 (007 FR-001…FR-005) |
+| `Gate/ModuleBoundary/LayerRule.php` | Module-boundary layers | FR-GATE-MB-009 (007 FR-001…FR-005) |
+| `Gate/ModuleBoundary/LayerViolation.php` | Module-boundary layers | FR-GATE-MB-009 (007 FR-001…FR-005) |
+| `Gate/ModuleBoundary/ReferenceExtractor.php` | Module-boundary layers | FR-GATE-MB-009 (007 FR-001…FR-005) |
+
 ## Coverage summary
 
 | Category | Files | Mapped |
@@ -151,4 +177,5 @@ Specified in [`specs/006-test-hygiene-gates/spec.md`](../006-test-hygiene-gates/
 | Front-end and docs gates (`src/Gate/Svg/`, `src/Gate/Assets/`, `src/Gate/DocLinks/`, `resources/make/`, since 1.6.0) | 7 | 7 |
 | Test helpers and CI log tools (`src/Testing/`, `src/Gate/Junit/`, since 1.7.0) | 3 | 3 |
 | Test hygiene gates (`src/Gate/Coverage/`, `src/Gate/WallClock/`, since 1.11.0) | 3 | 3 |
-| **Total `src/` artifacts** | **51** | **51** |
+| Coverage tools and module-boundary layers (since 1.12.0) | 19 | 19 |
+| **Total `src/` artifacts** | **70** | **70** |

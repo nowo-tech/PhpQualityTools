@@ -1,7 +1,7 @@
 # Makefile for PHP Quality Tools
 # Simplifies Docker commands for development
 
-.PHONY: help ensure-up up down down-dev build shell install assets test test-coverage cs-check cs-fix rector rector-dry phpstan igor qa docs-links release-check composer-sync clean update validate setup-hooks check-no-cursor-coauthor strip-cursor-coauthor-from-history check-open-prs
+.PHONY: help ensure-up up down down-dev build shell install assets test test-coverage test-coverage-100 coverage-check cs-check cs-fix rector rector-dry phpstan igor qa docs-links release-check composer-sync clean update validate setup-hooks check-no-cursor-coauthor strip-cursor-coauthor-from-history check-open-prs
 
 COMPOSER_BIN := /usr/bin/composer
 # Prefer Compose V2 plugin (GitHub Actions / modern Docker Desktop); fall back to docker-compose V1 (REQ-MAKE-010).
@@ -24,6 +24,7 @@ help:
 	@echo "  assets        No frontend assets in this bundle"
 	@echo "  test          Run PHPUnit tests"
 	@echo "  test-coverage Run tests with code coverage"
+	@echo "  test-coverage-100 Run tests with coverage and fail below 100% (REQ-TEST-006; alias: coverage-check)"
 	@echo "  cs-check      Check code style"
 	@echo "  cs-fix        Fix code style"
 	@echo "  rector        Apply Rector refactoring"
@@ -87,6 +88,13 @@ test-coverage: ensure-up
 	$(COMPOSE) exec php $(COMPOSER_BIN) test-coverage | tee coverage-php.txt
 	sh ./.scripts/php-coverage-percent.sh coverage-php.txt
 
+# Coverage gate (REQ-TEST-003 / REQ-TEST-006): composer test-coverage-100 fails below 100%
+test-coverage-100: ensure-up
+	@status=0; $(COMPOSE) exec -T php $(COMPOSER_BIN) test-coverage-100 > coverage-php.txt 2>&1 || status=$$?; \
+	cat coverage-php.txt; sh ./.scripts/php-coverage-percent.sh coverage-php.txt; exit $$status
+
+coverage-check: test-coverage-100
+
 # Check code style
 cs-check: ensure-up
 	$(COMPOSE) exec -T php $(COMPOSER_BIN) cs-check
@@ -138,7 +146,7 @@ release-check:
 	@$(MAKE) phpstan
 	@$(MAKE) igor
 	@$(MAKE) docs-links
-	@$(MAKE) test-coverage
+	@$(MAKE) test-coverage-100
 
 check-open-prs:
 	@bash .scripts/check-open-prs.sh

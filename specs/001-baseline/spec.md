@@ -88,11 +88,19 @@ As an integrator, I set `extra.php-quality-tools.auto_add_scripts` to `true`, so
 - **FR-I18N-TEST-001**: `Testing\MissingTranslationsTrait` returns the profiler's missing messages of one request (`collectMissingTranslations()`) and fails on them unless allowlisted (`assertNoMissingTranslations()`, `locale domain: id` / `domain: id` / `id` entries, trailing `*` prefix).
 - **FR-JUNIT-001**: `bin/junit-failures` (`Gate\Junit\JunitFailuresCommand`) prints only the failed / errored tests of a JUnit log (`Class::method (file:line)` + message head; `--max`, `--lines`, `--strip-prefix`); exit 0 none failed, 1 failures listed, 2 usage error or unreadable log.
 
+### Coverage, test-timing and layer tools (1.9.0–1.13.0)
+
+- **FR-GATE-COV-005**: `bin/coverage-gaps` (`Gate\Coverage\CoverageGapsCommand`) lists the files below 100 % line coverage with their uncovered lines from a Clover report, so a failed coverage gate names what to test.
+- **FR-JUNIT-002**: `bin/slowest-tests` (`Gate\Junit\SlowestTestsCommand`) prints the slowest test files (and test cases) of a JUnit log from PHPUnit or ParaTest.
+- **FR-COVR-001**: `bin/coverage-resume` (`Gate\Coverage\Resume\*`) resumes a kept `--coverage-php` run after small `src/` or `tests/` changes: content snapshot, planner (full suite vs. rerun set), per-test merge written back by php-code-coverage — see [`008-coverage-resume`](../008-coverage-resume/spec.md).
+- **FR-GATE-MB-009**: Optional `layers` section of the module-boundary map (`Gate\ModuleBoundary\Layer*`, `ReferenceExtractor`): per-context layer rules with a shrink-only `rule|file|subject` baseline — see [`007-module-boundary-layers`](../007-module-boundary-layers/spec.md).
+- **FR-BIN-001**: Every `bin/` entry point (`assert-latest-tag`, `assert-release-proof`, `changed-tests`, `check-*`, `clean-stale-pid-paths`, `coverage-gaps`, `coverage-resume`, `heavy-lock`, `install-git-hooks`, `junit-failures`, `memory-guard`, `quiet-run`, `release-phase`, `slowest-tests`, `strip-agent-coauthor`) is documented in [`docs/USAGE.md`](../../docs/USAGE.md); shell entry points (`heavy-lock`, `memory-guard`, `release-phase`, `quiet-run`) are tooling outside `src/` and are covered by the shell tests under `tests/`.
+
 ---
 
 ## Success Criteria
 
-- **SC-001**: **48/48** artifacts under `src/` mapped (`git ls-files src | wc -l`, 2026-10-28) in [`code-inventory.md`](code-inventory.md).
+- **SC-001**: **70/70** artifacts under `src/` mapped (`git ls-files src | wc -l`, 2026-11-16) in [`code-inventory.md`](code-inventory.md).
 - **SC-002**: Shipped templates under `config/` match behaviour described in [`docs/USAGE.md`](../../docs/USAGE.md).
 - **SC-003**: PHPUnit and PHPStan pass in CI (`composer qa`).
 - **SC-004**: No Packagist-visible behaviour change without spec + test updates.

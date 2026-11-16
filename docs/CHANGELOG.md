@@ -49,6 +49,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- Spec Kit baseline maps all 70 tracked `src/` files (coverage resume, coverage gaps, slowest tests, module-boundary layers); `spec.md` gains FR-GATE-COV-005, FR-JUNIT-002, FR-COVR-001, FR-GATE-MB-009 and FR-BIN-001 (REQ-SPECKIT-001/003).
+- Tables of contents in `docs/INSTALLATION.md`, `docs/CONFIGURATION.md`, `docs/RELEASE.md`; `docs/SPEC-KIT.md` TOC lists the `###` sections (REQ-DOCS-005). `docs/RELEASE.md` names the current release.
+
+### Changed (tooling)
+
+- Makefile: `test-coverage-100` (alias `coverage-check`) runs `composer test-coverage-100` and fails below 100%; `release-check` uses it (REQ-TEST-006).
+
 ## [1.13.0] - 2026-11-15
 
 Target 1.13.0. Requested by Symfony Beacon (owner-approved): extend the release gate's coverage resume (decision
