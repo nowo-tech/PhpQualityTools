@@ -49,6 +49,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (tests)
+
+- `phpunit.xml.dist` sets `SYMFONY_DEPRECATIONS_HELPER=max[direct]=0` (REQ-SF-005).
+
 ### Documentation
 
 - Spec Kit baseline maps all 70 tracked `src/` files (coverage resume, coverage gaps, slowest tests, module-boundary layers); `spec.md` gains FR-GATE-COV-005, FR-JUNIT-002, FR-COVR-001, FR-GATE-MB-009 and FR-BIN-001 (REQ-SPECKIT-001/003).

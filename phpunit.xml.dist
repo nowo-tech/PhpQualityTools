@@ -26,6 +26,12 @@
         </include>
     </source>
 
+    <php>
+        <!-- REQ-SF-005: a deprecation triggered by this package's own code fails the run under the Symfony bridge.
+             symfony/phpunit-bridge does nothing with PHPUnit >= 10; the setting is kept for runs that load it. -->
+        <env name="SYMFONY_DEPRECATIONS_HELPER" value="max[direct]=0"/>
+    </php>
+
     <coverage>
         <report>
             <html outputDirectory="coverage"/>
