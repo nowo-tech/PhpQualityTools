@@ -20,6 +20,10 @@ use Composer\Autoload\ClassLoader;
  * $other->close();
  * ```
  *
+ * The SQL of a command must be a single line (one command per line on the pipe): `send()`, `execute()` and `value()`
+ * throw an `InvalidArgumentException` otherwise. The database URL reaches the helper process through the environment,
+ * not through its arguments.
+ *
  * Needs `doctrine/dbal` ^4.0 and a MySQL / MariaDB or PostgreSQL server (`pdo_mysql` / `pdo_pgsql`).
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
@@ -31,6 +35,9 @@ final class SecondConnection
 {
     /** A blocked statement answers within the lock wait timeout of the server (the helper sets 15 s). */
     private const READ_TIMEOUT_SECONDS = 90;
+
+    /** The helper process reads the database URL from this environment variable, so it never appears in the process list. */
+    public const URL_VARIABLE = 'PQT_SECOND_CONNECTION_URL';
 
     /** @var resource */
     private $process;
@@ -49,7 +56,7 @@ final class SecondConnection
 
         // Test-only helper process; every read below is bounded by stream_set_timeout().
         // @phpstan-ignore frankenphp.classic.noUnlimitedIoTimeout
-        $process = proc_open([\PHP_BINARY, $script, $autoload, $url], [0 => ['pipe', 'r'], 1 => ['pipe', 'w']], $pipes);
+        $process = proc_open([\PHP_BINARY, $script, $autoload], [0 => ['pipe', 'r'], 1 => ['pipe', 'w']], $pipes, null, [self::URL_VARIABLE => $url] + getenv());
         \is_resource($process) || self::fail('Could not start the second database session.');
         $this->process = $process;
         $this->pipes = $pipes;
@@ -75,6 +82,7 @@ final class SecondConnection
      */
     public function send(string $sql): void
     {
+        self::assertSingleLine($sql);
         fwrite($this->pipes[0], 'SQL ' . $sql . "\n");
     }
 
@@ -94,6 +102,7 @@ final class SecondConnection
      */
     public function value(string $sql): string
     {
+        self::assertSingleLine($sql);
         fwrite($this->pipes[0], 'VAL ' . $sql . "\n");
 
         return $this->await();
@@ -113,6 +122,16 @@ final class SecondConnection
         fwrite($this->pipes[0], "EXIT\n");
         proc_close($this->process);
         $this->pipes = [];
+    }
+
+    /**
+     * The protocol is one command per line: a line break would run the rest of the SQL as another command.
+     */
+    private static function assertSingleLine(string $sql): void
+    {
+        if (str_contains($sql, "\n") || str_contains($sql, "\r")) {
+            throw new \InvalidArgumentException('The SQL of a second-session command must be a single line.');
+        }
     }
 
     private static function fail(string $message): never

@@ -9,7 +9,8 @@ use PHPUnit\Framework\Assert;
 /**
  * Memory-growth assertions for tests that drive ONE kept-alive kernel over many requests (FrankenPHP worker mode,
  * kernel reset off): a leak raises the heap request after request, so the heap measured after a GC run is sampled
- * while the requests run and the growth between the first and the second half of the samples must stay small.
+ * while the requests run and the growth from the first to the last sample must stay small (or, as an option, the growth
+ * between the medians of the two halves of the samples).
  *
  * ```php
  * $samples = [];
@@ -51,14 +52,18 @@ final class WorkerMemoryAssertions
     }
 
     /**
-     * The growth between the medians of the first and the second half of the samples. A leak raises every later
-     * sample, so it moves the median; a single reallocation of a long-lived table does not (a step of several MiB
-     * when a table sized by the whole suite doubles would fail a first-to-last comparison).
+     * The growth over the samples: the last minus the first (the samples are taken after the warm-up). This is what
+     * the per-bundle copies assert. With `$medians`, the growth between the medians of the first and the second half
+     * of the samples instead: a leak raises every later sample, so it moves the median, while one late reallocation
+     * step of a long-lived table does not (it would fail a first-to-last comparison).
      *
      * @param list<int> $samples At least two
      */
-    public static function growth(array $samples): int
+    public static function growth(array $samples, bool $medians = false): int
     {
+        if (!$medians) {
+            return $samples[\count($samples) - 1] - $samples[0];
+        }
         $half = intdiv(\count($samples), 2);
 
         return self::median(\array_slice($samples, $half)) - self::median(\array_slice($samples, 0, $half));
@@ -87,13 +92,15 @@ final class WorkerMemoryAssertions
     }
 
     /**
-     * Fails when the memory grew by {@see self::MARGIN} (or `$margin`) or more over the samples.
+     * Fails when the memory grew by `$margin` (default {@see self::MARGIN}, 4 MiB) or more: last sample minus first by
+     * default (the effective margin is the whole growth allowed over all the sampled requests, so with 1000 requests
+     * and the default sampling it is 4 MiB over 900 requests), or the median-halves growth with `$medians`.
      *
      * @param list<int> $samples At least two
      */
-    public static function assertFlat(array $samples, int $margin = self::MARGIN, string $message = 'memory stays flat over many requests'): void
+    public static function assertFlat(array $samples, int $margin = self::MARGIN, string $message = 'memory stays flat over many requests', bool $medians = false): void
     {
         Assert::assertGreaterThanOrEqual(2, \count($samples), 'Too few memory samples: raise the number of requests.');
-        Assert::assertLessThan($margin, self::growth($samples), $message . ' (samples: ' . implode(', ', $samples) . ')');
+        Assert::assertLessThan($margin, self::growth($samples, $medians), $message . ' (samples: ' . implode(', ', $samples) . ')');
     }
 }

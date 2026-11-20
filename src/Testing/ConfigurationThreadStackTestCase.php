@@ -144,22 +144,25 @@ abstract class ConfigurationThreadStackTestCase extends TestCase
      */
     private function php(array $args): array
     {
-        // A test helper, not worker code: the pipes get a read timeout below.
+        // stderr goes to a file: reading two pipes one after the other can deadlock when the child fills the second.
+        $errorFile = tempnam(sys_get_temp_dir(), 'pqt-stack-');
+        self::assertIsString($errorFile);
+        // A test helper, not worker code: the pipe gets a read timeout below.
         // @phpstan-ignore frankenphp.classic.noUnlimitedIoTimeout
         $process = proc_open(
             array_merge([\PHP_BINARY, '-d', 'zend.max_allowed_stack_size=' . static::THREAD_STACK, '-d', 'xdebug.mode=off'], $args),
-            [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+            [1 => ['pipe', 'w'], 2 => ['file', $errorFile, 'w']],
             $pipes,
             \dirname(static::sourceDirectory()),
         );
         self::assertIsResource($process);
         stream_set_timeout($pipes[1], 60);
-        stream_set_timeout($pipes[2], 60);
         $stdout = (string) stream_get_contents($pipes[1]);
-        $stderr = (string) stream_get_contents($pipes[2]);
         fclose($pipes[1]);
-        fclose($pipes[2]);
+        $code = proc_close($process);
+        $stderr = (string) file_get_contents($errorFile);
+        unlink($errorFile);
 
-        return [proc_close($process), $stdout, $stderr];
+        return [$code, $stdout, $stderr];
     }
 }

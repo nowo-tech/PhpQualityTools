@@ -100,24 +100,42 @@ final class DemoLockCommandTest extends TestCase
         self::assertSame(0, $code);
     }
 
-    public function testAMalformedComposerJsonOrLockIsTreatedAsEmpty(): void
+    public function testInvalidJsonIsAUsageErrorNotAPass(): void
+    {
+        $cases = [
+            'composer.json' => ['composer.json' => 'not json'],
+            'composer.json array' => ['composer.json' => '[1,2]'],
+            'require' => ['composer.json' => '{"require":"x"}'],
+            'lock' => ['composer.json' => self::COMPOSER, 'demo/a/composer.json' => '{}', 'demo/a/composer.lock' => 'not json'],
+        ];
+        foreach ($cases as $label => $files) {
+            [$code, $out, $err] = $this->runCommand($this->makeTree($files), []);
+
+            self::assertSame(2, $code, $label);
+            self::assertSame('', $out, $label);
+            self::assertStringContainsString('ERROR:', $err, $label);
+        }
+
+        [, , $err] = $this->runCommand($this->makeTree(['composer.json' => '{']), []);
+        self::assertStringContainsString('composer.json is not valid JSON', $err);
+        [, , $err] = $this->runCommand($this->makeTree($cases['lock']), []);
+        self::assertStringContainsString('demo/a/composer.lock is not valid JSON', $err);
+    }
+
+    public function testLockEntriesThatAreNotPackagesAreIgnored(): void
     {
         $root = $this->makeTree([
             'composer.json' => '{"require":{"nowo-tech/a":"^1.0","nowo-tech/b":1}}',
             'demo/a/composer.json' => '{}',
             'demo/a/composer.lock' => '{"packages":[1,{"name":"nowo-tech/a"},{"name":"nowo-tech/a","version":"1.2.0"}]}',
             'demo/b/composer.json' => '{}',
-            'demo/b/composer.lock' => 'not json',
+            'demo/b/composer.lock' => '{"packages":"x"}',
         ]);
 
         [$code, , $err] = $this->runCommand($root, []);
 
         self::assertSame(1, $code);
         self::assertSame("STALE demo/b/composer.lock: nowo-tech/a ^1.0 -> not installed\n", $err);
-
-        $noRequire = $this->makeTree(['composer.json' => '{"require":"x"}']);
-        [$code] = $this->runCommand($noRequire, []);
-        self::assertSame(0, $code);
     }
 
     public function testHelpAndUsageErrors(): void
@@ -130,6 +148,9 @@ final class DemoLockCommandTest extends TestCase
 
         foreach ([
             [['--only'], '--only needs a pattern'],
+            [['--only='], '--only needs a non-empty pattern'],
+            [['--only', ''], '--only needs a non-empty pattern'],
+            [['--only=nowo-tech/*', '--only='], '--only needs a non-empty pattern'],
             [['--bogus'], 'Unknown option --bogus'],
             [['a', 'b'], 'Only one bundle directory is accepted'],
         ] as [$args, $message]) {

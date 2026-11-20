@@ -14,7 +14,7 @@ namespace NowoTech\PhpQualityTools\Gate\DemoLock;
  *
  * A demo without a `composer.lock` (git-ignored locks, resolved at install) is reported and passes.
  *
- * Exit codes: 0 OK, 1 stale lock, 2 usage error.
+ * Exit codes: 0 OK, 1 stale lock, 2 usage error or invalid JSON (composer.json or a composer.lock).
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
@@ -32,7 +32,7 @@ final class DemoLockCommand
           --only=<glob>   check only the requirements whose name matches (fnmatch), repeatable; "--only <glob>" works too
                           (default: every vendor/package requirement)
         A demo without a composer.lock is reported and passes. Platform requirements (php, ext-*) are not checked.
-        Exit codes: 0 OK, 1 stale demo lock, 2 usage error.
+        Exit codes: 0 OK, 1 stale demo lock, 2 usage error or invalid JSON in composer.json / composer.lock.
         TXT;
 
     /**
@@ -75,6 +75,9 @@ final class DemoLockCommand
                 return $this->usageError('Only one bundle directory is accepted');
             }
         }
+        if (\in_array('', $only, true)) {
+            return $this->usageError('--only needs a non-empty pattern');
+        }
         $only = [] === $only ? ['*'] : $only;
 
         $bundle = rtrim(null === $bundle ? $this->cwd : (str_starts_with($bundle, '/') ? $bundle : $this->cwd . '/' . $bundle), '/');
@@ -84,9 +87,15 @@ final class DemoLockCommand
 
             return 2;
         }
-        $require = $this->decode($manifest)['require'] ?? null;
+        $manifestData = $this->decode($manifest);
+        if (null === $manifestData) {
+            return $this->invalidJson($manifest, $bundle);
+        }
+        $require = $manifestData['require'] ?? [];
         if (!\is_array($require)) {
-            $require = [];
+            fwrite($this->stderr, "ERROR: \"require\" of {$manifest} is not an object\n");
+
+            return 2;
         }
         $requirements = [];
         foreach ($require as $name => $constraint) {
@@ -108,7 +117,11 @@ final class DemoLockCommand
             }
             ++$checked;
             $installed = [];
-            $packages = $this->decode($lock)['packages'] ?? null;
+            $lockData = $this->decode($lock);
+            if (null === $lockData) {
+                return $this->invalidJson($lock, $bundle);
+            }
+            $packages = $lockData['packages'] ?? null;
             foreach (\is_array($packages) ? $packages : [] as $package) {
                 if (\is_array($package) && \is_string($package['name'] ?? null) && \is_string($package['version'] ?? null)) {
                     $installed[$package['name']] = $package['version'];
@@ -146,14 +159,21 @@ final class DemoLockCommand
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array<string, mixed>|null null when the file is not a JSON object
      */
-    private function decode(string $file): array
+    private function decode(string $file): ?array
     {
         $data = json_decode((string) file_get_contents($file), true);
 
-        /* @var array<string, mixed> */
-        return \is_array($data) ? $data : [];
+        /* @var array<string, mixed>|null */
+        return \is_array($data) && ([] === $data || !array_is_list($data)) ? $data : null;
+    }
+
+    private function invalidJson(string $file, string $bundle): int
+    {
+        fwrite($this->stderr, 'ERROR: ' . substr($file, \strlen($bundle) + 1) . " is not valid JSON (an object was expected)\n");
+
+        return 2;
     }
 
     private function usageError(string $message): int

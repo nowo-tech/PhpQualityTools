@@ -14,7 +14,7 @@ namespace NowoTech\PhpQualityTools\Gate\Twig;
  *
  * A bundle without any `*.twig` file is not concerned.
  *
- * Exit codes: 0 OK, 1 violations, 2 usage error.
+ * Exit codes: 0 OK, 1 violations, 2 usage error or a `--forbid-raw` directory that does not exist.
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
@@ -32,7 +32,7 @@ final class TwigExtraCommand
           --root=<dir>         bundle root (default: current directory)
           --forbid-raw=<dir>   also fail on the |raw filter outside Twig comments under <dir>, repeatable
                                (e.g. src/Resources/views, where HTML is printed through a sanitising filter)
-        Exit codes: 0 OK, 1 violations, 2 usage error.
+        Exit codes: 0 OK, 1 violations, 2 usage error or a --forbid-raw directory that does not exist.
         TXT;
 
     /**
@@ -118,6 +118,11 @@ final class TwigExtraCommand
         }
 
         foreach ($forbidRaw as $dir) {
+            if (!is_dir($root . '/' . $dir)) {
+                fwrite($this->stderr, "ERROR: directory not found: {$dir} (under {$root})\n");
+
+                return 2;
+            }
             foreach (TemplateFiles::in($root, $dir) as $file) {
                 $source = (string) preg_replace('/\{#.*?#\}/s', '', (string) file_get_contents($root . '/' . $file));
                 if (1 === preg_match('/\|\s*raw\b/', $source)) {

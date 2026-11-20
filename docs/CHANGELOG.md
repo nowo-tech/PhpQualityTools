@@ -60,7 +60,8 @@ every addition is opt-in. See [Usage → Shared test helpers](USAGE.md#shared-te
   compile, in a PHP child process whose stack is capped at a FrankenPHP thread on Alpine (512 KiB). Derived from the most
   complete copy (several configuration classes per test case, required keys without defaults compared by message).
 - **`Testing\WorkerMemoryAssertions`** (`sample`, `median`, `growth`, `collectedMemory`, `assertFlat`): flat-memory assertions
-  over many requests through one kept-alive kernel, comparing the medians of the two halves of the samples.
+  over many requests through one kept-alive kernel, last sample minus first by default (as the copies), with an explicit
+  median-halves mode (`medians: true`).
 - **`Testing\RecordingLogger`**: in-memory PSR-3 logger with `messages()`, `levels()`, `lines()`, `recordsWithLevel()`,
   `has()`, `contextValues()` (objects that are not stringable appear as their type), `dump()` and `clear()`.
 - **`Testing\SqliteManagerRegistry`**: a real `ManagerRegistry` over in-memory SQLite entity managers (one connection per
@@ -75,7 +76,11 @@ every addition is opt-in. See [Usage → Shared test helpers](USAGE.md#shared-te
   (PHP port of a Python script; Composer-style caret / tilde / wildcard / `||` constraints without `composer/semver`).
 - **`bin/check-no-raw-html-form`** (REQ-TWIG-005), **`bin/check-twig-extra`** (REQ-TWIG-004, optional `--forbid-raw`) and
   **`bin/check-translation-key-parity`** (REQ-I18N-002 plus the Twig usage check): PHP ports of the shell and Python
-  repository scripts, with the options their variants needed (`--allow`, `--strict`, `--domain`, `--locales`, …).
+  repository scripts, with the options their variants needed. `check-no-raw-html-form` is strict by default (exceptions
+  are opt-in: `--allow-form-themes`, `--allow-themes`, `--allow-ignore-marker`, `--allow`) and exits 2 when there is no
+  Twig file to scan; `check-translation-key-parity` fails when catalogues exist without the reference locale and reads
+  `.yml`; invalid JSON, an empty `--only=` and a missing `--forbid-raw` directory exit 2.
+- `SecondConnection` passes the database URL to its helper process through the environment and rejects multi-line SQL.
 
 ### Changed (dev dependencies)
 

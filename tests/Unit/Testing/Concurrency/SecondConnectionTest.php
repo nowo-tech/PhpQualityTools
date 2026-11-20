@@ -74,6 +74,45 @@ final class SecondConnectionTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
+    public function testMultiLineSqlIsRejectedBeforeItReachesThePipe(): void
+    {
+        $session = new SecondConnection(self::URL);
+
+        try {
+            foreach (["SELECT 1\nDROP TABLE x", "SELECT 1\rEXIT"] as $sql) {
+                foreach (['send', 'execute', 'value'] as $method) {
+                    try {
+                        $session->{$method}($sql);
+                        self::fail("{$method} accepted a multi-line statement.");
+                    } catch (\InvalidArgumentException $e) {
+                        self::assertStringContainsString('single line', $e->getMessage());
+                    }
+                }
+            }
+            self::assertSame('OK', $session->execute('SELECT 1'), 'the session is still usable');
+        } finally {
+            $session->close();
+        }
+    }
+
+    public function testTheUrlReachesTheHelperThroughTheEnvironmentNotItsArguments(): void
+    {
+        $session = new SecondConnection(self::URL);
+
+        try {
+            $process = new \ReflectionProperty($session, 'process');
+            $pid = proc_get_status($process->getValue($session))['pid'];
+            $cmdline = (string) @file_get_contents("/proc/{$pid}/cmdline");
+            if ('' === $cmdline) {
+                self::markTestSkipped('/proc is not available.');
+            }
+            self::assertStringNotContainsString('sqlite', $cmdline);
+            self::assertSame(SecondConnection::URL_VARIABLE, 'PQT_SECOND_CONNECTION_URL');
+        } finally {
+            $session->close();
+        }
+    }
+
     public function testAHelperThatCannotStartIsReported(): void
     {
         $this->expectException(\RuntimeException::class);

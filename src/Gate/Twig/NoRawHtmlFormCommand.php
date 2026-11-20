@@ -8,12 +8,12 @@ namespace NowoTech\PhpQualityTools\Gate\Twig;
  * `bin/check-no-raw-html-form`: fail when bundle views or demo templates use raw `<form>` / `<input>` / `<textarea>` /
  * `<select>` markup instead of Symfony Forms (`form_start` / `form_row` / `form_widget` / `form_end`).
  *
- * Exempt by default (documented exceptions): form themes (`src/Resources/views/form/` and `Form/`, and any
- * `*theme*.html.twig`), which implement the form blocks and emit the controls; a control that is never submitted when
- * the line above it carries `{# twig-005-ignore: <reason> #}`; the files named with `--allow`. `--strict` turns the
- * theme exemption off.
+ * The default is the strictest behaviour: no exception at all. Exceptions are opt-in:
+ * `--allow-form-themes` exempts `src/Resources/views/{form,Form}/`, `--allow-themes` every file whose name contains
+ * `theme`, `--allow-ignore-marker` a control on the line below `{# twig-005-ignore: <reason> #}` (the reason is
+ * mandatory), `--allow=<path>` single files.
  *
- * Exit codes: 0 OK, 1 raw markup found, 2 usage error.
+ * Exit codes: 0 OK, 1 raw markup found, 2 usage error or nothing to scan (no `*.twig` file in the scanned directories).
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
@@ -23,22 +23,24 @@ namespace NowoTech\PhpQualityTools\Gate\Twig;
 final class NoRawHtmlFormCommand
 {
     public const USAGE = <<<'TXT'
-        Usage: check-no-raw-html-form [--root=<dir>] [--dir=<dir>]... [--allow=<path>]... [--strict]
+        Usage: check-no-raw-html-form [--root=<dir>] [--dir=<dir>]... [--allow=<path>]...
+                                      [--allow-form-themes] [--allow-themes] [--allow-ignore-marker]
 
         Fails on raw <form> / <input> / <textarea> / <select> in Twig (render forms through Symfony Form:
-        form_start / form_row / form_widget / form_end).
-          --root=<dir>    project root; every other path is relative to it (default: current directory)
-          --dir=<dir>     directory to scan, repeatable (default: src/Resources/views and every demo/**/templates)
-          --allow=<path>  file that may keep raw markup (e.g. a deprecated fallback partial), repeatable
-          --strict        no form-theme exemption (default: src/Resources/views/{form,Form}/ and *theme*.html.twig are exempt)
-        A control that is never submitted is exempt when the line above it carries {# twig-005-ignore: <reason> #}.
+        form_start / form_row / form_widget / form_end). Strict by default: no exception.
+          --root=<dir>           project root; every other path is relative to it (default: current directory)
+          --dir=<dir>            directory to scan, repeatable (default: src/Resources/views and every demo/**/templates)
+          --allow=<path>         file that may keep raw markup (e.g. a deprecated fallback partial), repeatable
+          --allow-form-themes    exempt src/Resources/views/form/ and src/Resources/views/Form/ (form themes)
+          --allow-themes         exempt every file whose name contains "theme"
+          --allow-ignore-marker  exempt a control on the line below {# twig-005-ignore: <reason> #} (reason required)
         An --allow entry that no longer contains raw markup is reported as a warning.
-        Exit codes: 0 OK, 1 raw markup found, 2 usage error.
+        Exit codes: 0 OK, 1 raw markup found, 2 usage error or no *.twig file in the scanned directories.
         TXT;
 
     private const PATTERN = '#<(form|input|textarea|select)(\s|>|$)#i';
 
-    private const IGNORE_MARKER = 'twig-005-ignore';
+    private const IGNORE_MARKER = '/twig-005-ignore:\s*[^\s#]/';
 
     /**
      * @param resource $stdout
@@ -59,7 +61,9 @@ final class NoRawHtmlFormCommand
         $root = $this->cwd;
         $dirs = [];
         $allow = [];
-        $strict = false;
+        $formThemes = false;
+        $themes = false;
+        $marker = false;
         foreach ($args as $arg) {
             if ('-h' === $arg || '--help' === $arg) {
                 fwrite($this->stdout, self::USAGE . "\n");
@@ -67,8 +71,12 @@ final class NoRawHtmlFormCommand
                 return 0;
             }
             [$name, $value] = str_contains($arg, '=') ? explode('=', $arg, 2) : [$arg, null];
-            if ('--strict' === $arg) {
-                $strict = true;
+            if ('--allow-form-themes' === $arg) {
+                $formThemes = true;
+            } elseif ('--allow-themes' === $arg) {
+                $themes = true;
+            } elseif ('--allow-ignore-marker' === $arg) {
+                $marker = true;
             } elseif (null === $value || '' === $value) {
                 return $this->usageError("Unknown or empty option {$arg}");
             } elseif ('--root' === $name) {
@@ -99,17 +107,14 @@ final class NoRawHtmlFormCommand
             $dirs = array_filter(['src/Resources/views'], static fn (string $dir): bool => is_dir($root . '/' . $dir));
             $dirs = [...$dirs, ...TemplateFiles::demoTemplateDirectories($root)];
         }
-        if ([] === $dirs) {
-            fwrite($this->stdout, "check-no-raw-html-form: no Twig views - OK\n");
-
-            return 0;
-        }
 
         $allowed = array_fill_keys($allow, false);
         $hits = [];
+        $scanned = 0;
         foreach ($dirs as $dir) {
             foreach (TemplateFiles::in($root, $dir) as $file) {
-                if (!$strict && $this->isFormTheme($file)) {
+                ++$scanned;
+                if (($formThemes && $this->isFormThemeDirectory($file)) || ($themes && str_contains(basename($file), 'theme'))) {
                     continue;
                 }
                 $lines = explode("\n", (string) file_get_contents($root . '/' . $file));
@@ -121,12 +126,17 @@ final class NoRawHtmlFormCommand
                         $allowed[$file] = true;
                         continue;
                     }
-                    if ($index > 0 && str_contains($lines[$index - 1], self::IGNORE_MARKER)) {
+                    if ($marker && $index > 0 && 1 === preg_match(self::IGNORE_MARKER, $lines[$index - 1])) {
                         continue;
                     }
                     $hits[$file . ':' . ($index + 1) . ':' . $line] = true;
                 }
             }
+        }
+        if (0 === $scanned) {
+            fwrite($this->stderr, 'ERROR: no *.twig file in the scanned directories (' . ([] === $dirs ? 'src/Resources/views, demo/**/templates' : implode(', ', $dirs)) . "): nothing to check.\n");
+
+            return 2;
         }
         foreach ($allowed as $path => $stillNeeded) {
             if (!$stillNeeded) {
@@ -144,11 +154,9 @@ final class NoRawHtmlFormCommand
         return 0;
     }
 
-    private function isFormTheme(string $file): bool
+    private function isFormThemeDirectory(string $file): bool
     {
-        return str_starts_with($file, 'src/Resources/views/form/')
-            || str_starts_with($file, 'src/Resources/views/Form/')
-            || str_contains(basename($file), 'theme');
+        return str_starts_with($file, 'src/Resources/views/form/') || str_starts_with($file, 'src/Resources/views/Form/');
     }
 
     private function normalize(string $path): string

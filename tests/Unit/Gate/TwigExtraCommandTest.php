@@ -105,8 +105,9 @@ final class TwigExtraCommandTest extends TestCase
         self::assertSame(1, $code);
         self::assertSame("ERROR: |raw in src/Resources/views/bad.html.twig (print HTML through a sanitising filter instead)\n", $err);
 
-        [$code] = $this->runCommand($root, ['--forbid-raw=missing']);
-        self::assertSame(0, $code);
+        [$code, , $err] = $this->runCommand($root, ['--forbid-raw=missing']);
+        self::assertSame(2, $code);
+        self::assertSame("ERROR: directory not found: missing (under {$root})\n", $err);
     }
 
     public function testHelpAndUsageErrors(): void

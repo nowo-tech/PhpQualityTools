@@ -54,7 +54,25 @@ final class NoRawHtmlFormCommandTest extends TestCase
         );
     }
 
-    public function testFormThemesAreExemptUnlessStrict(): void
+    public function testThemesAndMarkersAreNotExemptByDefault(): void
+    {
+        $root = $this->makeTree([
+            'src/Resources/views/form/theme.html.twig' => '<input type="text">',
+            'src/Resources/views/Form/widget.html.twig' => '<input type="text">',
+            'src/Resources/views/partials/_my_theme_x.html.twig' => '<select></select>',
+            'src/Resources/views/confirm.html.twig' => "{# twig-005-ignore: never submitted #}\n<input type=\"text\">\n",
+        ]);
+
+        [$code, , $err] = $this->runCommand($root, []);
+
+        self::assertSame(1, $code);
+        self::assertStringContainsString('src/Resources/views/form/theme.html.twig:1:', $err);
+        self::assertStringContainsString('src/Resources/views/Form/widget.html.twig:1:', $err);
+        self::assertStringContainsString('_my_theme_x.html.twig:1:', $err);
+        self::assertStringContainsString('confirm.html.twig:2:', $err);
+    }
+
+    public function testAllowFormThemesExemptsOnlyTheFormDirectories(): void
     {
         $root = $this->makeTree([
             'src/Resources/views/form/theme.html.twig' => '<input type="text">',
@@ -62,29 +80,56 @@ final class NoRawHtmlFormCommandTest extends TestCase
             'src/Resources/views/partials/_my_theme_x.html.twig' => '<select></select>',
         ]);
 
-        [$code, $out, $err] = $this->runCommand($root, []);
-        self::assertSame(0, $code, $err);
-        self::assertStringContainsString('OK', $out);
+        [$code, , $err] = $this->runCommand($root, ['--allow-form-themes']);
 
-        [$code, , $err] = $this->runCommand($root, ['--strict']);
         self::assertSame(1, $code);
-        self::assertStringContainsString('src/Resources/views/form/theme.html.twig:1:', $err);
-        self::assertStringContainsString('src/Resources/views/Form/widget.html.twig:1:', $err);
-        self::assertStringContainsString('_my_theme_x.html.twig:1:', $err);
+        self::assertSame("ERROR: raw <form> / <input> / <textarea> / <select> in Twig (REQ-TWIG-005):\nsrc/Resources/views/partials/_my_theme_x.html.twig:1:<select></select>\n", $err);
     }
 
-    public function testTheIgnoreMarkerOnTheLineAboveExemptsOneControl(): void
+    public function testAllowThemesExemptsFilesNamedTheme(): void
     {
         $root = $this->makeTree([
-            'src/Resources/views/confirm.html.twig' => "{# twig-005-ignore: nameless type-to-confirm input #}\n<input type=\"text\">\n<input type=\"text\">\n",
+            'src/Resources/views/form/widget.html.twig' => '<input type="text">',
+            'src/Resources/views/partials/_my_theme_x.html.twig' => '<select></select>',
+        ]);
+
+        [$code, , $err] = $this->runCommand($root, ['--allow-themes']);
+
+        self::assertSame(1, $code);
+        self::assertStringContainsString('src/Resources/views/form/widget.html.twig:1:', $err);
+        self::assertStringNotContainsString('_my_theme_x', $err);
+    }
+
+    public function testBothThemeFlagsAndTheMarkerReproduceTheThemeAndMarkerFamily(): void
+    {
+        $root = $this->makeTree([
+            'src/Resources/views/form/widget.html.twig' => '<input type="text">',
+            'src/Resources/views/partials/_my_theme_x.html.twig' => '<select></select>',
+            'src/Resources/views/confirm.html.twig' => "{# twig-005-ignore: nameless type-to-confirm input #}\n<input type=\"text\">\n",
+        ]);
+
+        [$code, $out, $err] = $this->runCommand($root, ['--allow-form-themes', '--allow-themes', '--allow-ignore-marker']);
+
+        self::assertSame(0, $code, $err);
+        self::assertStringContainsString('OK', $out);
+    }
+
+    public function testTheMarkerNeedsAReasonAndExemptsOnlyTheNextLine(): void
+    {
+        $root = $this->makeTree([
+            'src/Resources/views/confirm.html.twig' => "{# twig-005-ignore: reason #}\n<input type=\"text\">\n<input type=\"text\">\n",
+            'src/Resources/views/noreason.html.twig' => "{# twig-005-ignore #}\n<input type=\"text\">\n",
+            'src/Resources/views/emptyreason.html.twig' => "{# twig-005-ignore:   #}\n<input type=\"text\">\n",
             'src/Resources/views/first.html.twig' => '<input type="text">',
         ]);
 
-        [$code, , $err] = $this->runCommand($root, []);
+        [$code, , $err] = $this->runCommand($root, ['--allow-ignore-marker']);
 
         self::assertSame(1, $code);
         self::assertStringContainsString('confirm.html.twig:3:', $err);
         self::assertStringNotContainsString('confirm.html.twig:2:', $err);
+        self::assertStringContainsString('noreason.html.twig:2:', $err);
+        self::assertStringContainsString('emptyreason.html.twig:2:', $err);
         self::assertStringContainsString('first.html.twig:1:', $err);
     }
 
@@ -121,14 +166,17 @@ final class NoRawHtmlFormCommandTest extends TestCase
         self::assertStringNotContainsString('src/Resources', $err);
     }
 
-    public function testWithoutTwigViewsThereIsNothingToCheck(): void
+    public function testNothingToScanIsAnError(): void
     {
         $root = $this->makeTree(['README.md' => '']);
+        [$code, , $err] = $this->runCommand(\dirname($root), ['--root=' . basename($root)]);
+        self::assertSame(2, $code);
+        self::assertStringContainsString('no *.twig file in the scanned directories (src/Resources/views, demo/**/templates)', $err);
 
-        [$code, $out] = $this->runCommand(\dirname($root), ['--root=' . basename($root)]);
-
-        self::assertSame(0, $code);
-        self::assertSame("check-no-raw-html-form: no Twig views - OK\n", $out);
+        $empty = $this->makeTree(['src/Resources/views/readme.txt' => 'x', 'demo/a/templates/.gitkeep' => '']);
+        [$code, , $err] = $this->runCommand($empty, []);
+        self::assertSame(2, $code);
+        self::assertStringContainsString('(src/Resources/views, demo/a/templates)', $err);
     }
 
     public function testHelpAndUsageErrors(): void
@@ -142,6 +190,7 @@ final class NoRawHtmlFormCommandTest extends TestCase
         foreach ([
             ['--bogus=1', 'Unknown option --bogus=1'],
             ['--dir', 'Unknown or empty option --dir'],
+            ['--strict', 'Unknown or empty option --strict'],
             ['--dir=missing', 'directory not found: missing'],
             ['--root=missing', 'root directory not found: ' . $root . '/missing'],
         ] as [$arg, $message]) {

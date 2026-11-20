@@ -12,7 +12,7 @@ declare(strict_types=1);
  *   SLEEP <ms>        wait, then answer "OK" (queue it before a COMMIT to release a lock while the test is blocked)
  *   EXIT              close the connection and stop
  *
- * Usage: php second-connection.php <vendor/autoload.php> <database url (mysql://…, pgsql://… or sqlite:///:memory:)>
+ * Usage: PQT_SECOND_CONNECTION_URL=<database url (mysql://…, pgsql://… or sqlite:///:memory:)> php second-connection.php <vendor/autoload.php>
  */
 
 use Doctrine\DBAL\DriverManager;
@@ -20,9 +20,9 @@ use Doctrine\DBAL\Exception\DriverException;
 use Doctrine\DBAL\Tools\DsnParser;
 
 $autoload = $argv[1] ?? '';
-$url = $argv[2] ?? '';
+$url = (string) getenv('PQT_SECOND_CONNECTION_URL');
 if ('' === $autoload || '' === $url || !is_file($autoload)) {
-    fwrite(\STDERR, "Usage: php second-connection.php <vendor/autoload.php> <database url>\n");
+    fwrite(\STDERR, "Usage: PQT_SECOND_CONNECTION_URL=<database url> php second-connection.php <vendor/autoload.php>\n");
     exit(2);
 }
 

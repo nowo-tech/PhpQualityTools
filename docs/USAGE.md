@@ -1616,9 +1616,11 @@ compile.
 ### `WorkerMemoryAssertions`
 
 Drive ONE kernel through `http_kernel->handle()` / `terminate()` many times (worker mode, kernel reset off), sample the
-heap after a GC run every 50 requests after a 50-request warm-up and assert that the growth between the medians of the
-first and the second half stays below 4 MiB. The medians ignore one late reallocation step of a long-lived table, while
-a leak raises every later sample.
+heap after a GC run every 50 requests after a 50-request warm-up and assert that the growth (last sample minus first,
+as the per-bundle copies do) stays below 4 MiB. The effective margin is that growth over all the sampled requests: with
+1000 requests and the default sampling, 4 MiB over 900 requests. `medians: true` compares instead the medians of the
+first and the second half of the samples, which ignores one late reallocation step of a long-lived table while a leak
+(raising every later sample) still moves the median.
 
 ```php
 $samples = [];
@@ -1626,10 +1628,11 @@ for ($i = 0; $i < 1000; ++$i) {
     $this->listing($kernel, $i % 2 === 0 ? 'alice' : 'bob');
     WorkerMemoryAssertions::sample($i, $samples);
 }
-WorkerMemoryAssertions::assertFlat($samples);                    // margin 4 MiB; assertFlat($samples, 1024 * 1024) for another
+WorkerMemoryAssertions::assertFlat($samples);                    // last - first < 4 MiB; assertFlat($samples, 1024 * 1024) for another margin
+WorkerMemoryAssertions::assertFlat($samples, medians: true);     // or the median-halves mode
 ```
 
-`sample()`, `growth()`, `median()` and `collectedMemory()` are public static, for assertions of your own.
+`sample()`, `growth($samples, $medians = false)`, `median()` and `collectedMemory()` are public static, for assertions of your own.
 
 ### `RecordingLogger`
 
@@ -1699,6 +1702,9 @@ Bundle-specific cases (a disabled feature, a second legacy namespace) stay as ex
   `await()` run a statement that blocks on a lock, `sleep($ms)` queues a wait (put it before a `COMMIT` to release a lock
   while the test is blocked), `value($sql)` returns `VAL '<first value>'`, `close()` ends it. Waits are bounded (15 s lock
   timeout; 90 s read timeout). URLs: `mysql://…`, `pgsql://…` (also `sqlite:///:memory:` for the helper's own tests).
+  The URL (it carries the password) reaches the helper process through the `PQT_SECOND_CONNECTION_URL` environment variable,
+  not its arguments, so it is not in the process list. The protocol is one command per line, so the SQL must be a single
+  line: a statement with a line break throws `InvalidArgumentException` instead of running its tail as another command.
 - `TestManagerRegistry`: one connection and one entity manager built by a closure; `resetManager()` builds a new manager
   on the same connection and counts it in `$resets`.
 - `RetainingRepositoryFactory`: keeps one repository per manager instance for the life of the process (what a container
@@ -1733,7 +1739,8 @@ bundle's requirements as they were when the lock was last updated: a requirement
 and the demo fails with "class not found". The bin reports, for every `vendor/package` requirement of the bundle's
 `composer.json` (`--only` narrows them, fnmatch, repeatable), the version each `demo/<name>/composer.lock` resolves and
 fails with `STALE <lock>: <package> <constraint> -> <version|not installed>` when it does not satisfy the constraint. A
-demo without a lock (git-ignored, resolved at install) is reported and passes.
+demo without a lock (git-ignored, resolved at install) is reported and passes. Invalid JSON in `composer.json` or a lock,
+or an empty `--only=`, exits 2.
 
 *Why PHP and not the Python script with a wrapper:* the package and its CI recipes are PHP only (`bin/autoload.php`
 falls back to a bare clone), a wrapper would add a Python dependency to every runner and a second language to test, and
@@ -1745,15 +1752,33 @@ are understood, `<=` is supported.
 ### `check-no-raw-html-form`
 
 ```bash
-vendor/bin/check-no-raw-html-form [--root=<dir>] [--dir=<dir>]... [--allow=<path>]... [--strict]
+vendor/bin/check-no-raw-html-form [--root=<dir>] [--dir=<dir>]... [--allow=<path>]...
+                                  [--allow-form-themes] [--allow-themes] [--allow-ignore-marker]
 ```
 
 Fails on raw `<form>` / `<input>` / `<textarea>` / `<select>` in Twig (REQ-TWIG-005): render forms through Symfony Form
 (`form_start`, `form_row`, `form_widget`, `form_end`). Scans `src/Resources/views` and every `demo/**/templates`
-directory (`vendor`, `node_modules`, `var` are skipped) or the `--dir` directories. Exempt: form themes
-(`src/Resources/views/form/`, `Form/`, any `*theme*.html.twig`; `--strict` removes this exemption), the files named
-with `--allow` (a stale entry is a warning), and a control on the line below `{# twig-005-ignore: <reason> #}`. Matching
-is case-insensitive. Violations print as `file:line:content`.
+directory (`vendor`, `node_modules`, `var` are skipped) or the `--dir` directories. **Strict by default: no exception.**
+Matching is case-insensitive; violations print as `file:line:content`. Exit 2 (not 0) when the scanned directories hold
+no `*.twig` file, so a wrong path never passes silently.
+
+Exceptions are opt-in, one flag each:
+
+| Flag | Exempts |
+| --- | --- |
+| `--allow-form-themes` | `src/Resources/views/form/` and `src/Resources/views/Form/` (form themes that emit the controls) |
+| `--allow-themes` | every file whose name contains `theme` |
+| `--allow-ignore-marker` | the control on the line below `{# twig-005-ignore: <reason> #}`; the `: <reason>` is mandatory |
+| `--allow=<path>` | one file (repeatable); a stale entry is a warning |
+
+Which options reproduce each family of repository scripts it replaces:
+
+| Script family | Options |
+| --- | --- |
+| no exceptions (the strictest copies) | none |
+| form themes under `Form/` / `form/` only | `--allow-form-themes` |
+| form themes by name plus the ignore marker (the theme + marker copies) | `--allow-form-themes --allow-themes --allow-ignore-marker` (drop `--allow-form-themes` when the copy did not exempt the directory) |
+| an explicit list of legacy files | one `--allow=<path>` per file |
 
 ### `check-twig-extra`
 
@@ -1765,7 +1790,7 @@ REQ-TWIG-004: when the bundle has any `*.twig` file under `src/`, `templates/` o
 name `twig/extra-bundle` and `twig/string-extra`, and every demo that boots `TwigBundle` (`demo/<name>/` or
 `demo/<a>/<b>/`) must name `twig/extra-bundle` in its `composer.json` and register `TwigExtraBundle` in
 `config/bundles.php`. `--forbid-raw=<dir>` also fails on the `|raw` filter outside Twig comments in the templates under
-`<dir>` (for bundles that print HTML through a sanitising filter).
+`<dir>` (for bundles that print HTML through a sanitising filter); a `<dir>` that does not exist exits 2.
 
 ### `check-translation-key-parity`
 
@@ -1779,7 +1804,9 @@ domain that has a reference-locale file unless `--domain` names them) must have 
 locale (default `en,es,it,fr,pt,de,nl`; reference `en`), and every literal key a Twig template under `--views` (default
 `src/Resources/views`) translates in the domain, through `'key'|trans` with `trans_default_domain` or an explicit domain
 argument, must exist in the reference catalogue. Keys are flattened from the YAML indentation (no YAML parser needed);
-a domain given as a variable is skipped. Without a translations directory the check is skipped.
+a domain given as a variable is skipped. `.yaml` and `.yml` files are read. Without a translations directory, or with one
+that holds no catalogue, the check is skipped; a directory with catalogues but none for the reference locale fails (exit
+1). Name the domains with `--domain` in CI: that also makes a missing reference file an error for that domain.
 
 ## Test hygiene gates (since 1.11.0)
 

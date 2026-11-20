@@ -9,7 +9,7 @@ namespace NowoTech\PhpQualityTools\Gate\Translation;
  * key set across the required locales (REQ-I18N-002), or when a Twig template translates a literal key of the domain
  * that the reference catalogue lacks.
  *
- * Files are `<dir>/<Domain>.<locale>.yaml`. Keys are flattened from the indentation of the YAML lines (no YAML parser
+ * Files are `<dir>/<Domain>.<locale>.yaml` (or `.yml`). Keys are flattened from the indentation of the YAML lines (no YAML parser
  * needed); the Twig check reads `'key'|trans` / `'key'|trans({...}, 'Domain')` and `trans_default_domain`. A domain
  * argument that is not a string literal cannot be resolved statically and is skipped.
  *
@@ -35,7 +35,8 @@ final class KeyParityCommand
           --locales=<list>    required locales, comma separated (default: en,es,it,fr,pt,de,nl)
           --reference=<code>  locale the others are compared with (default: en)
           --no-twig           skip the Twig usage check
-        Without a translations directory the check is skipped (exit 0).
+        Without a translations directory, or with one without catalogues, the check is skipped (exit 0); a directory with
+        catalogues but none for the reference locale fails (exit 1). .yaml and .yml files are read.
         Exit codes: 0 OK, 1 mismatch, 2 usage error.
         TXT;
 
@@ -113,15 +114,25 @@ final class KeyParityCommand
             return 0;
         }
         if ([] === $domains) {
-            foreach (glob($translations . '/*.' . $reference . '.yaml') ?: [] as $file) {
-                $domains[] = substr(basename($file), 0, -\strlen('.' . $reference . '.yaml'));
-            }
-            sort($domains);
-        }
-        if ([] === $domains) {
-            fwrite($this->stdout, "No catalogues for the reference locale {$reference} in {$dir}; key parity check skipped.\n");
+            $catalogues = [...(glob($translations . '/*.yaml') ?: []), ...(glob($translations . '/*.yml') ?: [])];
+            if ([] === $catalogues) {
+                fwrite($this->stdout, "No catalogues in {$dir}; key parity check skipped.\n");
 
-            return 0;
+                return 0;
+            }
+            foreach ($catalogues as $file) {
+                $name = (string) preg_replace('/\.ya?ml$/', '', basename($file));
+                if (str_ends_with($name, '.' . $reference)) {
+                    $domains[] = substr($name, 0, -\strlen('.' . $reference));
+                }
+            }
+            $domains = array_values(array_unique($domains));
+            sort($domains);
+            if ([] === $domains) {
+                fwrite($this->stderr, "ERROR: {$dir} has catalogues but none for the reference locale {$reference}: name the domains with --domain or fix the file names.\n");
+
+                return 1;
+            }
         }
 
         $status = 0;
@@ -139,7 +150,7 @@ final class KeyParityCommand
     {
         $files = [];
         foreach ($locales as $locale) {
-            $files[$locale] = "{$translations}/{$domain}.{$locale}.yaml";
+            $files[$locale] = "{$translations}/{$domain}.{$locale}." . (!is_file("{$translations}/{$domain}.{$locale}.yaml") && is_file("{$translations}/{$domain}.{$locale}.yml") ? 'yml' : 'yaml');
         }
         $missing = array_filter($files, static fn (string $file): bool => !is_file($file));
         if ([] !== $missing) {

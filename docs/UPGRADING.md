@@ -84,10 +84,37 @@ helpers (`Testing\ConfigurationThreadStackTestCase`, `WorkerMemoryAssertions`, `
 3. Replace the repository's copy by the shared class (`use` change, or a thin subclass of a `*TestCase`) and delete the
    copy; replace the script that ran a check by the bin (same exit codes: 0 OK, 1 violations, 2 usage).
 
-Differences a copy-based adopter may notice: `check-demo-lock` bounds `^0.0.3` at `<0.0.4` and understands `1.2.*`
-wildcards; `check-no-raw-html-form` matches tag names case-insensitively and exempts form themes by default (`--strict`
-turns that off); `check-translation-key-parity` checks every domain that has a reference-locale file when `--domain` is
-not given.
+### Differences from the copies
+
+Every remaining behaviour difference from the per-bundle copies these helpers replace, so that nothing gets weaker
+unnoticed:
+
+- `check-no-raw-html-form`: strict by default (the strictest copy's behaviour); the form-theme directories, the
+  `*theme*` file names and the `twig-005-ignore` marker are opt-in (`--allow-form-themes`, `--allow-themes`,
+  `--allow-ignore-marker`, which now requires `: <reason>`). A copy with no exception: no flags; with `Form/` themes
+  only: `--allow-form-themes`; the theme + marker copies: `--allow-form-themes --allow-themes --allow-ignore-marker`.
+  It exits 2 when there is no `*.twig` file in the scanned directories (copies printed OK). Tag names match
+  case-insensitively (copies were case-sensitive), and the demo templates are found at any depth under `demo/`.
+- `check-twig-extra`: same checks as the shared copies (a text search for the package names in `composer.json`, not a
+  `require` parse); `--forbid-raw=<dir>` is new, and a missing directory exits 2.
+- `check-translation-key-parity`: without `--domain` it checks every domain that has a reference-locale file (a copy
+  checked its own fixed domains); recommended in CI: `--domain=<each domain>` so a renamed or missing file cannot
+  shrink the set. A translations directory with catalogues but none for the reference locale exits 1 (copies skipped).
+  `.yml` is read like `.yaml`. Keys are still flattened from indentation (no YAML parser), as in the copies.
+- `check-demo-lock`: `^0.0.3` is bounded at `<0.0.4` and `^0.3.5` at `<0.4.0` as Composer does (the script allowed
+  `<0.1.0`), `1.2.*` wildcards and `>= 1.0` with a blank are understood, `<=` is supported; invalid JSON and an empty
+  `--only=` exit 2 (the script crashed or ignored them); a demo without a lock passes, as in the newest copy.
+- `WorkerMemoryAssertions::assertFlat`: last sample minus first, like the copies, margin 4 MiB over the sampled
+  requests; the median-halves comparison needs `medians: true`.
+- `SecondConnection`: the URL travels in the `PQT_SECOND_CONNECTION_URL` environment variable (copies: argument);
+  multi-line SQL throws. The helper process gets 15 s lock waits on MySQL and PostgreSQL, as in the newest copy, and
+  accepts `postgres` / `postgresql` / `sqlite` URL schemes.
+- `ConfigurationThreadStackTestCase`: runs the stack-capped child on every PHP version (the copies were skipped before
+  8.3; the cap is then ignored and only load, build, process and compile are checked) and compares the child's output
+  with the parent's.
+- `TwigPathsPassTestCase`, `RecordingLogger`, `SqliteManagerRegistry`, `TestManagerRegistry`: the superset of the copies'
+  features, nothing removed; `TestManagerRegistry` is the reset-counting variant, the minimal static registries stay in
+  the bundles that need them.
 
 ## To 1.13.0
 

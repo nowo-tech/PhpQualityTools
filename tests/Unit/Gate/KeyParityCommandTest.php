@@ -148,10 +148,48 @@ final class KeyParityCommandTest extends TestCase
         self::assertSame(0, $code);
         self::assertSame('No translations yet (' . self::DIR . "); key parity check skipped.\n", $out);
 
-        $noReference = $this->makeTree([self::DIR . '/NowoFooBundle.es.yaml' => 'a: 1']);
-        [$code, $out] = $this->runCommand($noReference, []);
+        $noCatalogues = $this->makeTree([self::DIR . '/notes.txt' => 'x']);
+        [$code, $out] = $this->runCommand($noCatalogues, []);
         self::assertSame(0, $code);
-        self::assertSame('No catalogues for the reference locale en in ' . self::DIR . "; key parity check skipped.\n", $out);
+        self::assertSame('No catalogues in ' . self::DIR . "; key parity check skipped.\n", $out);
+    }
+
+    public function testCataloguesWithoutTheReferenceLocaleFail(): void
+    {
+        $root = $this->makeTree([self::DIR . '/NowoFooBundle.es.yaml' => 'a: 1', self::DIR . '/NowoFooBundle.fr.yml' => 'a: 1']);
+
+        [$code, $out, $err] = $this->runCommand($root, []);
+
+        self::assertSame(1, $code);
+        self::assertSame('', $out);
+        self::assertStringContainsString('has catalogues but none for the reference locale en', $err);
+
+        [$code] = $this->runCommand($root, ['--domain=NowoFooBundle', '--locales=es,fr']);
+        self::assertSame(1, $code, 'a named domain without its reference file is still a missing file');
+    }
+
+    public function testYmlCataloguesAreReadLikeYaml(): void
+    {
+        $root = $this->makeTree([
+            self::DIR . '/NowoFooBundle.en.yml' => "menu:\n    home: Home\n",
+            self::DIR . '/NowoFooBundle.es.yaml' => "menu:\n    home: Inicio\n",
+            self::DIR . '/NowoBarBundle.en.yaml' => "a: 1\n",
+            self::DIR . '/NowoBarBundle.es.yml' => "a: 2\n",
+        ]);
+
+        [$code, $out, $err] = $this->runCommand($root, ['--locales=en,es']);
+
+        self::assertSame(0, $code, $err);
+        self::assertSame(
+            "Translation key parity OK: NowoBarBundle (2 locales, 1 keys, 0 used in Twig).\n"
+            . "Translation key parity OK: NowoFooBundle (2 locales, 2 keys, 0 used in Twig).\n",
+            $out,
+        );
+
+        file_put_contents($root . '/' . self::DIR . '/NowoBarBundle.es.yml', "b: 2\n");
+        [$code, , $err] = $this->runCommand($root, ['--locales=en,es']);
+        self::assertSame(1, $code);
+        self::assertStringContainsString('key mismatch in NowoBarBundle.es.yml vs en', $err);
     }
 
     public function testHelpAndUsageErrors(): void
