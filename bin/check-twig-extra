@@ -1,0 +1,15 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Fail when Twig applies but twig/extra-bundle is not ready.
+ * See docs/USAGE.md ("Bundle repository checks") or run with --help.
+ */
+
+use NowoTech\PhpQualityTools\Gate\Twig\TwigExtraCommand;
+
+require __DIR__ . '/autoload.php';
+
+exit((new TwigExtraCommand(\STDOUT, \STDERR, (string) getcwd()))->run(array_slice($argv, 1)));
