@@ -80,6 +80,9 @@ every addition is opt-in. See [Usage → Shared test helpers](USAGE.md#shared-te
   are opt-in: `--allow-form-themes`, `--allow-themes`, `--allow-ignore-marker`, `--allow`) and exits 2 when there is no
   Twig file to scan; `check-translation-key-parity` fails when catalogues exist without the reference locale and reads
   `.yml`; invalid JSON, an empty `--only=` and a missing `--forbid-raw` directory exit 2.
+- `check-no-raw-html-form` reads only `src/Resources/views` and the `templates` directories of the demos (never the git-ignored
+  container data folders), accepts `--allow=<glob>`, and exits 2 on an unreadable directory; `check-translation-key-parity`
+  exits 2 when an explicit `--dir` / `--domain` points at a missing translations directory.
 - `SecondConnection` passes the database URL to its helper process through the environment and rejects multi-line SQL.
 
 ### Changed (dev dependencies)

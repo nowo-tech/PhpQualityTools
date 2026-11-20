@@ -79,11 +79,18 @@ final class TwigExtraCommand
         }
 
         $applies = false;
-        foreach (['src', 'templates', 'Resources'] as $dir) {
-            if ([] !== TemplateFiles::in($root, $dir)) {
-                $applies = true;
-                break;
+
+        try {
+            foreach (['src', 'templates', 'Resources'] as $dir) {
+                if ([] !== TemplateFiles::in($root, $dir)) {
+                    $applies = true;
+                    break;
+                }
             }
+        } catch (\RuntimeException $e) {
+            fwrite($this->stderr, 'ERROR: ' . $e->getMessage() . "\n");
+
+            return 2;
         }
         if (!$applies) {
             fwrite($this->stdout, "check-twig-extra: Twig does not apply (no templates) - OK\n");
@@ -123,7 +130,15 @@ final class TwigExtraCommand
 
                 return 2;
             }
-            foreach (TemplateFiles::in($root, $dir) as $file) {
+
+            try {
+                $files = TemplateFiles::in($root, $dir);
+            } catch (\RuntimeException $e) {
+                fwrite($this->stderr, 'ERROR: ' . $e->getMessage() . "\n");
+
+                return 2;
+            }
+            foreach ($files as $file) {
                 $source = (string) preg_replace('/\{#.*?#\}/s', '', (string) file_get_contents($root . '/' . $file));
                 if (1 === preg_match('/\|\s*raw\b/', $source)) {
                     $errors[] = "ERROR: |raw in {$file} (print HTML through a sanitising filter instead)";

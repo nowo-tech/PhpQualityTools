@@ -11,9 +11,9 @@ namespace NowoTech\PhpQualityTools\Gate\Twig;
  * The default is the strictest behaviour: no exception at all. Exceptions are opt-in:
  * `--allow-form-themes` exempts `src/Resources/views/{form,Form}/`, `--allow-themes` every file whose name contains
  * `theme`, `--allow-ignore-marker` a control on the line below `{# twig-005-ignore: <reason> #}` (the reason is
- * mandatory), `--allow=<path>` single files.
+ * mandatory), `--allow=<path-or-glob>` single files or globs (see the usage text).
  *
- * Exit codes: 0 OK, 1 raw markup found, 2 usage error or nothing to scan (no `*.twig` file in the scanned directories).
+ * Exit codes: 0 OK, 1 raw markup found, 2 usage error, a directory that cannot be read, or nothing to scan (no `*.twig` file in the scanned directories).
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
@@ -30,12 +30,12 @@ final class NoRawHtmlFormCommand
         form_start / form_row / form_widget / form_end). Strict by default: no exception.
           --root=<dir>           project root; every other path is relative to it (default: current directory)
           --dir=<dir>            directory to scan, repeatable (default: src/Resources/views and every demo/**/templates)
-          --allow=<path>         file that may keep raw markup (e.g. a deprecated fallback partial), repeatable
+          --allow=<path|glob>    file (or glob, * crosses /: demo/*/templates/form/*) that may keep raw markup, repeatable
           --allow-form-themes    exempt src/Resources/views/form/ and src/Resources/views/Form/ (form themes)
           --allow-themes         exempt every file whose name contains "theme"
           --allow-ignore-marker  exempt a control on the line below {# twig-005-ignore: <reason> #} (reason required)
         An --allow entry that no longer contains raw markup is reported as a warning.
-        Exit codes: 0 OK, 1 raw markup found, 2 usage error or no *.twig file in the scanned directories.
+        Exit codes: 0 OK, 1 raw markup found, 2 usage error, unreadable directory or no *.twig file in the scanned directories.
         TXT;
 
     private const PATTERN = '#<(form|input|textarea|select)(\s|>|$)#i';
@@ -112,7 +112,14 @@ final class NoRawHtmlFormCommand
         $hits = [];
         $scanned = 0;
         foreach ($dirs as $dir) {
-            foreach (TemplateFiles::in($root, $dir) as $file) {
+            try {
+                $files = TemplateFiles::in($root, $dir);
+            } catch (\RuntimeException $e) {
+                fwrite($this->stderr, 'ERROR: ' . $e->getMessage() . "\n");
+
+                return 2;
+            }
+            foreach ($files as $file) {
                 ++$scanned;
                 if (($formThemes && $this->isFormThemeDirectory($file)) || ($themes && str_contains(basename($file), 'theme'))) {
                     continue;
@@ -122,8 +129,9 @@ final class NoRawHtmlFormCommand
                     if (1 !== preg_match(self::PATTERN, $line)) {
                         continue;
                     }
-                    if (isset($allowed[$file])) {
-                        $allowed[$file] = true;
+                    $allowedBy = $this->allowedBy($file, array_keys($allowed));
+                    if (null !== $allowedBy) {
+                        $allowed[$allowedBy] = true;
                         continue;
                     }
                     if ($marker && $index > 0 && 1 === preg_match(self::IGNORE_MARKER, $lines[$index - 1])) {
@@ -140,7 +148,7 @@ final class NoRawHtmlFormCommand
         }
         foreach ($allowed as $path => $stillNeeded) {
             if (!$stillNeeded) {
-                fwrite($this->stderr, "warning: --allow={$path} " . (is_file($root . '/' . $path) ? 'no longer contains raw form markup: remove it from the allowlist' : 'does not exist or is outside the scanned directories') . "\n");
+                fwrite($this->stderr, "warning: --allow={$path} " . (is_file($root . '/' . $path) ? 'no longer contains raw form markup: remove it from the allowlist' : 'matches no file with raw form markup in the scanned directories') . "\n");
             }
         }
 
@@ -152,6 +160,24 @@ final class NoRawHtmlFormCommand
         fwrite($this->stdout, 'check-no-raw-html-form: OK (' . implode(' ', $dirs) . ")\n");
 
         return 0;
+    }
+
+    /**
+     * The `--allow` entry that covers the file: the exact path or a glob (`*` also crosses `/`, so
+     * `demo/*\/templates/form/*` covers a whole directory).
+     *
+     * @param list<int|string> $entries
+     */
+    private function allowedBy(string $file, array $entries): ?string
+    {
+        foreach ($entries as $entry) {
+            $entry = (string) $entry;
+            if ($entry === $file || fnmatch($entry, $file)) {
+                return $entry;
+            }
+        }
+
+        return null;
     }
 
     private function isFormThemeDirectory(string $file): bool

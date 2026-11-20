@@ -1758,7 +1758,9 @@ vendor/bin/check-no-raw-html-form [--root=<dir>] [--dir=<dir>]... [--allow=<path
 
 Fails on raw `<form>` / `<input>` / `<textarea>` / `<select>` in Twig (REQ-TWIG-005): render forms through Symfony Form
 (`form_start`, `form_row`, `form_widget`, `form_end`). Scans `src/Resources/views` and every `demo/**/templates`
-directory (`vendor`, `node_modules`, `var` are skipped) or the `--dir` directories. **Strict by default: no exception.**
+directory (`src/Resources/views` and the `templates` directories of `demo/<name>/` and `demo/<a>/<b>/` only; `vendor`,
+`node_modules`, `var` and dot-directories are skipped, so git-ignored demo data folders are never entered) or the
+`--dir` directories. A directory that cannot be read exits 2 ("cannot read a directory"). **Strict by default: no exception.**
 Matching is case-insensitive; violations print as `file:line:content`. Exit 2 (not 0) when the scanned directories hold
 no `*.twig` file, so a wrong path never passes silently.
 
@@ -1769,7 +1771,7 @@ Exceptions are opt-in, one flag each:
 | `--allow-form-themes` | `src/Resources/views/form/` and `src/Resources/views/Form/` (form themes that emit the controls) |
 | `--allow-themes` | every file whose name contains `theme` |
 | `--allow-ignore-marker` | the control on the line below `{# twig-005-ignore: <reason> #}`; the `: <reason>` is mandatory |
-| `--allow=<path>` | one file (repeatable); a stale entry is a warning |
+| `--allow=<path-or-glob>` | one file or a glob (repeatable; `*` also crosses `/`, so `--allow='demo/*/templates/form/*'` covers a directory); an entry that matches nothing is a warning |
 
 Which options reproduce each family of repository scripts it replaces:
 
@@ -1779,6 +1781,7 @@ Which options reproduce each family of repository scripts it replaces:
 | form themes under `Form/` / `form/` only | `--allow-form-themes` |
 | form themes by name plus the ignore marker (the theme + marker copies) | `--allow-form-themes --allow-themes --allow-ignore-marker` (drop `--allow-form-themes` when the copy did not exempt the directory) |
 | an explicit list of legacy files | one `--allow=<path>` per file |
+| a demo directory of form templates (e.g. `demo/*/templates/form/`) | `--allow='demo/*/templates/form/*'` |
 
 ### `check-twig-extra`
 
@@ -1805,7 +1808,7 @@ locale (default `en,es,it,fr,pt,de,nl`; reference `en`), and every literal key a
 `src/Resources/views`) translates in the domain, through `'key'|trans` with `trans_default_domain` or an explicit domain
 argument, must exist in the reference catalogue. Keys are flattened from the YAML indentation (no YAML parser needed);
 a domain given as a variable is skipped. `.yaml` and `.yml` files are read. Without a translations directory, or with one
-that holds no catalogue, the check is skipped; a directory with catalogues but none for the reference locale fails (exit
+that holds no catalogue, the check is skipped (an explicit `--dir` or `--domain` with a missing directory exits 2); a directory with catalogues but none for the reference locale fails (exit
 1). Name the domains with `--domain` in CI: that also makes a missing reference file an error for that domain.
 
 ## Test hygiene gates (since 1.11.0)

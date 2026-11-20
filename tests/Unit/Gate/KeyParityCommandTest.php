@@ -154,6 +154,23 @@ final class KeyParityCommandTest extends TestCase
         self::assertSame('No catalogues in ' . self::DIR . "; key parity check skipped.\n", $out);
     }
 
+    public function testAnExplicitMissingDirectoryOrDomainIsAnError(): void
+    {
+        $root = $this->makeTree(['README.md' => '']);
+
+        [$code, $out, $err] = $this->runCommand($root, ['--dir=translations']);
+        self::assertSame(2, $code);
+        self::assertSame('', $out);
+        self::assertSame("ERROR: translations directory not found: translations (under {$root})\n", $err);
+
+        [$code, , $err] = $this->runCommand($root, ['--domain=NowoFooBundle']);
+        self::assertSame(2, $code);
+        self::assertStringContainsString('translations directory not found: ' . self::DIR, $err);
+
+        [$code] = $this->runCommand($root, []);
+        self::assertSame(0, $code, 'without options a missing directory is still a skip');
+    }
+
     public function testCataloguesWithoutTheReferenceLocaleFail(): void
     {
         $root = $this->makeTree([self::DIR . '/NowoFooBundle.es.yaml' => 'a: 1', self::DIR . '/NowoFooBundle.fr.yml' => 'a: 1']);

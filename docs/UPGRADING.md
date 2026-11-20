@@ -82,7 +82,9 @@ helpers (`Testing\ConfigurationThreadStackTestCase`, `WorkerMemoryAssertions`, `
 2. Require the libraries of the helpers you use (`doctrine/orm` ^3.0, `psr/log`, `symfony/config`, `symfony/dependency-injection`,
    `doctrine/dbal` ^4.0): they are `suggest` here, not requirements.
 3. Replace the repository's copy by the shared class (`use` change, or a thin subclass of a `*TestCase`) and delete the
-   copy; replace the script that ran a check by the bin (same exit codes: 0 OK, 1 violations, 2 usage).
+   copy; replace the script that ran a check by the bin (exit codes: 0 OK, 1 violations, 2 usage error, invalid input
+   such as malformed JSON, an unreadable directory, or nothing to scan: a CI step that used to pass silently on a wrong
+   path now fails).
 
 ### Differences from the copies
 
@@ -93,13 +95,18 @@ unnoticed:
   `*theme*` file names and the `twig-005-ignore` marker are opt-in (`--allow-form-themes`, `--allow-themes`,
   `--allow-ignore-marker`, which now requires `: <reason>`). A copy with no exception: no flags; with `Form/` themes
   only: `--allow-form-themes`; the theme + marker copies: `--allow-form-themes --allow-themes --allow-ignore-marker`.
-  It exits 2 when there is no `*.twig` file in the scanned directories (copies printed OK). Tag names match
+  A copy that exempts a directory of the demos (the PhoneInput copy exempts `demo/*/templates/form/`) needs `--allow=<glob>`, e.g.
+  `--allow='demo/*/templates/form/*'` (`*` also crosses `/`; an entry matching nothing is a warning).
+  It exits 2 when there is no `*.twig` file in the scanned directories or a directory cannot be read (copies printed OK).
+  It reads `src/Resources/views` and the `templates` directories of `demo/<name>/` and `demo/<a>/<b>/` only, so the
+  git-ignored container data folders of the demos are never entered. Tag names match
   case-insensitively (copies were case-sensitive), and the demo templates are found at any depth under `demo/`.
 - `check-twig-extra`: same checks as the shared copies (a text search for the package names in `composer.json`, not a
   `require` parse); `--forbid-raw=<dir>` is new, and a missing directory exits 2.
 - `check-translation-key-parity`: without `--domain` it checks every domain that has a reference-locale file (a copy
   checked its own fixed domains); recommended in CI: `--domain=<each domain>` so a renamed or missing file cannot
-  shrink the set. A translations directory with catalogues but none for the reference locale exits 1 (copies skipped).
+  shrink the set. A translations directory with catalogues but none for the reference locale exits 1 (copies skipped),
+  and an explicit `--dir` or `--domain` whose translations directory is missing exits 2 (without options it is a skip).
   `.yml` is read like `.yaml`. Keys are still flattened from indentation (no YAML parser), as in the copies.
 - `check-demo-lock`: `^0.0.3` is bounded at `<0.0.4` and `^0.3.5` at `<0.4.0` as Composer does (the script allowed
   `<0.1.0`), `1.2.*` wildcards and `>= 1.0` with a blank are understood, `<=` is supported; invalid JSON and an empty

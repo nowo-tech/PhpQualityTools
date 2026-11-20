@@ -149,7 +149,7 @@ final class NoRawHtmlFormCommandTest extends TestCase
         self::assertSame(0, $code, $err);
         self::assertStringContainsString('OK', $out);
         self::assertStringContainsString('warning: --allow=src/Resources/views/partials/_clean.html.twig no longer contains raw form markup', $err);
-        self::assertStringContainsString('warning: --allow=src/Resources/views/partials/_gone.html.twig does not exist', $err);
+        self::assertStringContainsString('warning: --allow=src/Resources/views/partials/_gone.html.twig matches no file', $err);
     }
 
     public function testExplicitDirectoriesReplaceTheDefaults(): void
@@ -164,6 +164,68 @@ final class NoRawHtmlFormCommandTest extends TestCase
         self::assertSame(1, $code);
         self::assertStringContainsString('resources/views/b.html.twig:1:', $err);
         self::assertStringNotContainsString('src/Resources', $err);
+    }
+
+    public function testGitIgnoredUnreadableDemoDataIsNeverEntered(): void
+    {
+        $root = $this->makeTree([
+            'demo/app/templates/page.html.twig' => '{{ form(form) }}',
+            'demo/app/.data/mysql/ibdata1' => 'x',
+            'demo/app/var/cache/x.twig' => '<input>',
+        ]);
+        $locked = $root . '/demo/app/.data';
+        chmod($locked, 0o000);
+
+        try {
+            [$code, $out, $err] = $this->runCommand($root, []);
+        } finally {
+            chmod($locked, 0o755);
+        }
+
+        self::assertSame(0, $code, $err);
+        self::assertSame("check-no-raw-html-form: OK (demo/app/templates)\n", $out);
+    }
+
+    public function testAnUnreadableDirectoryIsReportedAndExitsTwo(): void
+    {
+        $root = $this->makeTree(['src/Resources/views/ok.html.twig' => 'x', 'src/Resources/views/locked/a.html.twig' => '<input>']);
+        $locked = $root . '/src/Resources/views/locked';
+        chmod($locked, 0o000);
+
+        try {
+            if (is_readable($locked)) {
+                self::markTestSkipped('Permissions are not enforced (running as root).');
+            }
+            [$code, $out, $err] = $this->runCommand($root, []);
+        } finally {
+            chmod($locked, 0o755);
+        }
+
+        self::assertSame(2, $code);
+        self::assertSame('', $out);
+        self::assertStringContainsString('ERROR: cannot read a directory:', $err);
+        self::assertStringContainsString('locked', $err);
+    }
+
+    public function testAllowAcceptsAGlobThatCoversADirectory(): void
+    {
+        $root = $this->makeTree([
+            'demo/app/templates/form/phone.html.twig' => '<input type="tel">',
+            'demo/app/templates/form/deep/x.html.twig' => '<select></select>',
+            'demo/app/templates/page.html.twig' => '<input>',
+        ]);
+
+        [$code, , $err] = $this->runCommand($root, ['--allow=demo/*/templates/form/*', '--allow=demo/*/nothing/*']);
+
+        self::assertSame(1, $code);
+        self::assertStringContainsString('demo/app/templates/page.html.twig:1:', $err);
+        self::assertStringNotContainsString('form/phone', $err);
+        self::assertStringNotContainsString('form/deep', $err);
+        self::assertStringContainsString('warning: --allow=demo/*/nothing/* matches no file with raw form markup', $err);
+
+        [$code, $out] = $this->runCommand($root, ['--allow=demo/*/templates/form/*', '--allow=demo/app/templates/page.html.twig']);
+        self::assertSame(0, $code);
+        self::assertStringContainsString('OK', $out);
     }
 
     public function testNothingToScanIsAnError(): void

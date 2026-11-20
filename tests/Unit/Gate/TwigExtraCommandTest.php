@@ -110,6 +110,44 @@ final class TwigExtraCommandTest extends TestCase
         self::assertSame("ERROR: directory not found: missing (under {$root})\n", $err);
     }
 
+    public function testAnUnreadableTemplateDirectoryExitsTwo(): void
+    {
+        $root = $this->makeTree(['composer.json' => '{}', 'src/Resources/views/locked/a.html.twig' => '']);
+        $locked = $root . '/src/Resources/views/locked';
+        chmod($locked, 0o000);
+
+        try {
+            if (is_readable($locked)) {
+                self::markTestSkipped('Permissions are not enforced (running as root).');
+            }
+            [$code, , $err] = $this->runCommand($root, []);
+        } finally {
+            chmod($locked, 0o755);
+        }
+
+        self::assertSame(2, $code);
+        self::assertStringContainsString('ERROR: cannot read a directory:', $err);
+    }
+
+    public function testAnUnreadableForbidRawDirectoryExitsTwo(): void
+    {
+        $root = $this->makeTree(['composer.json' => self::READY, 'templates/a.html.twig' => '', 'locked/a.html.twig' => '']);
+        $locked = $root . '/locked';
+        chmod($locked, 0o000);
+
+        try {
+            if (is_readable($locked)) {
+                self::markTestSkipped('Permissions are not enforced (running as root).');
+            }
+            [$code, , $err] = $this->runCommand($root, ['--forbid-raw=locked']);
+        } finally {
+            chmod($locked, 0o755);
+        }
+
+        self::assertSame(2, $code);
+        self::assertStringContainsString('ERROR: cannot read a directory:', $err);
+    }
+
     public function testHelpAndUsageErrors(): void
     {
         $root = $this->makeTree(['composer.json' => '{}']);

@@ -35,9 +35,10 @@ final class KeyParityCommand
           --locales=<list>    required locales, comma separated (default: en,es,it,fr,pt,de,nl)
           --reference=<code>  locale the others are compared with (default: en)
           --no-twig           skip the Twig usage check
-        Without a translations directory, or with one without catalogues, the check is skipped (exit 0); a directory with
+        Without a translations directory, or with one without catalogues, the check is skipped (exit 0) unless --dir or
+        --domain was given (a missing directory then exits 2); a directory with
         catalogues but none for the reference locale fails (exit 1). .yaml and .yml files are read.
-        Exit codes: 0 OK, 1 mismatch, 2 usage error.
+        Exit codes: 0 OK, 1 mismatch, 2 usage error or a translations directory that was asked for and is missing.
         TXT;
 
     private const DEFAULT_LOCALES = ['en', 'es', 'it', 'fr', 'pt', 'de', 'nl'];
@@ -70,6 +71,7 @@ final class KeyParityCommand
         $locales = self::DEFAULT_LOCALES;
         $reference = 'en';
         $twig = true;
+        $explicit = false;
         foreach ($args as $arg) {
             if ('-h' === $arg || '--help' === $arg) {
                 fwrite($this->stdout, self::USAGE . "\n");
@@ -85,10 +87,12 @@ final class KeyParityCommand
                 $root = str_starts_with($value, '/') ? $value : $this->cwd . '/' . $value;
             } elseif ('--dir' === $name) {
                 $dir = trim($value, '/');
+                $explicit = true;
             } elseif ('--views' === $name) {
                 $views = trim($value, '/');
             } elseif ('--domain' === $name) {
                 $domains[] = $value;
+                $explicit = true;
             } elseif ('--locales' === $name) {
                 $locales = array_values(array_filter(array_map(trim(...), explode(',', $value)), static fn (string $locale): bool => '' !== $locale));
             } elseif ('--reference' === $name) {
@@ -108,6 +112,11 @@ final class KeyParityCommand
             return 2;
         }
         $translations = $root . '/' . $dir;
+        if (!is_dir($translations) && $explicit) {
+            fwrite($this->stderr, "ERROR: translations directory not found: {$dir} (under {$root})\n");
+
+            return 2;
+        }
         if (!is_dir($translations)) {
             fwrite($this->stdout, "No translations yet ({$dir}); key parity check skipped.\n");
 
