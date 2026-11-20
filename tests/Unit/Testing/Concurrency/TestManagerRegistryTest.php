@@ -8,9 +8,8 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Mapping\Driver\AttributeDriver;
-use Doctrine\ORM\ORMSetup;
 use NowoTech\PhpQualityTools\Testing\Concurrency\TestManagerRegistry;
+use NowoTech\PhpQualityTools\Tests\Support\Testing\OrmConfiguration;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
@@ -23,12 +22,8 @@ final class TestManagerRegistryTest extends TestCase
         $factoryCalls = 0;
         $registry = new TestManagerRegistry($connection, static function (Connection $connection) use (&$factoryCalls): EntityManagerInterface {
             ++$factoryCalls;
-            $config = ORMSetup::createAttributeMetadataConfig([], true);
-            $config->setProxyDir(sys_get_temp_dir() . '/pqt-test-proxies');
-            $config->setProxyNamespace('PqtTestProxies');
-            $config->setMetadataDriverImpl(new AttributeDriver([]));
 
-            return new EntityManager($connection, $config);
+            return new EntityManager($connection, OrmConfiguration::create());
         });
 
         $first = $registry->getManager();
@@ -50,12 +45,7 @@ final class TestManagerRegistryTest extends TestCase
     {
         $connection = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true]);
         $registry = new TestManagerRegistry($connection, static function (Connection $connection): EntityManagerInterface {
-            $config = ORMSetup::createAttributeMetadataConfig([], true);
-            $config->setProxyDir(sys_get_temp_dir() . '/pqt-test-proxies');
-            $config->setProxyNamespace('PqtTestProxies');
-            $config->setMetadataDriverImpl(new AttributeDriver([]));
-
-            return new EntityManager($connection, $config);
+            return new EntityManager($connection, OrmConfiguration::create());
         });
 
         $method = new \ReflectionMethod($registry, 'resetService');

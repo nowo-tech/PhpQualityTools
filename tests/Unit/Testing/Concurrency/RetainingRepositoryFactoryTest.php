@@ -6,10 +6,9 @@ namespace NowoTech\PhpQualityTools\Tests\Unit\Testing\Concurrency;
 
 use Doctrine\DBAL\DriverManager;
 use Doctrine\ORM\EntityManager;
-use Doctrine\ORM\Mapping\Driver\AttributeDriver;
-use Doctrine\ORM\ORMSetup;
 use NowoTech\PhpQualityTools\Testing\Concurrency\RetainingRepositoryFactory;
 use NowoTech\PhpQualityTools\Tests\Fixtures\Testing\Orm\Widget;
+use NowoTech\PhpQualityTools\Tests\Support\Testing\OrmConfiguration;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
@@ -18,10 +17,7 @@ final class RetainingRepositoryFactoryTest extends TestCase
 {
     private function manager(RetainingRepositoryFactory $factory): EntityManager
     {
-        $config = ORMSetup::createAttributeMetadataConfig([], true);
-        $config->setProxyDir(sys_get_temp_dir() . '/pqt-test-proxies');
-        $config->setProxyNamespace('PqtTestProxies');
-        $config->setMetadataDriverImpl(new AttributeDriver([__DIR__ . '/../../../Fixtures/Testing/Orm']));
+        $config = OrmConfiguration::create([__DIR__ . '/../../../Fixtures/Testing/Orm']);
         $config->setRepositoryFactory($factory);
 
         return new EntityManager(DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true]), $config);
