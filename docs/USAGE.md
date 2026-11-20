@@ -44,6 +44,19 @@
   - [`coverage-resume` (since 1.13.0)](#coverage-resume-since-1130)
   - [Makefile snippet: `coverage-resume.mk` (since 1.13.0)](#makefile-snippet-coverage-resumemk-since-1130)
   - [Makefile snippets: `heavy.mk`, `quiet.mk`, `release-phases.mk`](#makefile-snippets-heavymk-quietmk-release-phasesmk)
+- [Shared test helpers (since 1.14.0)](#shared-test-helpers-since-1140)
+  - [Adopting without config files](#adopting-without-config-files)
+  - [`ConfigurationThreadStackTestCase`](#configurationthreadstacktestcase)
+  - [`WorkerMemoryAssertions`](#workermemoryassertions)
+  - [`RecordingLogger`](#recordinglogger)
+  - [`SqliteManagerRegistry`](#sqlitemanagerregistry)
+  - [`TwigPathsPassTestCase`](#twigpathspasstestcase)
+  - [Two-connection race tests: `Testing\Concurrency\`](#two-connection-race-tests-testingconcurrency)
+- [Bundle repository checks (since 1.14.0)](#bundle-repository-checks-since-1140)
+  - [`check-demo-lock`](#check-demo-lock)
+  - [`check-no-raw-html-form`](#check-no-raw-html-form)
+  - [`check-twig-extra`](#check-twig-extra)
+  - [`check-translation-key-parity`](#check-translation-key-parity)
 - [Test hygiene gates (since 1.11.0)](#test-hygiene-gates-since-1110)
   - [`check-coverage-annotations`](#check-coverage-annotations)
   - [`check-wallclock-fixtures`](#check-wallclock-fixtures)
@@ -1526,6 +1539,247 @@ test-coverage:
 
 A host that already defines one of these targets keeps its own by not including that snippet; the existing bins and
 the 1.8 recipes above are unchanged.
+
+## Shared test helpers (since 1.14.0)
+
+Test classes that bundles used to copy from each other, in the `NowoTech\PhpQualityTools\Testing\` namespace. Every
+helper is dependency-light: the package requires none of the libraries below, they are `suggest`ions that a class only
+loads when you use it (`composer.json` lists them as `require-dev` of this repository, which is how the helpers are
+tested).
+
+| Helper | Needs | For |
+| --- | --- | --- |
+| `ConfigurationThreadStackTestCase` | `phpunit/phpunit`, `symfony/config` | configuration trees and sources that must load on a FrankenPHP thread stack |
+| `WorkerMemoryAssertions` | `phpunit/phpunit` | flat-memory assertions over many requests through one kept-alive kernel |
+| `RecordingLogger` | `psr/log` | in-memory PSR-3 logger, "no secret in the log" assertions |
+| `SqliteManagerRegistry` | `doctrine/orm` ^3.0, `pdo_sqlite` | a real `ManagerRegistry` over in-memory SQLite managers |
+| `TwigPathsPassTestCase` | `phpunit/phpunit`, `symfony/dependency-injection` | the contract of a bundle's `TwigPathsPass` |
+| `Concurrency\SecondConnection` | `doctrine/dbal` ^4.0, MySQL / PostgreSQL server | a second database session in its own process |
+| `Concurrency\TestManagerRegistry`, `Concurrency\RetainingRepositoryFactory` | `doctrine/orm` ^3.0 | manager resets as in a worker, repositories kept across them |
+
+### Adopting without config files
+
+The package is a Composer plugin that installs configuration files (Rector, PHP-CS-Fixer…) in the host. A bundle that
+only wants the helpers and bins disables the plugin and requires the package as a development dependency:
+
+```json
+{
+    "require-dev": {
+        "nowo-tech/php-quality-tools": "^1.14",
+        "doctrine/orm": "^3.0",
+        "psr/log": "^3.0",
+        "symfony/config": "^6.4 || ^7.0 || ^8.0"
+    },
+    "config": {
+        "allow-plugins": {
+            "nowo-tech/php-quality-tools": false
+        }
+    }
+}
+```
+
+With `allow-plugins` set to `false` Composer never runs the plugin, so nothing is written to the project; `autoload`
+and `bin` still work (`vendor/bin/check-demo-lock`, …). Require only the libraries of the helpers you use. Adopting a
+helper in a bundle means: require the package as above, delete the bundle's own copy of the class, point its tests at
+the shared class (a `use` change, or a thin subclass for the `*TestCase` classes) and run the suite.
+
+### `ConfigurationThreadStackTestCase`
+
+PHP 8.3+ stops the compiler at `zend.max_allowed_stack_size`; a FrankenPHP thread on Alpine has a 512 KiB stack, so a
+file that needs more cannot be loaded there. One long fluent chain in a configuration tree needs about 1 KiB of stack
+per call. The test case runs PHP in a child process with the stack capped at the thread size and checks that every
+configuration class loads, builds, processes its defaults and dumps its YAML and XML references (the child's output
+must equal the parent's), and that every file under the source directory compiles (`php -l`).
+
+```php
+use NowoTech\PhpQualityTools\Testing\ConfigurationThreadStackTestCase;
+
+#[CoversClass(Configuration::class)]
+final class ConfigurationThreadStackTest extends ConfigurationThreadStackTestCase
+{
+    protected static function configurationClasses(): array
+    {
+        return ['Configuration' => Configuration::class, 'RuntimeConfiguration' => RuntimeConfiguration::class];
+    }
+
+    protected static function sourceDirectory(): string
+    {
+        return __DIR__ . '/../../../src';
+    }
+}
+```
+
+`autoloadFile()` (the host's `vendor/autoload.php`, found from Composer's class loader) and the `THREAD_STACK` constant
+(`512K`) can be overridden. Before PHP 8.3 the cap does not exist: the tests then only check load, build, process and
+compile.
+
+### `WorkerMemoryAssertions`
+
+Drive ONE kernel through `http_kernel->handle()` / `terminate()` many times (worker mode, kernel reset off), sample the
+heap after a GC run every 50 requests after a 50-request warm-up and assert that the growth between the medians of the
+first and the second half stays below 4 MiB. The medians ignore one late reallocation step of a long-lived table, while
+a leak raises every later sample.
+
+```php
+$samples = [];
+for ($i = 0; $i < 1000; ++$i) {
+    $this->listing($kernel, $i % 2 === 0 ? 'alice' : 'bob');
+    WorkerMemoryAssertions::sample($i, $samples);
+}
+WorkerMemoryAssertions::assertFlat($samples);                    // margin 4 MiB; assertFlat($samples, 1024 * 1024) for another
+```
+
+`sample()`, `growth()`, `median()` and `collectedMemory()` are public static, for assertions of your own.
+
+### `RecordingLogger`
+
+A final `Psr\Log\AbstractLogger` that keeps every record in `$records` (`level`, `message`, `context`), with
+`messages()`, `levels()`, `lines()` (`"level: message"`), `recordsWithLevel()`, `has($fragment)`, `contextValues()` (every
+scalar context value, objects as their type), `dump()` (everything as JSON, to assert a secret never appears) and
+`clear()`.
+
+```php
+$logger = new RecordingLogger();
+$service = new Mailer($logger);
+$service->send($message);
+self::assertStringNotContainsString($password, $logger->dump());
+```
+
+### `SqliteManagerRegistry`
+
+A real `ManagerRegistry` over in-memory SQLite entity managers, one connection per manager. Each manager maps only the
+namespaces given to it (attribute mapping); `resetManager()` replaces the manager and keeps the connection, as the
+Doctrine bundle does in a worker; optional `loadClassMetadata` listeners apply to every manager.
+
+```php
+$registry = new SqliteManagerRegistry(
+    ['default' => ['App\Entity' => __DIR__ . '/../../src/Entity'], 'audit' => ['App\Audit' => __DIR__ . '/../../src/Audit']],
+    default: 'default',
+    metadataListeners: [new TablePrefixListener('app_')],
+);
+$em = $registry->getManager('audit');
+(new SchemaTool($em))->createSchema($em->getMetadataFactory()->getAllMetadata());
+```
+
+### `TwigPathsPassTestCase`
+
+The contract of a bundle's `TwigPathsPass`: without a native Twig loader it does nothing; the loader is found as
+`twig.loader.native` or `twig.loader.native_filesystem` through any alias chain; the bundle views are added last with
+`addPath(<views>, <namespace>)`; `<project>/templates/bundles/<namespace>` is prepended first, only when it exists.
+
+```php
+#[CoversClass(TwigPathsPass::class)]
+final class TwigPathsPassTest extends TwigPathsPassTestCase
+{
+    protected function passClass(): string
+    {
+        return TwigPathsPass::class;
+    }
+
+    protected function twigNamespace(): string
+    {
+        return 'NowoExampleBundle';
+    }
+
+    protected function viewsDirectory(): string
+    {
+        return dirname(__DIR__, 4) . '/src/Resources/views';
+    }
+
+    // Only when the pass is gated by a parameter (a feature flag): protected function parameters(): array
+}
+```
+
+Bundle-specific cases (a disabled feature, a second legacy namespace) stay as extra test methods in the subclass.
+
+### Two-connection race tests: `Testing\Concurrency\`
+
+- `SecondConnection`: a second database session in its own PHP process (`resources/testing/second-connection.php`, loaded
+  from the host's autoloader). `execute($sql)` answers `OK` or `ERR <driver code> <SQLSTATE>`, `send($sql)` +
+  `await()` run a statement that blocks on a lock, `sleep($ms)` queues a wait (put it before a `COMMIT` to release a lock
+  while the test is blocked), `value($sql)` returns `VAL '<first value>'`, `close()` ends it. Waits are bounded (15 s lock
+  timeout; 90 s read timeout). URLs: `mysql://…`, `pgsql://…` (also `sqlite:///:memory:` for the helper's own tests).
+- `TestManagerRegistry`: one connection and one entity manager built by a closure; `resetManager()` builds a new manager
+  on the same connection and counts it in `$resets`.
+- `RetainingRepositoryFactory`: keeps one repository per manager instance for the life of the process (what a container
+  repository factory does), `managers()` counts the instances: the reset test proves that no repository obtained before a
+  reset is used after it.
+
+```php
+$other = new SecondConnection(getenv('DATABASE_URL'));
+$other->execute('START TRANSACTION');
+$other->execute('UPDATE account SET balance = 0 WHERE id = 1');
+$other->send('UPDATE account SET balance = 1 WHERE id = 1');   // second update: blocks on the lock
+// … the test's own connection commits or rolls back, the service under test retries …
+self::assertSame('OK', $other->await());
+$other->close();
+```
+
+## Bundle repository checks (since 1.14.0)
+
+Four CI checks that every bundle repository carried as a script of its own, now bins of this package (PHP, no Python or
+Bash needed on the runner; each takes `--root=<dir>` or `<bundle-dir>`, `--help`, and exits 0 OK / 1 violations / 2
+usage). Adopt them as in [Adopting without config files](#adopting-without-config-files) and replace the call of the
+repository script by the bin.
+
+### `check-demo-lock`
+
+```bash
+vendor/bin/check-demo-lock [<bundle-dir>] [--only=<glob>]...
+```
+
+A demo installs the bundle from a path repository with `composer install`, i.e. from its lock, which stores the
+bundle's requirements as they were when the lock was last updated: a requirement added or raised later is not installed
+and the demo fails with "class not found". The bin reports, for every `vendor/package` requirement of the bundle's
+`composer.json` (`--only` narrows them, fnmatch, repeatable), the version each `demo/<name>/composer.lock` resolves and
+fails with `STALE <lock>: <package> <constraint> -> <version|not installed>` when it does not satisfy the constraint. A
+demo without a lock (git-ignored, resolved at install) is reported and passes.
+
+*Why PHP and not the Python script with a wrapper:* the package and its CI recipes are PHP only (`bin/autoload.php`
+falls back to a bare clone), a wrapper would add a Python dependency to every runner and a second language to test, and
+the logic is small. The constraint matcher (`Gate\DemoLock\ConstraintMatcher`: caret, tilde, comparison operators,
+`1.2.*`, `||`, AND by space or comma, `dev-*`) does not need `composer/semver`. Differences from the script it replaces:
+`^0.0.3` is bounded at `<0.0.4` and `^0.3.5` at `<0.4.0` as Composer does, `1.2.*` wildcards and `>= 1.0` with a blank
+are understood, `<=` is supported.
+
+### `check-no-raw-html-form`
+
+```bash
+vendor/bin/check-no-raw-html-form [--root=<dir>] [--dir=<dir>]... [--allow=<path>]... [--strict]
+```
+
+Fails on raw `<form>` / `<input>` / `<textarea>` / `<select>` in Twig (REQ-TWIG-005): render forms through Symfony Form
+(`form_start`, `form_row`, `form_widget`, `form_end`). Scans `src/Resources/views` and every `demo/**/templates`
+directory (`vendor`, `node_modules`, `var` are skipped) or the `--dir` directories. Exempt: form themes
+(`src/Resources/views/form/`, `Form/`, any `*theme*.html.twig`; `--strict` removes this exemption), the files named
+with `--allow` (a stale entry is a warning), and a control on the line below `{# twig-005-ignore: <reason> #}`. Matching
+is case-insensitive. Violations print as `file:line:content`.
+
+### `check-twig-extra`
+
+```bash
+vendor/bin/check-twig-extra [--root=<dir>] [--forbid-raw=<dir>]...
+```
+
+REQ-TWIG-004: when the bundle has any `*.twig` file under `src/`, `templates/` or `Resources/`, its `composer.json` must
+name `twig/extra-bundle` and `twig/string-extra`, and every demo that boots `TwigBundle` (`demo/<name>/` or
+`demo/<a>/<b>/`) must name `twig/extra-bundle` in its `composer.json` and register `TwigExtraBundle` in
+`config/bundles.php`. `--forbid-raw=<dir>` also fails on the `|raw` filter outside Twig comments in the templates under
+`<dir>` (for bundles that print HTML through a sanitising filter).
+
+### `check-translation-key-parity`
+
+```bash
+vendor/bin/check-translation-key-parity [--root=<dir>] [--dir=<dir>] [--views=<dir>] [--domain=<name>]...
+                                        [--locales=<en,es,...>] [--reference=<locale>] [--no-twig]
+```
+
+REQ-I18N-002: the `<Domain>.<locale>.yaml` catalogues of a domain (default directory `src/Resources/translations`, every
+domain that has a reference-locale file unless `--domain` names them) must have the same nested keys in every required
+locale (default `en,es,it,fr,pt,de,nl`; reference `en`), and every literal key a Twig template under `--views` (default
+`src/Resources/views`) translates in the domain, through `'key'|trans` with `trans_default_domain` or an explicit domain
+argument, must exist in the reference catalogue. Keys are flattened from the YAML indentation (no YAML parser needed);
+a domain given as a variable is skipped. Without a translations directory the check is skipped.
 
 ## Test hygiene gates (since 1.11.0)
 

@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.14.0](#to-1140)
 - [To 1.13.0](#to-1130)
 - [To 1.12.0](#to-1120)
 - [To 1.11.0](#to-1110)
@@ -61,6 +62,32 @@
 - [Related Documentation](#related-documentation)
 
 ## Unreleased
+
+## To 1.14.0
+
+From **1.13.0** (minor release, nothing to change):
+
+```bash
+composer update nowo-tech/php-quality-tools
+```
+
+Every addition is opt-in: no existing class, bin or Makefile snippet changes. A repository that wants the new test
+helpers (`Testing\ConfigurationThreadStackTestCase`, `WorkerMemoryAssertions`, `RecordingLogger`, `SqliteManagerRegistry`,
+`TwigPathsPassTestCase`, `Testing\Concurrency\*`) or the new bins (`check-demo-lock`, `check-no-raw-html-form`,
+`check-twig-extra`, `check-translation-key-parity`) adopts them per helper, see
+[Usage → Shared test helpers](USAGE.md#shared-test-helpers-since-1140):
+
+1. Require the package as a development dependency with the plugin disabled, so it installs no configuration file:
+   `"config": {"allow-plugins": {"nowo-tech/php-quality-tools": false}}`.
+2. Require the libraries of the helpers you use (`doctrine/orm` ^3.0, `psr/log`, `symfony/config`, `symfony/dependency-injection`,
+   `doctrine/dbal` ^4.0): they are `suggest` here, not requirements.
+3. Replace the repository's copy by the shared class (`use` change, or a thin subclass of a `*TestCase`) and delete the
+   copy; replace the script that ran a check by the bin (same exit codes: 0 OK, 1 violations, 2 usage).
+
+Differences a copy-based adopter may notice: `check-demo-lock` bounds `^0.0.3` at `<0.0.4` and understands `1.2.*`
+wildcards; `check-no-raw-html-form` matches tag names case-insensitively and exempts form themes by default (`--strict`
+turns that off); `check-translation-key-parity` checks every domain that has a reference-locale file when `--domain` is
+not given.
 
 ## To 1.13.0
 
