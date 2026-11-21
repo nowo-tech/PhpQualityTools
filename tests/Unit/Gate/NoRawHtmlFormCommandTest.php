@@ -1,0 +1,290 @@
+<?php
+
+declare(strict_types=1);
+
+namespace NowoTech\PhpQualityTools\Tests\Unit\Gate;
+
+use NowoTech\PhpQualityTools\Gate\Twig\NoRawHtmlFormCommand;
+use NowoTech\PhpQualityTools\Gate\Twig\TemplateFiles;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\TestCase;
+
+#[CoversClass(NoRawHtmlFormCommand::class)]
+#[CoversClass(TemplateFiles::class)]
+final class NoRawHtmlFormCommandTest extends TestCase
+{
+    use TempTreeTrait;
+
+    public function testSymfonyFormMarkupPasses(): void
+    {
+        $root = $this->makeTree([
+            'src/Resources/views/page.html.twig' => "{{ form_start(form) }}\n{{ form_row(form.name) }}\n{{ form_end(form) }}\n<span>format</span> <formula>x</formula>",
+            'demo/symfony7/templates/index.html.twig' => '{{ form(form) }}',
+        ]);
+
+        [$code, $out, $err] = $this->runCommand($root, []);
+
+        self::assertSame(0, $code, $err);
+        self::assertSame("check-no-raw-html-form: OK (src/Resources/views demo/symfony7/templates)\n", $out);
+    }
+
+    public function testRawMarkupInViewsAndDemosIsReportedWithFileAndLine(): void
+    {
+        $root = $this->makeTree([
+            'src/Resources/views/a.html.twig' => "<div>\n  <form method=\"post\">\n  <INPUT type=\"text\">\n<textarea>\n<select>\n<input\n",
+            'demo/symfony8/nested/templates/b.html.twig' => '<input type="hidden">',
+            'demo/symfony8/vendor/templates/skipped.html.twig' => '<input>',
+            'demo/symfony8/node_modules/templates/skipped.html.twig' => '<input>',
+            'demo/symfony8/other/c.html.twig' => '<input>',
+        ]);
+
+        [$code, $out, $err] = $this->runCommand($root, []);
+
+        self::assertSame(1, $code);
+        self::assertSame('', $out);
+        self::assertSame(
+            "ERROR: raw <form> / <input> / <textarea> / <select> in Twig (REQ-TWIG-005):\n"
+            . "src/Resources/views/a.html.twig:2:  <form method=\"post\">\n"
+            . "src/Resources/views/a.html.twig:3:  <INPUT type=\"text\">\n"
+            . "src/Resources/views/a.html.twig:4:<textarea>\n"
+            . "src/Resources/views/a.html.twig:5:<select>\n"
+            . "src/Resources/views/a.html.twig:6:<input\n"
+            . "demo/symfony8/nested/templates/b.html.twig:1:<input type=\"hidden\">\n",
+            $err,
+        );
+    }
+
+    public function testThemesAndMarkersAreNotExemptByDefault(): void
+    {
+        $root = $this->makeTree([
+            'src/Resources/views/form/theme.html.twig' => '<input type="text">',
+            'src/Resources/views/Form/widget.html.twig' => '<input type="text">',
+            'src/Resources/views/partials/_my_theme_x.html.twig' => '<select></select>',
+            'src/Resources/views/confirm.html.twig' => "{# twig-005-ignore: never submitted #}\n<input type=\"text\">\n",
+        ]);
+
+        [$code, , $err] = $this->runCommand($root, []);
+
+        self::assertSame(1, $code);
+        self::assertStringContainsString('src/Resources/views/form/theme.html.twig:1:', $err);
+        self::assertStringContainsString('src/Resources/views/Form/widget.html.twig:1:', $err);
+        self::assertStringContainsString('_my_theme_x.html.twig:1:', $err);
+        self::assertStringContainsString('confirm.html.twig:2:', $err);
+    }
+
+    public function testAllowFormThemesExemptsOnlyTheFormDirectories(): void
+    {
+        $root = $this->makeTree([
+            'src/Resources/views/form/theme.html.twig' => '<input type="text">',
+            'src/Resources/views/Form/widget.html.twig' => '<input type="text">',
+            'src/Resources/views/partials/_my_theme_x.html.twig' => '<select></select>',
+        ]);
+
+        [$code, , $err] = $this->runCommand($root, ['--allow-form-themes']);
+
+        self::assertSame(1, $code);
+        self::assertSame("ERROR: raw <form> / <input> / <textarea> / <select> in Twig (REQ-TWIG-005):\nsrc/Resources/views/partials/_my_theme_x.html.twig:1:<select></select>\n", $err);
+    }
+
+    public function testAllowThemesExemptsFilesNamedTheme(): void
+    {
+        $root = $this->makeTree([
+            'src/Resources/views/form/widget.html.twig' => '<input type="text">',
+            'src/Resources/views/partials/_my_theme_x.html.twig' => '<select></select>',
+        ]);
+
+        [$code, , $err] = $this->runCommand($root, ['--allow-themes']);
+
+        self::assertSame(1, $code);
+        self::assertStringContainsString('src/Resources/views/form/widget.html.twig:1:', $err);
+        self::assertStringNotContainsString('_my_theme_x', $err);
+    }
+
+    public function testBothThemeFlagsAndTheMarkerReproduceTheThemeAndMarkerFamily(): void
+    {
+        $root = $this->makeTree([
+            'src/Resources/views/form/widget.html.twig' => '<input type="text">',
+            'src/Resources/views/partials/_my_theme_x.html.twig' => '<select></select>',
+            'src/Resources/views/confirm.html.twig' => "{# twig-005-ignore: nameless type-to-confirm input #}\n<input type=\"text\">\n",
+        ]);
+
+        [$code, $out, $err] = $this->runCommand($root, ['--allow-form-themes', '--allow-themes', '--allow-ignore-marker']);
+
+        self::assertSame(0, $code, $err);
+        self::assertStringContainsString('OK', $out);
+    }
+
+    public function testTheMarkerNeedsAReasonAndExemptsOnlyTheNextLine(): void
+    {
+        $root = $this->makeTree([
+            'src/Resources/views/confirm.html.twig' => "{# twig-005-ignore: reason #}\n<input type=\"text\">\n<input type=\"text\">\n",
+            'src/Resources/views/noreason.html.twig' => "{# twig-005-ignore #}\n<input type=\"text\">\n",
+            'src/Resources/views/emptyreason.html.twig' => "{# twig-005-ignore:   #}\n<input type=\"text\">\n",
+            'src/Resources/views/first.html.twig' => '<input type="text">',
+        ]);
+
+        [$code, , $err] = $this->runCommand($root, ['--allow-ignore-marker']);
+
+        self::assertSame(1, $code);
+        self::assertStringContainsString('confirm.html.twig:3:', $err);
+        self::assertStringNotContainsString('confirm.html.twig:2:', $err);
+        self::assertStringContainsString('noreason.html.twig:2:', $err);
+        self::assertStringContainsString('emptyreason.html.twig:2:', $err);
+        self::assertStringContainsString('first.html.twig:1:', $err);
+    }
+
+    public function testAllowedFilesAreExemptAndStaleEntriesAreWarnedAbout(): void
+    {
+        $root = $this->makeTree([
+            'src/Resources/views/partials/_legacy.html.twig' => '<form></form>',
+            'src/Resources/views/partials/_clean.html.twig' => '{{ form(form) }}',
+        ]);
+
+        [$code, $out, $err] = $this->runCommand($root, [
+            '--allow=./src/Resources/views/partials/_legacy.html.twig',
+            '--allow=src/Resources/views/partials/_clean.html.twig',
+            '--allow=src/Resources/views/partials/_gone.html.twig',
+        ]);
+
+        self::assertSame(0, $code, $err);
+        self::assertStringContainsString('OK', $out);
+        self::assertStringContainsString('warning: --allow=src/Resources/views/partials/_clean.html.twig no longer contains raw form markup', $err);
+        self::assertStringContainsString('warning: --allow=src/Resources/views/partials/_gone.html.twig matches no file', $err);
+    }
+
+    public function testExplicitDirectoriesReplaceTheDefaults(): void
+    {
+        $root = $this->makeTree([
+            'src/Resources/views/a.html.twig' => '<input>',
+            'resources/views/b.html.twig' => '<input>',
+        ]);
+
+        [$code, , $err] = $this->runCommand($root, ['--dir=./resources/views/']);
+
+        self::assertSame(1, $code);
+        self::assertStringContainsString('resources/views/b.html.twig:1:', $err);
+        self::assertStringNotContainsString('src/Resources', $err);
+    }
+
+    public function testGitIgnoredUnreadableDemoDataIsNeverEntered(): void
+    {
+        $root = $this->makeTree([
+            'demo/app/templates/page.html.twig' => '{{ form(form) }}',
+            'demo/app/.data/mysql/ibdata1' => 'x',
+            'demo/app/var/cache/x.twig' => '<input>',
+        ]);
+        $locked = $root . '/demo/app/.data';
+        chmod($locked, 0o000);
+
+        try {
+            [$code, $out, $err] = $this->runCommand($root, []);
+        } finally {
+            chmod($locked, 0o755);
+        }
+
+        self::assertSame(0, $code, $err);
+        self::assertSame("check-no-raw-html-form: OK (demo/app/templates)\n", $out);
+    }
+
+    public function testAnUnreadableDirectoryIsReportedAndExitsTwo(): void
+    {
+        $root = $this->makeTree(['src/Resources/views/ok.html.twig' => 'x', 'src/Resources/views/locked/a.html.twig' => '<input>']);
+        $locked = $root . '/src/Resources/views/locked';
+        chmod($locked, 0o000);
+
+        try {
+            if (is_readable($locked)) {
+                self::markTestSkipped('Permissions are not enforced (running as root).');
+            }
+            [$code, $out, $err] = $this->runCommand($root, []);
+        } finally {
+            chmod($locked, 0o755);
+        }
+
+        self::assertSame(2, $code);
+        self::assertSame('', $out);
+        self::assertStringContainsString('ERROR: cannot read a directory:', $err);
+        self::assertStringContainsString('locked', $err);
+    }
+
+    public function testAllowAcceptsAGlobThatCoversADirectory(): void
+    {
+        $root = $this->makeTree([
+            'demo/app/templates/form/phone.html.twig' => '<input type="tel">',
+            'demo/app/templates/form/deep/x.html.twig' => '<select></select>',
+            'demo/app/templates/page.html.twig' => '<input>',
+        ]);
+
+        [$code, , $err] = $this->runCommand($root, ['--allow=demo/*/templates/form/*', '--allow=demo/*/nothing/*']);
+
+        self::assertSame(1, $code);
+        self::assertStringContainsString('demo/app/templates/page.html.twig:1:', $err);
+        self::assertStringNotContainsString('form/phone', $err);
+        self::assertStringNotContainsString('form/deep', $err);
+        self::assertStringContainsString('warning: --allow=demo/*/nothing/* matches no file with raw form markup', $err);
+
+        [$code, $out] = $this->runCommand($root, ['--allow=demo/*/templates/form/*', '--allow=demo/app/templates/page.html.twig']);
+        self::assertSame(0, $code);
+        self::assertStringContainsString('OK', $out);
+    }
+
+    public function testNothingToScanIsAnError(): void
+    {
+        $root = $this->makeTree(['README.md' => '']);
+        [$code, , $err] = $this->runCommand(\dirname($root), ['--root=' . basename($root)]);
+        self::assertSame(2, $code);
+        self::assertStringContainsString('no *.twig file in the scanned directories (src/Resources/views, demo/**/templates)', $err);
+
+        $empty = $this->makeTree(['src/Resources/views/readme.txt' => 'x', 'demo/a/templates/.gitkeep' => '']);
+        [$code, , $err] = $this->runCommand($empty, []);
+        self::assertSame(2, $code);
+        self::assertStringContainsString('(src/Resources/views, demo/a/templates)', $err);
+    }
+
+    public function testHelpAndUsageErrors(): void
+    {
+        $root = $this->makeTree(['src/Resources/views/a.html.twig' => '']);
+
+        [$code, $out] = $this->runCommand($root, ['--help']);
+        self::assertSame(0, $code);
+        self::assertStringContainsString('Usage: check-no-raw-html-form', $out);
+
+        foreach ([
+            ['--bogus=1', 'Unknown option --bogus=1'],
+            ['--dir', 'Unknown or empty option --dir'],
+            ['--strict', 'Unknown or empty option --strict'],
+            ['--dir=missing', 'directory not found: missing'],
+            ['--root=missing', 'root directory not found: ' . $root . '/missing'],
+        ] as [$arg, $message]) {
+            [$code, , $err] = $this->runCommand($root, [$arg]);
+            self::assertSame(2, $code, $arg);
+            self::assertStringContainsString($message, $err, $arg);
+        }
+    }
+
+    public function testTemplateFilesSkipsMissingDirectories(): void
+    {
+        $root = $this->makeTree(['README.md' => '']);
+
+        self::assertSame([], TemplateFiles::in($root, 'templates'));
+        self::assertSame([], TemplateFiles::demoTemplateDirectories($root));
+    }
+
+    /**
+     * @param list<string> $args
+     *
+     * @return array{int, string, string}
+     */
+    private function runCommand(string $cwd, array $args): array
+    {
+        $stdout = fopen('php://memory', 'w+');
+        $stderr = fopen('php://memory', 'w+');
+        self::assertIsResource($stdout);
+        self::assertIsResource($stderr);
+        $code = (new NoRawHtmlFormCommand($stdout, $stderr, $cwd))->run($args);
+        rewind($stdout);
+        rewind($stderr);
+
+        return [$code, (string) stream_get_contents($stdout), (string) stream_get_contents($stderr)];
+    }
+}

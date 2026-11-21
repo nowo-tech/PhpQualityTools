@@ -397,6 +397,12 @@ vendor/bin/check-asset-budgets --warn-at=90                                # sin
 vendor/bin/check-coverage-annotations                                      # "// @codeCoverageIgnore reason" and other ignored forms in src/
 vendor/bin/check-wallclock-fixtures --baseline=tests/wallclock-baseline.txt # tests reading the real clock without a frozen one
 
+# Bundle repository checks (since 1.14.0; test helpers: docs/USAGE.md "Shared test helpers")
+vendor/bin/check-demo-lock                                                 # demo/*/composer.lock satisfies the bundle's own require
+vendor/bin/check-no-raw-html-form                                          # no raw <form> / <input> in Twig (REQ-TWIG-005)
+vendor/bin/check-twig-extra                                                # twig/extra-bundle ready when Twig applies (REQ-TWIG-004)
+vendor/bin/check-translation-key-parity                                    # same keys in every locale + Twig keys exist (REQ-I18N-002)
+
 # Git hygiene (since 1.7.0, POSIX sh): no AI agent co-author trailers
 vendor/bin/check-no-agent-coauthor --since-file .scripts/agent-coauthor-baseline
 vendor/bin/install-git-hooks --hooks-dir .githooks                         # commit-msg hook that strips them

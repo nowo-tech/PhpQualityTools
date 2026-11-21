@@ -34,7 +34,7 @@ final class GateBinScriptsTest extends TestCase
         $composer = json_decode((string) file_get_contents(self::ROOT . '/composer.json'), true, 512, \JSON_THROW_ON_ERROR);
 
         self::assertIsArray($composer);
-        self::assertSame(['bin/assert-latest-tag', 'bin/assert-release-proof', 'bin/changed-tests', 'bin/check-changed-src-tested', 'bin/check-asset-budgets', 'bin/check-coverage-annotations', 'bin/check-coverage-threshold', 'bin/check-doc-links', 'bin/check-module-boundaries', 'bin/check-no-agent-coauthor', 'bin/check-no-inline-svg', 'bin/check-wallclock-fixtures', 'bin/clean-stale-pid-paths', 'bin/coverage-gaps', 'bin/coverage-resume', 'bin/heavy-lock', 'bin/install-git-hooks', 'bin/junit-failures', 'bin/memory-guard', 'bin/quiet-run', 'bin/release-phase', 'bin/slowest-tests', 'bin/strip-agent-coauthor'], $composer['bin'] ?? null);
+        self::assertSame(['bin/assert-latest-tag', 'bin/assert-release-proof', 'bin/changed-tests', 'bin/check-changed-src-tested', 'bin/check-asset-budgets', 'bin/check-coverage-annotations', 'bin/check-coverage-threshold', 'bin/check-demo-lock', 'bin/check-doc-links', 'bin/check-module-boundaries', 'bin/check-no-agent-coauthor', 'bin/check-no-inline-svg', 'bin/check-no-raw-html-form', 'bin/check-translation-key-parity', 'bin/check-twig-extra', 'bin/check-wallclock-fixtures', 'bin/clean-stale-pid-paths', 'bin/coverage-gaps', 'bin/coverage-resume', 'bin/heavy-lock', 'bin/install-git-hooks', 'bin/junit-failures', 'bin/memory-guard', 'bin/quiet-run', 'bin/release-phase', 'bin/slowest-tests', 'bin/strip-agent-coauthor'], $composer['bin'] ?? null);
         foreach ($composer['bin'] as $script) {
             self::assertTrue(is_executable(self::ROOT . '/' . $script), $script);
         }
@@ -43,6 +43,51 @@ final class GateBinScriptsTest extends TestCase
         self::assertTrue(is_executable(self::ROOT . '/bin/check-coverage-threshold'));
         self::assertTrue(is_executable(self::ROOT . '/bin/check-module-boundaries'));
         self::assertTrue(is_executable(self::ROOT . '/bin/clean-stale-pid-paths'));
+    }
+
+    public function testBundleRepositoryChecksRunFromTheirBinScripts(): void
+    {
+        $tree = sys_get_temp_dir() . '/pqt-bundle-' . bin2hex(random_bytes(4));
+        $this->repo = $tree;
+        mkdir($tree . '/src/Resources/views', 0o777, true);
+        mkdir($tree . '/src/Resources/translations', 0o777, true);
+        mkdir($tree . '/demo/app', 0o777, true);
+        file_put_contents($tree . '/composer.json', '{"require":{"nowo-tech/x":"^1.2","twig/extra-bundle":"^3.0","twig/string-extra":"^3.0"}}');
+        file_put_contents($tree . '/demo/app/composer.json', '{}');
+        file_put_contents($tree . '/demo/app/composer.lock', '{"packages":[{"name":"nowo-tech/x","version":"v1.4.0"}]}');
+        file_put_contents($tree . '/src/Resources/views/a.html.twig', "{{ form(form) }}{{ 'hello'|trans({}, 'NowoXBundle') }}");
+        file_put_contents($tree . '/src/Resources/translations/NowoXBundle.en.yaml', 'hello: Hello');
+        file_put_contents($tree . '/src/Resources/translations/NowoXBundle.es.yaml', 'hello: Hola');
+
+        foreach (['check-demo-lock', 'check-no-raw-html-form', 'check-twig-extra', 'check-translation-key-parity'] as $script) {
+            [$code, $out] = $this->runScript($script, ['--help'], []);
+            self::assertSame(0, $code, $out);
+            self::assertStringContainsString('Usage: ' . $script, $out);
+        }
+
+        [$code, $out] = $this->runScript('check-demo-lock', ['--only=nowo-tech/*'], [], $tree);
+        self::assertSame(0, $code, $out);
+        self::assertStringContainsString('OK: 1 demo lock(s) satisfy 1 requirement(s).', $out);
+        [$code, $out] = $this->runScript('check-no-raw-html-form', [], [], $tree);
+        self::assertSame(0, $code, $out);
+        [$code, $out] = $this->runScript('check-twig-extra', [], [], $tree);
+        self::assertSame(0, $code, $out);
+        [$code, $out] = $this->runScript('check-translation-key-parity', ['--locales=en,es'], [], $tree);
+        self::assertSame(0, $code, $out);
+        self::assertStringContainsString('Translation key parity OK: NowoXBundle', $out);
+
+        file_put_contents($tree . '/demo/app/composer.lock', '{"packages":[{"name":"nowo-tech/x","version":"v1.1.0"}]}');
+        file_put_contents($tree . '/src/Resources/views/b.html.twig', '<input type="text">');
+        file_put_contents($tree . '/src/Resources/translations/NowoXBundle.es.yaml', 'bye: Adios');
+        [$code, $out] = $this->runScript('check-demo-lock', ['--only=nowo-tech/*'], [], $tree);
+        self::assertSame(1, $code);
+        self::assertStringContainsString('STALE demo/app/composer.lock: nowo-tech/x ^1.2 -> v1.1.0', $out);
+        [$code, $out] = $this->runScript('check-no-raw-html-form', [], [], $tree);
+        self::assertSame(1, $code);
+        self::assertStringContainsString('b.html.twig:1:<input type="text">', $out);
+        [$code, $out] = $this->runScript('check-translation-key-parity', ['--locales=en,es'], [], $tree);
+        self::assertSame(1, $code);
+        self::assertStringContainsString('key mismatch in NowoXBundle.es.yaml vs en', $out);
     }
 
     public function testCoverageResumeScriptRuns(): void

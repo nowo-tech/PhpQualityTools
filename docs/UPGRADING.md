@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.14.0](#to-1140)
 - [To 1.13.0](#to-1130)
 - [To 1.12.0](#to-1120)
 - [To 1.11.0](#to-1110)
@@ -61,6 +62,66 @@
 - [Related Documentation](#related-documentation)
 
 ## Unreleased
+
+## To 1.14.0
+
+From **1.13.0** (minor release, nothing to change):
+
+```bash
+composer update nowo-tech/php-quality-tools
+```
+
+Every addition is opt-in: no existing class, bin or Makefile snippet changes. A repository that wants the new test
+helpers (`Testing\ConfigurationThreadStackTestCase`, `WorkerMemoryAssertions`, `RecordingLogger`, `SqliteManagerRegistry`,
+`TwigPathsPassTestCase`, `Testing\Concurrency\*`) or the new bins (`check-demo-lock`, `check-no-raw-html-form`,
+`check-twig-extra`, `check-translation-key-parity`) adopts them per helper, see
+[Usage → Shared test helpers](USAGE.md#shared-test-helpers-since-1140):
+
+1. Require the package as a development dependency with the plugin disabled, so it installs no configuration file:
+   `"config": {"allow-plugins": {"nowo-tech/php-quality-tools": false}}`.
+2. Require the libraries of the helpers you use (`doctrine/orm` ^3.0, `psr/log`, `symfony/config`, `symfony/dependency-injection`,
+   `doctrine/dbal` ^4.0): they are `suggest` here, not requirements.
+3. Replace the repository's copy by the shared class (`use` change, or a thin subclass of a `*TestCase`) and delete the
+   copy; replace the script that ran a check by the bin (exit codes: 0 OK, 1 violations, 2 usage error, invalid input
+   such as malformed JSON, an unreadable directory, or nothing to scan: a CI step that used to pass silently on a wrong
+   path now fails).
+
+### Differences from the copies
+
+Every remaining behaviour difference from the per-bundle copies these helpers replace, so that nothing gets weaker
+unnoticed:
+
+- `check-no-raw-html-form`: strict by default (the strictest copy's behaviour); the form-theme directories, the
+  `*theme*` file names and the `twig-005-ignore` marker are opt-in (`--allow-form-themes`, `--allow-themes`,
+  `--allow-ignore-marker`, which now requires `: <reason>`). A copy with no exception: no flags; with `Form/` themes
+  only: `--allow-form-themes`; the theme + marker copies: `--allow-form-themes --allow-themes --allow-ignore-marker`.
+  A copy that exempts a directory of the demos (the PhoneInput copy exempts `demo/*/templates/form/`) needs `--allow=<glob>`, e.g.
+  `--allow='demo/*/templates/form/*'` (`*` also crosses `/`; an entry matching nothing is a warning).
+  It exits 2 when there is no `*.twig` file in the scanned directories or a directory cannot be read (copies printed OK).
+  It reads `src/Resources/views` and the `templates` directories of `demo/<name>/` and `demo/<a>/<b>/` only, so the
+  git-ignored container data folders of the demos are never entered. Tag names match
+  case-insensitively (copies were case-sensitive), and the demo templates are found at any depth under `demo/`.
+- `check-twig-extra`: same checks as the shared copies (a text search for the package names in `composer.json`, not a
+  `require` parse); `--forbid-raw=<dir>` is new, and a missing directory exits 2.
+- `check-translation-key-parity`: without `--domain` it checks every domain that has a reference-locale file (a copy
+  checked its own fixed domains); recommended in CI: `--domain=<each domain>` so a renamed or missing file cannot
+  shrink the set. A translations directory with catalogues but none for the reference locale exits 1 (copies skipped),
+  and an explicit `--dir` or `--domain` whose translations directory is missing exits 2 (without options it is a skip).
+  `.yml` is read like `.yaml`. Keys are still flattened from indentation (no YAML parser), as in the copies.
+- `check-demo-lock`: `^0.0.3` is bounded at `<0.0.4` and `^0.3.5` at `<0.4.0` as Composer does (the script allowed
+  `<0.1.0`), `1.2.*` wildcards and `>= 1.0` with a blank are understood, `<=` is supported; invalid JSON and an empty
+  `--only=` exit 2 (the script crashed or ignored them); a demo without a lock passes, as in the newest copy.
+- `WorkerMemoryAssertions::assertFlat`: last sample minus first, like the copies, margin 4 MiB over the sampled
+  requests; the median-halves comparison needs `medians: true`.
+- `SecondConnection`: the URL travels in the `PQT_SECOND_CONNECTION_URL` environment variable (copies: argument);
+  multi-line SQL throws. The helper process gets 15 s lock waits on MySQL and PostgreSQL, as in the newest copy, and
+  accepts `postgres` / `postgresql` / `sqlite` URL schemes.
+- `ConfigurationThreadStackTestCase`: runs the stack-capped child on every PHP version (the copies were skipped before
+  8.3; the cap is then ignored and only load, build, process and compile are checked) and compares the child's output
+  with the parent's.
+- `TwigPathsPassTestCase`, `RecordingLogger`, `SqliteManagerRegistry`, `TestManagerRegistry`: the superset of the copies'
+  features, nothing removed; `TestManagerRegistry` is the reset-counting variant, the minimal static registries stay in
+  the bundles that need them.
 
 ## To 1.13.0
 

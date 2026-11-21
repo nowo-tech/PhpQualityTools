@@ -49,6 +49,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target 1.14.0 (minor, additive). Shared test helpers and repository checks that bundles used to copy from each other;
+every addition is opt-in. See [Usage → Shared test helpers](USAGE.md#shared-test-helpers-since-1140) and
+[Usage → Bundle repository checks](USAGE.md#bundle-repository-checks-since-1140).
+
+### Added
+
+- **`Testing\ConfigurationThreadStackTestCase`** (+ `Testing\ConfigurationThreadStack`, `resources/testing/configuration-thread-stack.php`):
+  every configuration class must load, build, process its defaults and dump its references, and every source file must
+  compile, in a PHP child process whose stack is capped at a FrankenPHP thread on Alpine (512 KiB). Derived from the most
+  complete copy (several configuration classes per test case, required keys without defaults compared by message).
+- **`Testing\WorkerMemoryAssertions`** (`sample`, `median`, `growth`, `collectedMemory`, `assertFlat`): flat-memory assertions
+  over many requests through one kept-alive kernel, last sample minus first by default (as the copies), with an explicit
+  median-halves mode (`medians: true`).
+- **`Testing\RecordingLogger`**: in-memory PSR-3 logger with `messages()`, `levels()`, `lines()`, `recordsWithLevel()`,
+  `has()`, `contextValues()` (objects that are not stringable appear as their type), `dump()` and `clear()`.
+- **`Testing\SqliteManagerRegistry`**: a real `ManagerRegistry` over in-memory SQLite entity managers (one connection per
+  manager, `resetManager()` keeps the connection, optional `loadClassMetadata` listeners, native lazy objects on PHP 8.4+).
+- **`Testing\TwigPathsPassTestCase`**: the contract of a bundle's `TwigPathsPass` (loader lookup through alias chains,
+  override directory prepended only when it exists, bundle views added last).
+- **`Testing\Concurrency\SecondConnection`** (+ `resources/testing/second-connection.php`), **`RetainingRepositoryFactory`**
+  and **`TestManagerRegistry`**: helpers for two-connection race and load tests (second session with `SQL` / `VAL` /
+  `SLEEP` commands and bounded lock waits; repositories kept across manager resets; a registry whose reset builds a new
+  manager on the same connection).
+- **`bin/check-demo-lock`**: fails when a `demo/*/composer.lock` does not satisfy the bundle's own `composer.json` `require`
+  (PHP port of a Python script; Composer-style caret / tilde / wildcard / `||` constraints without `composer/semver`).
+- **`bin/check-no-raw-html-form`** (REQ-TWIG-005), **`bin/check-twig-extra`** (REQ-TWIG-004, optional `--forbid-raw`) and
+  **`bin/check-translation-key-parity`** (REQ-I18N-002 plus the Twig usage check): PHP ports of the shell and Python
+  repository scripts, with the options their variants needed. `check-no-raw-html-form` is strict by default (exceptions
+  are opt-in: `--allow-form-themes`, `--allow-themes`, `--allow-ignore-marker`, `--allow`) and exits 2 when there is no
+  Twig file to scan; `check-translation-key-parity` fails when catalogues exist without the reference locale and reads
+  `.yml`; invalid JSON, an empty `--only=` and a missing `--forbid-raw` directory exit 2.
+- `check-no-raw-html-form` reads only `src/Resources/views` and the `templates` directories of the demos (never the git-ignored
+  container data folders), accepts `--allow=<glob>`, and exits 2 on an unreadable directory; `check-translation-key-parity`
+  exits 2 when an explicit `--dir` / `--domain` points at a missing translations directory.
+- `SecondConnection` passes the database URL to its helper process through the environment and rejects multi-line SQL.
+
+### Changed (dev dependencies)
+
+- `require-dev`: `doctrine/orm` ^3.0, `psr/log` ^3.0, `symfony/config` and `symfony/dependency-injection` (the helpers are
+  tested against them); `suggest` lists the library each helper needs.
+
 ### Changed (tests)
 
 - `phpunit.xml.dist` sets `SYMFONY_DEPRECATIONS_HELPER=max[direct]=0` (REQ-SF-005).

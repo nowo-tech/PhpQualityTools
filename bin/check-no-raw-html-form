@@ -1,0 +1,15 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Fail on raw form markup in Twig (use Symfony Form).
+ * See docs/USAGE.md ("Bundle repository checks") or run with --help.
+ */
+
+use NowoTech\PhpQualityTools\Gate\Twig\NoRawHtmlFormCommand;
+
+require __DIR__ . '/autoload.php';
+
+exit((new NoRawHtmlFormCommand(\STDOUT, \STDERR, (string) getcwd()))->run(array_slice($argv, 1)));

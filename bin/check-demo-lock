@@ -1,0 +1,15 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Fail when a demo's composer.lock does not satisfy the bundle's composer.json require.
+ * See docs/USAGE.md ("Bundle repository checks") or run with --help.
+ */
+
+use NowoTech\PhpQualityTools\Gate\DemoLock\DemoLockCommand;
+
+require __DIR__ . '/autoload.php';
+
+exit((new DemoLockCommand(\STDOUT, \STDERR, (string) getcwd()))->run(array_slice($argv, 1)));
