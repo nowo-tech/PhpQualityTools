@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.14.0] - 2026-11-21](#1140---2026-11-21)
 - [[1.13.0] - 2026-11-15](#1130---2026-11-15)
 - [[1.12.0] - 2026-11-10](#1120---2026-11-10)
 - [[1.11.0] - 2026-11-05](#1110---2026-11-05)
@@ -48,6 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2024-12-11](#100---2024-12-11)
 
 ## [Unreleased]
+
+## [1.14.0] - 2026-11-21
 
 Target 1.14.0 (minor, additive). Shared test helpers and repository checks that bundles used to copy from each other;
 every addition is opt-in. See [Usage → Shared test helpers](USAGE.md#shared-test-helpers-since-1140) and
@@ -102,6 +105,8 @@ every addition is opt-in. See [Usage → Shared test helpers](USAGE.md#shared-te
 ### Changed (tooling)
 
 - Makefile: `test-coverage-100` (alias `coverage-check`) runs `composer test-coverage-100` and fails below 100%; `release-check` uses it (REQ-TEST-006).
+
+[1.14.0]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.14.0
 
 ## [1.13.0] - 2026-11-15
 
@@ -207,7 +212,7 @@ and spec [`specs/007-module-boundary-layers`](https://github.com/nowo-tech/PhpQu
   ones without adding them (`--allow-grow` adds them). The write is atomic (temporary file + rename), only inside the
   project root and never through a symbolic link.
 
-[Unreleased]: https://github.com/nowo-tech/PhpQualityTools/compare/v1.13.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/PhpQualityTools/compare/v1.14.0...HEAD
 
 [1.12.0]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.12.0
 
