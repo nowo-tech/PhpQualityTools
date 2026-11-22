@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NowoTech\PhpQualityTools\Tests\Unit\Gate;
 
+use Doctrine\ORM\Mapping\Entity;
 use NowoTech\PhpQualityTools\Gate\ModuleBoundary\ReferenceExtractor;
 use PHPUnit\Framework\TestCase;
 
@@ -62,7 +63,7 @@ final class ReferenceExtractorTest extends TestCase
             ['name' => 'App\\Shared\\helper', 'line' => 8],
             ['name' => 'App\\Shared\\LIMIT', 'line' => 8],
             ['name' => 'App\\Shared\\Thing', 'line' => 8],
-            ['name' => 'Doctrine\\ORM\\Mapping\\Entity', 'line' => 11],
+            ['name' => Entity::class, 'line' => 11],
             ['name' => 'App\\Traits\\T', 'line' => 14],
             ['name' => 'App\\Uptime\\Domain\\Local\\Traits\\U', 'line' => 15],
             ['name' => 'App\\Uptime\\Domain\\Infrastructure\\Thing', 'line' => 29],

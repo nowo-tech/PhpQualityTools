@@ -50,6 +50,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Rector (`make rector-dry` failed on 6 files): `::class` instead of class-name strings, a De Morgan simplification in `TemplateFiles`, an arrow function in a test, and the private helpers `fail()` and `assertSingleLine()` of `SecondConnection` are instance methods. No public API or behaviour change.
+
 ## [1.14.0] - 2026-11-21
 
 Target 1.14.0 (minor, additive). Shared test helpers and repository checks that bundles used to copy from each other;

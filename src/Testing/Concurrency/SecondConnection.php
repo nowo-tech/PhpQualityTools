@@ -57,11 +57,15 @@ final class SecondConnection
         // Test-only helper process; every read below is bounded by stream_set_timeout().
         // @phpstan-ignore frankenphp.classic.noUnlimitedIoTimeout
         $process = proc_open([\PHP_BINARY, $script, $autoload], [0 => ['pipe', 'r'], 1 => ['pipe', 'w']], $pipes, null, [self::URL_VARIABLE => $url] + getenv());
-        \is_resource($process) || self::fail('Could not start the second database session.');
+        if (!\is_resource($process)) {
+            $this->fail('Could not start the second database session.');
+        }
         $this->process = $process;
         $this->pipes = $pipes;
         stream_set_timeout($this->pipes[1], self::READ_TIMEOUT_SECONDS);
-        'READY' === $this->readLine() || self::fail('The second database session did not start.');
+        if ('READY' !== $this->readLine()) {
+            $this->fail('The second database session did not start.');
+        }
     }
 
     /**
@@ -82,7 +86,7 @@ final class SecondConnection
      */
     public function send(string $sql): void
     {
-        self::assertSingleLine($sql);
+        $this->assertSingleLine($sql);
         fwrite($this->pipes[0], 'SQL ' . $sql . "\n");
     }
 
@@ -102,7 +106,7 @@ final class SecondConnection
      */
     public function value(string $sql): string
     {
-        self::assertSingleLine($sql);
+        $this->assertSingleLine($sql);
         fwrite($this->pipes[0], 'VAL ' . $sql . "\n");
 
         return $this->await();
@@ -127,14 +131,14 @@ final class SecondConnection
     /**
      * The protocol is one command per line: a line break would run the rest of the SQL as another command.
      */
-    private static function assertSingleLine(string $sql): void
+    private function assertSingleLine(string $sql): void
     {
         if (str_contains($sql, "\n") || str_contains($sql, "\r")) {
             throw new \InvalidArgumentException('The SQL of a second-session command must be a single line.');
         }
     }
 
-    private static function fail(string $message): never
+    private function fail(string $message): never
     {
         throw new \RuntimeException($message);
     }
@@ -143,7 +147,7 @@ final class SecondConnection
     {
         $line = fgets($this->pipes[1]);
         if (false === $line) {
-            self::fail('The second database session ended unexpectedly.');
+            $this->fail('The second database session ended unexpectedly.');
         }
 
         return rtrim($line, "\r\n");

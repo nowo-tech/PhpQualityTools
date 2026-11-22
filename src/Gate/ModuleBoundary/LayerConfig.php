@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace NowoTech\PhpQualityTools\Gate\ModuleBoundary;
 
+use Doctrine\ORM\EntityManager;
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\Persistence\ObjectManager;
+
 /**
  * The optional `layers` section of a module-boundary map (since 1.12.0): layers inside declared contexts (modules),
  * the layer rules, the mode of each context and the baseline file.
@@ -100,10 +105,10 @@ final readonly class LayerConfig
                 'forbid_names',
                 in: ['UI'],
                 names: [
-                    'Doctrine\\ORM\\EntityManagerInterface',
-                    'Doctrine\\ORM\\EntityManager',
-                    'Doctrine\\Persistence\\ObjectManager',
-                    'Doctrine\\Persistence\\ManagerRegistry',
+                    EntityManagerInterface::class,
+                    EntityManager::class,
+                    ObjectManager::class,
+                    ManagerRegistry::class,
                     '*Repository',
                     '*RepositoryInterface',
                 ],
