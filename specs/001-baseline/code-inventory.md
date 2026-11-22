@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/php-quality-tools`  
-**Last audited**: 2026-11-16 (1.13.0)
+**Last audited**: 2026-11-22 (1.14.0)
 
 This file proves that **every production source artifact** under `src/` is referenced by the baseline specification. PHPUnit tests under `tests/` and shipped config templates under `config/` are out of this inventory scope unless promoted in the spec.
 
@@ -160,6 +160,26 @@ Coverage resume is specified in [`specs/008-coverage-resume/spec.md`](../008-cov
 | `Gate/ModuleBoundary/LayerViolation.php` | Module-boundary layers | FR-GATE-MB-009 (007 FR-001…FR-005) |
 | `Gate/ModuleBoundary/ReferenceExtractor.php` | Module-boundary layers | FR-GATE-MB-009 (007 FR-001…FR-005) |
 
+## Demo-lock, translation and Twig gates, concurrency and worker test helpers (since 1.14.0)
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Gate/DemoLock/DemoLockCommand.php` | `bin/check-demo-lock`: each `demo/<name>/composer.lock` satisfies the bundle's `require` | FR-GATE-DL-001 |
+| `Gate/DemoLock/ConstraintMatcher.php` | Composer constraint matcher without `composer/semver` | FR-GATE-DL-001 |
+| `Gate/Translation/KeyParityCommand.php` | `bin/check-translation-key-parity`: same key set across locales, Twig literal keys exist (REQ-I18N-002) | FR-GATE-I18N-001 |
+| `Gate/Twig/NoRawHtmlFormCommand.php` | `bin/check-no-raw-html-form`: no raw `<form>` / `<input>` markup in views (REQ-TWIG-005) | FR-GATE-TWIG-001 |
+| `Gate/Twig/TwigExtraCommand.php` | `bin/check-twig-extra`: `twig/extra-bundle` ready in the package and the demos (REQ-TWIG-004) | FR-GATE-TWIG-002 |
+| `Gate/Twig/TemplateFiles.php` | Finds the Twig files of a checkout for the Twig gates | FR-GATE-TWIG-001, FR-GATE-TWIG-002 |
+| `Testing/Concurrency/RetainingRepositoryFactory.php` | Repository factory keeping one repository per manager, for reset tests | FR-TEST-CONC-001 |
+| `Testing/Concurrency/SecondConnection.php` | Second database session in its own process for two-connection race and deadlock tests | FR-TEST-CONC-001 |
+| `Testing/Concurrency/TestManagerRegistry.php` | Minimal `ManagerRegistry` whose `resetManager()` builds a new manager on the same connection | FR-TEST-CONC-001 |
+| `Testing/SqliteManagerRegistry.php` | Real `ManagerRegistry` over in-memory SQLite managers | FR-TEST-CONC-001 |
+| `Testing/WorkerMemoryAssertions.php` | Heap-growth assertions over one kept-alive kernel | FR-TEST-WORKER-001 |
+| `Testing/RecordingLogger.php` | PSR-3 logger keeping every record for assertions | FR-TEST-HELP-001 |
+| `Testing/TwigPathsPassTestCase.php` | Contract test case of a bundle's `TwigPathsPass` | FR-TEST-HELP-001 |
+| `Testing/ConfigurationThreadStackTestCase.php` | Loads, builds and processes every configuration class with the FrankenPHP thread stack cap | FR-TEST-STACK-001 |
+| `Testing/ConfigurationThreadStack.php` | What the child process computes about a configuration class | FR-TEST-STACK-001 |
+
 ## Coverage summary
 
 | Category | Files | Mapped |
@@ -178,4 +198,5 @@ Coverage resume is specified in [`specs/008-coverage-resume/spec.md`](../008-cov
 | Test helpers and CI log tools (`src/Testing/`, `src/Gate/Junit/`, since 1.7.0) | 3 | 3 |
 | Test hygiene gates (`src/Gate/Coverage/`, `src/Gate/WallClock/`, since 1.11.0) | 3 | 3 |
 | Coverage tools and module-boundary layers (since 1.12.0) | 19 | 19 |
-| **Total `src/` artifacts** | **70** | **70** |
+| Demo-lock, translation and Twig gates, concurrency and worker test helpers (since 1.14.0) | 15 | 15 |
+| **Total `src/` artifacts** | **85** | **85** |
