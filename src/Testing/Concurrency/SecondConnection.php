@@ -57,15 +57,11 @@ final class SecondConnection
         // Test-only helper process; every read below is bounded by stream_set_timeout().
         // @phpstan-ignore frankenphp.classic.noUnlimitedIoTimeout
         $process = proc_open([\PHP_BINARY, $script, $autoload], [0 => ['pipe', 'r'], 1 => ['pipe', 'w']], $pipes, null, [self::URL_VARIABLE => $url] + getenv());
-        if (!\is_resource($process)) {
-            $this->fail('Could not start the second database session.');
-        }
+        \is_resource($process) || $this->fail('Could not start the second database session.');
         $this->process = $process;
         $this->pipes = $pipes;
         stream_set_timeout($this->pipes[1], self::READ_TIMEOUT_SECONDS);
-        if ('READY' !== $this->readLine()) {
-            $this->fail('The second database session did not start.');
-        }
+        'READY' === $this->readLine() || $this->fail('The second database session did not start.');
     }
 
     /**

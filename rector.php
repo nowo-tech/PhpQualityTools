@@ -20,4 +20,10 @@ return RectorConfig::configure()
     // Conflicts with php-cs-fixer fully_qualified_strict_types (short Tokens<Token> vs FQCN).
     ->withSkip([
         Rector\TypeDeclaration\Rector\FunctionLike\AddParamTypeSplFixedArrayRector::class,
+        // `x || self::fail(...)` -> `if (!x) { $this->fail(...); }` adds statements that only run when the helper
+        // process fails to start; this repo requires 100% coverage (make test-coverage-100) and the test helper is
+        // not worth a failure-path test of its own.
+        Rector\CodeQuality\Rector\Expression\InlineIfToExplicitIfRector::class => [
+            __DIR__ . '/src/Testing/Concurrency/SecondConnection.php',
+        ],
     ]);
