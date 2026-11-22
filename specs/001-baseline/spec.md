@@ -96,6 +96,17 @@ As an integrator, I set `extra.php-quality-tools.auto_add_scripts` to `true`, so
 - **FR-GATE-MB-009**: Optional `layers` section of the module-boundary map (`Gate\ModuleBoundary\Layer*`, `ReferenceExtractor`): per-context layer rules with a shrink-only `rule|file|subject` baseline — see [`007-module-boundary-layers`](../007-module-boundary-layers/spec.md).
 - **FR-BIN-001**: Every `bin/` entry point (`assert-latest-tag`, `assert-release-proof`, `changed-tests`, `check-*`, `clean-stale-pid-paths`, `coverage-gaps`, `coverage-resume`, `heavy-lock`, `install-git-hooks`, `junit-failures`, `memory-guard`, `quiet-run`, `release-phase`, `slowest-tests`, `strip-agent-coauthor`) is documented in [`docs/USAGE.md`](../../docs/USAGE.md); shell entry points (`heavy-lock`, `memory-guard`, `release-phase`, `quiet-run`) are tooling outside `src/` and are covered by the shell tests under `tests/`.
 
+### Gates and test helpers (1.14.0)
+
+- **FR-GATE-DL-001**: `bin/check-demo-lock` (`Gate\DemoLock\DemoLockCommand`, `ConstraintMatcher`) checks that every `demo/<name>/composer.lock` satisfies the bundle's own `require` (caret, tilde, comparison, wildcard, `||` and AND constraints, no `composer/semver`); a demo without a lock is reported and passes. Exit codes: 0 OK, 1 stale lock, 2 usage error or invalid JSON.
+- **FR-GATE-I18N-001**: `bin/check-translation-key-parity` (`Gate\Translation\KeyParityCommand`) fails when the translation YAML files of a domain do not share one nested key set across the required locales, or a Twig template translates a literal key the reference catalogue lacks (REQ-I18N-002). Exit codes: 0 OK, 1 mismatch, 2 usage error.
+- **FR-GATE-TWIG-001**: `bin/check-no-raw-html-form` (`Gate\Twig\NoRawHtmlFormCommand`, `TemplateFiles`) fails on raw `<form>` / `<input>` / `<textarea>` / `<select>` markup in bundle views and demo templates (REQ-TWIG-005); strict by default, exceptions only through explicit opt-in flags.
+- **FR-GATE-TWIG-002**: `bin/check-twig-extra` (`Gate\Twig\TwigExtraCommand`) fails when a bundle ships Twig templates but `twig/extra-bundle` and `twig/string-extra` (package) or `twig/extra-bundle` and `TwigExtraBundle` (demos) are missing; `--forbid-raw=<dir>` also fails on the `|raw` filter (REQ-TWIG-004).
+- **FR-TEST-CONC-001**: `Testing\Concurrency\*` and `Testing\SqliteManagerRegistry` are concurrency test helpers (REQ-RUNTIME-003): `SecondConnection` (a second session in its own process for lock and deadlock races), `TestManagerRegistry` and `SqliteManagerRegistry` (a `ManagerRegistry` whose `resetManager()` replaces the manager as DoctrineBundle does in a worker), `RetainingRepositoryFactory` (proves a repository from before a reset is not reused).
+- **FR-TEST-WORKER-001**: `Testing\WorkerMemoryAssertions` samples the post-GC heap while one kept-alive kernel handles many requests and asserts the growth stays small (REQ-RUNTIME-002).
+- **FR-TEST-HELP-001**: `Testing\RecordingLogger` (PSR-3 logger keeping every record, with `dump()` / `contextValues()` for "nothing leaked" assertions) and `Testing\TwigPathsPassTestCase` (the contract of a bundle's `TwigPathsPass`).
+- **FR-TEST-STACK-001**: `Testing\ConfigurationThreadStackTestCase` and `ConfigurationThreadStack` run every configuration class and source file of a package in a child PHP process with the stack capped at a FrankenPHP thread's 512 KiB (`zend.max_allowed_stack_size`).
+
 ---
 
 ## Success Criteria
