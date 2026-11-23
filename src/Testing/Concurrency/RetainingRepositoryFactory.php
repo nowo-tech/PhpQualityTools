@@ -40,7 +40,7 @@ final class RetainingRepositoryFactory implements RepositoryFactory
     public function getRepository(EntityManagerInterface $entityManager, string $entityName): EntityRepository
     {
         /** @var EntityRepository<T> $repository */
-        $repository = $this->repositories[spl_object_id($entityManager)][$entityName] ??= new EntityRepository($entityManager, $entityManager->getClassMetadata($entityName));
+        $repository = $this->repositories[spl_object_id($entityManager)][$entityName] ??= new EntityRepository($entityManager, $entityManager->getClassMetadata($entityName)); // @igor-ignore - PHPUnit test-support code for the consumers' test suites, never a service of a worker application.
 
         return $repository;
     }

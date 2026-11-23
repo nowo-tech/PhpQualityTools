@@ -69,17 +69,20 @@ final class SqliteManagerRegistry extends AbstractManagerRegistry
             return $this->connection($manager);
         }
 
+        // @igor-ignore - PHPUnit test-support code for the consumers' test suites, never a service of a worker application.
         return $this->managers[$manager] ??= $this->create($manager);
     }
 
     protected function resetService(string $name): void
     {
         $manager = substr($name, 3);
+        // @igor-ignore - PHPUnit test-support code for the consumers' test suites, never a service of a worker application.
         $this->managers[$manager] = $this->create($manager);
     }
 
     private function connection(string $name): Connection
     {
+        // @igor-ignore - PHPUnit test-support code for the consumers' test suites, never a service of a worker application.
         return $this->connections[$name] ??= DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true]);
     }
 

@@ -49,7 +49,9 @@ final class TestManagerRegistry extends AbstractManagerRegistry
     protected function resetService(string $name): void
     {
         if ('manager' === $name) {
+            // @igor-ignore - PHPUnit test-support code for the consumers' test suites, never a service of a worker application.
             ++$this->resets;
+            // @igor-ignore - PHPUnit test-support code for the consumers' test suites, never a service of a worker application.
             $this->manager = ($this->managerFactory)($this->connection);
         }
     }

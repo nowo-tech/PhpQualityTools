@@ -23,6 +23,7 @@ $autoload = $argv[1] ?? '';
 $url = (string) getenv('PQT_SECOND_CONNECTION_URL');
 if ('' === $autoload || '' === $url || !is_file($autoload)) {
     fwrite(\STDERR, "Usage: PQT_SECOND_CONNECTION_URL=<database url> php second-connection.php <vendor/autoload.php>\n");
+    // @igor-ignore - CLI usage error of a test subprocess script (php <script>), never run in a worker.
     exit(2);
 }
 

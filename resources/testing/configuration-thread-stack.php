@@ -16,6 +16,7 @@ $autoload = $argv[1] ?? '';
 $class = $argv[2] ?? '';
 if ('' === $autoload || '' === $class || !is_file($autoload)) {
     fwrite(\STDERR, "Usage: php configuration-thread-stack.php <vendor/autoload.php> <configuration class>\n");
+    // @igor-ignore - CLI usage error of a test subprocess script (php <script>), never run in a worker.
     exit(2);
 }
 
