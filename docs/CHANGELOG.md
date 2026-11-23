@@ -52,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Dev: Igor 0.11 (REQ-CS-008) — the `src/Testing` helpers and the `resources/testing` subprocess scripts carry documented `@igor-ignore` comments (false positives: test-support code, never run in a worker). `igor-php/igor-php` accepts `^0.11.0` (supersedes #85).
 - `rector.php`: `InlineIfToExplicitIfRector` is skipped for `SecondConnection` (the explicit `if` adds failure-path statements that break the 100% coverage gate). No code change.
 
 ### Fixed

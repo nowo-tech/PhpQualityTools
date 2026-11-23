@@ -27,6 +27,7 @@ final class RecordingLogger extends AbstractLogger
      */
     public function log($level, string|\Stringable $message, array $context = []): void
     {
+        // @igor-ignore - PHPUnit test-support code for the consumers' test suites, never a service of a worker application.
         $this->records[] = [
             'level' => \is_string($level) || $level instanceof \Stringable ? (string) $level : get_debug_type($level),
             'message' => (string) $message,

@@ -69,6 +69,7 @@ abstract class TwigPathsPassTestCase extends TestCase
         foreach ($this->tempDirs as $dir) {
             $this->removeDirectory($dir);
         }
+        // @igor-ignore - PHPUnit test-support code for the consumers' test suites, never a service of a worker application.
         $this->tempDirs = [];
         parent::tearDown();
     }
@@ -170,6 +171,7 @@ abstract class TwigPathsPassTestCase extends TestCase
     {
         $dir = sys_get_temp_dir() . '/pqt-twig-paths-' . bin2hex(random_bytes(6));
         self::assertTrue(mkdir($dir, 0o777, true));
+        // @igor-ignore - PHPUnit test-support code for the consumers' test suites, never a service of a worker application.
         $this->tempDirs[] = $dir;
 
         return $dir;
