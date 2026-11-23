@@ -50,6 +50,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `check-module-boundaries` (`layers`): a `{context}` placeholder in the `names` / `allow` of `forbid_names` rules (and in `domain_allow`), expanded to the context of the file being checked, so one rule such as `allow: ['App\{context}\Domain\', 'App\Shared\Domain\']` covers every bounded context instead of one rule per context.
+- `check-module-boundaries` (`layers`): a context selector for a rule's `contexts`: `'@enforce'`, `'@warn'` or `'@all'`, read from each context's mode, so a module moved to `enforce` is covered without editing the rule. The explicit list of context names still works.
+- Config validation: an unknown selector, a selector inside a list, an unknown placeholder (only `{context}` exists), or `{context}` with no context declared fails with a clear message (exit 2). Existing configs, findings, baseline keys and `--strict-baseline` are unchanged (see `docs/USAGE.md`).
+
 ### Changed
 
 - Dev: Igor 0.11 (REQ-CS-008) — the `src/Testing` helpers and the `resources/testing` subprocess scripts carry documented `@igor-ignore` comments (false positives: test-support code, never run in a worker). `igor-php/igor-php` accepts `^0.11.0` (supersedes #85).

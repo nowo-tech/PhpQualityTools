@@ -45,7 +45,7 @@ final readonly class LayerChecker
                 }
                 ++$files;
                 $layer = $this->layerOfPath($file, $modulePath, $definition['layers']);
-                $rules = array_values(array_filter($layers->rules, static fn (LayerRule $rule): bool => $rule->appliesTo($context, $layer)));
+                $rules = array_values(array_filter($layers->rules, static fn (LayerRule $rule): bool => $rule->appliesTo($context, $layer, $definition['mode'])));
                 if ([] === $rules) {
                     continue;
                 }
@@ -90,7 +90,7 @@ final readonly class LayerChecker
     private function breaks(ModuleBoundaryConfig $config, LayerConfig $layers, LayerRule $rule, string $context, ?string $layer, string $name): bool
     {
         if ('forbid_names' === $rule->type) {
-            return LayerRule::nameMatchesAny($name, $rule->names) && !LayerRule::nameMatchesAny($name, $rule->allow);
+            return LayerRule::nameMatchesAny($name, $rule->namesFor($context)) && !LayerRule::nameMatchesAny($name, $rule->allowFor($context));
         }
 
         $targetModule = $this->moduleOfName($config, $name);

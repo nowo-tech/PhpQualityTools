@@ -64,6 +64,11 @@
 
 ## Unreleased
 
+From **1.14.0** (minor release, nothing to change): existing `layers` configs behave exactly as before. Optional: replace
+one `forbid_names` rule per context with a single rule using `{context}` in `names` / `allow` and `contexts: '@enforce'`
+(see "One rule for every context" in [USAGE.md](USAGE.md)). A rule that literally contains `{...}` in `names` / `allow` now
+fails validation (`{context}` is expanded, anything else is rejected); no PHP class name contains braces.
+
 ## To 1.14.0
 
 From **1.13.0** (minor release, nothing to change):

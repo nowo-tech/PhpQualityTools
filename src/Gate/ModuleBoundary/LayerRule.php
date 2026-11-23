@@ -8,13 +8,15 @@ namespace NowoTech\PhpQualityTools\Gate\ModuleBoundary;
  * One layer rule of the `layers.rules` list (see {@see LayerConfig}).
  *
  * Source files: the files of the declared contexts whose layer is in `in`, or (with `not_in`) whose layer is not in
- * `not_in` (files outside every layer of their context included); optionally only in the listed `contexts`.
+ * `not_in` (files outside every layer of their context included); optionally only in the listed `contexts`, or in the
+ * contexts picked by a selector (`@all`, `@enforce`, `@warn`: by the mode the context has, since 1.15.0).
  *
  * - `forbid_layers`: the files must not reference a name of the `to` layers (of any context, or `scope` same / other).
  * - `allow_layers`:  the files may only reference names of the `to` layers (and their own layer); names outside every
  *   layer (vendor code, not yet layered code) are not checked.
  * - `forbid_names`:  the files must not reference the `names` (exact, namespace prefix ending in `\`, or `*` glob),
- *   except the `allow` entries (same syntax).
+ *   except the `allow` entries (same syntax). `{context}` in a pattern is the context of the file being checked
+ *   (since 1.15.0), so one rule covers every context.
  * - `forbid_calls`:  the files must not call the `methods` (`->name(` / `?->name(`, case-insensitive).
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
@@ -28,6 +30,11 @@ final readonly class LayerRule
 
     public const SCOPES = ['any', 'same', 'other'];
 
+    /** `contexts: '<selector>'`: every declared context, or the ones in that mode. */
+    public const SELECTORS = ['@all', '@enforce', '@warn'];
+
+    public const PLACEHOLDER = '{context}';
+
     /**
      * @param list<string> $in       Source layers (empty with `not_in`)
      * @param list<string> $notIn    Excluded source layers (empty with `in`)
@@ -36,6 +43,7 @@ final readonly class LayerRule
      * @param list<string> $names    Forbidden name patterns (forbid_names)
      * @param list<string> $allow    Allowed name patterns (forbid_names)
      * @param list<string> $methods  Forbidden method names, lowercased (forbid_calls)
+     * @param string|null  $selector Context selector (one of {@see self::SELECTORS}); `$contexts` is then empty
      */
     public function __construct(
         public string $id,
@@ -49,14 +57,19 @@ final readonly class LayerRule
         public array $allow = [],
         public array $methods = [],
         public string $message = '',
+        public ?string $selector = null,
     ) {
     }
 
     /**
-     * Whether a file of `$context` in `$layer` (null = outside every layer) is checked by this rule.
+     * Whether a file of `$context` (whose mode is `$mode`) in `$layer` (null = outside every layer) is checked by this
+     * rule.
      */
-    public function appliesTo(string $context, ?string $layer): bool
+    public function appliesTo(string $context, ?string $layer, string $mode = ''): bool
     {
+        if (null !== $this->selector && '@all' !== $this->selector && '@' . $mode !== $this->selector) {
+            return false;
+        }
         if ([] !== $this->contexts && !\in_array($context, $this->contexts, true)) {
             return false;
         }
@@ -65,6 +78,36 @@ final readonly class LayerRule
         }
 
         return null === $layer || !\in_array($layer, $this->notIn, true);
+    }
+
+    /**
+     * The `names` patterns for a file of `$context` (`{context}` expanded).
+     *
+     * @return list<string>
+     */
+    public function namesFor(string $context): array
+    {
+        return self::expand($this->names, $context);
+    }
+
+    /**
+     * The `allow` patterns for a file of `$context` (`{context}` expanded).
+     *
+     * @return list<string>
+     */
+    public function allowFor(string $context): array
+    {
+        return self::expand($this->allow, $context);
+    }
+
+    /**
+     * @param list<string> $patterns
+     *
+     * @return list<string>
+     */
+    public static function expand(array $patterns, string $context): array
+    {
+        return array_map(static fn (string $pattern): string => str_replace(self::PLACEHOLDER, $context, $pattern), $patterns);
     }
 
     /**

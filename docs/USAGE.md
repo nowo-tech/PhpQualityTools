@@ -283,14 +283,51 @@ The `@default` rules:
 | `ui-no-persistence` | `forbid_names` | `in: [UI]` | `Doctrine\ORM\EntityManagerInterface`, `Doctrine\ORM\EntityManager`, `Doctrine\Persistence\ObjectManager`, `Doctrine\Persistence\ManagerRegistry`, `*Repository`, `*RepositoryInterface` |
 | `flush-in-application` | `forbid_calls` | `not_in: [Application, Infrastructure]` | `->flush(` / `?->flush(` |
 
-Rule types (every rule: `id`, `type`, exactly one of `in` / `not_in`, optional `contexts`, optional `message`):
+Rule types (every rule: `id`, `type`, exactly one of `in` / `not_in`, optional `contexts` (names, or a selector since 1.15.0), optional `message`):
 
 | Type | Keys | Fails when a file of the selected layers … |
 | --- | --- | --- |
 | `forbid_layers` | `to`, `scope` | references a name in one of the `to` layers |
 | `allow_layers` | `to`, `scope` | references a name in a layer other than its own and the `to` layers (names outside every layer are not checked) |
-| `forbid_names` | `names`, `allow` | references a name matching `names` and not `allow` (exact name, namespace prefix ending in `\`, or `*` / `?` glob over the whole name; case-insensitive) |
+| `forbid_names` | `names`, `allow` | references a name matching `names` and not `allow` (exact name, namespace prefix ending in `\`, or `*` / `?` glob over the whole name; case-insensitive; `{context}` expands to the file's context, since 1.15.0) |
 | `forbid_calls` | `methods` | calls `->method(` / `?->method(` (case-insensitive) |
+
+#### One rule for every context: `{context}` and context selectors (since 1.15.0)
+
+Two additions keep a per-context rule from being repeated once per bounded context:
+
+- `{context}` in the `names` / `allow` of a `forbid_names` rule (and in `domain_allow`) expands to the **context name**
+  (the key of the module in `modules` / `layers.contexts`) of the file being checked. `{context}` is the only
+  placeholder; any other `{...}` is a config error, and so is `{context}` while `layers.contexts` declares no context.
+- `contexts` of a rule takes, besides a list of names, one **selector** string: `'@enforce'` (the contexts whose mode is
+  `enforce`), `'@warn'` (mode `warn`) or `'@all'` (every declared context; the same as leaving `contexts` out). The
+  selector reads the mode when the files are checked, so a context moved to `enforce` is covered without editing the
+  rule. A selector goes alone (`contexts: '@enforce'`, not `['@enforce', Billing]`); an unknown selector is a config error.
+
+"A Domain layer imports nothing outside its own Domain and `App\Shared\Domain\`", for every context in enforce mode,
+as one rule. Without the placeholder it needs one `forbid_names` rule per context (here three; Beacon has 17), each
+with its own `contexts` list and `allow`, and a test that fails when a new context forgets one:
+
+```yaml
+layers:
+  contexts: { Uptime: enforce, Billing: enforce, Identity: enforce, Reports: warn }
+  rules:
+    # Before: one rule per context, repeated 17 times.
+    #   - { id: domain-only-uptime,   type: forbid_names, in: [Domain], contexts: [Uptime],   names: ['App\'], allow: ['App\Uptime\Domain\',   'App\Shared\Domain\'] }
+    #   - { id: domain-only-billing,  type: forbid_names, in: [Domain], contexts: [Billing],  names: ['App\'], allow: ['App\Billing\Domain\',  'App\Shared\Domain\'] }
+    #   - { id: domain-only-identity, type: forbid_names, in: [Domain], contexts: [Identity], names: ['App\'], allow: ['App\Identity\Domain\', 'App\Shared\Domain\'] }
+    # After: one rule; a context that moves to enforce is covered with no edit.
+    - id: domain-only-own-domain
+      type: forbid_names
+      in: [Domain]
+      contexts: '@enforce'
+      names: ['App\']
+      allow: ['App\{context}\Domain\', 'App\Shared\Domain\']
+      message: 'Domain imports only its own Domain and App\Shared\Domain\.'
+```
+
+Findings, baseline keys (`rule|file|subject`, with the one rule id) and `--strict-baseline` behave as for any other rule;
+configs without `{context}` or a selector are unchanged.
 
 How it works:
 
