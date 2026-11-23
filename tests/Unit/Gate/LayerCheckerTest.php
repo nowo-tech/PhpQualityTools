@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NowoTech\PhpQualityTools\Tests\Unit\Gate;
 
+use Doctrine\ORM\EntityManagerInterface;
 use NowoTech\PhpQualityTools\Gate\ModuleBoundary\LayerChecker;
 use NowoTech\PhpQualityTools\Gate\ModuleBoundary\LayerRule;
 use NowoTech\PhpQualityTools\Gate\ModuleBoundary\LayerViolation;
@@ -213,8 +214,8 @@ final class LayerCheckerTest extends TestCase
         self::assertTrue(LayerRule::nameMatches('Symfony\\Component\\X', 'symfony\\'));
         self::assertTrue(LayerRule::nameMatches('Symfony', 'Symfony\\'));
         self::assertFalse(LayerRule::nameMatches('SymfonyX\\Y', 'Symfony\\'));
-        self::assertTrue(LayerRule::nameMatches('Doctrine\\ORM\\EntityManagerInterface', 'doctrine\\orm\\entitymanagerinterface'));
-        self::assertFalse(LayerRule::nameMatches('Doctrine\\ORM\\EntityManagerInterfaceX', 'Doctrine\\ORM\\EntityManagerInterface'));
+        self::assertTrue(LayerRule::nameMatches(EntityManagerInterface::class, 'doctrine\\orm\\entitymanagerinterface'));
+        self::assertFalse(LayerRule::nameMatches('Doctrine\\ORM\\EntityManagerInterfaceX', EntityManagerInterface::class));
         self::assertTrue(LayerRule::nameMatches('App\\Billing\\Repository\\InvoiceRepository', '*Repository'));
         self::assertFalse(LayerRule::nameMatches('App\\Billing\\Repository\\InvoiceRepositoryTrait', '*Repository'));
         self::assertTrue(LayerRule::nameMatches('App\\X\\Repo1', 'App\\?\\Repo?'));

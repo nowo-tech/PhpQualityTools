@@ -44,9 +44,7 @@ final class TestManagerRegistryTest extends TestCase
     public function testOnlyTheManagerServiceCountsAsAReset(): void
     {
         $connection = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true]);
-        $registry = new TestManagerRegistry($connection, static function (Connection $connection): EntityManagerInterface {
-            return new EntityManager($connection, OrmConfiguration::create());
-        });
+        $registry = new TestManagerRegistry($connection, static fn (Connection $connection): EntityManagerInterface => new EntityManager($connection, OrmConfiguration::create()));
 
         $method = new \ReflectionMethod($registry, 'resetService');
         $method->invoke($registry, 'connection');

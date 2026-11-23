@@ -33,7 +33,7 @@ final class TemplateFiles
         try {
             $iterator = new \RecursiveIteratorIterator(new \RecursiveCallbackFilterIterator(
                 new \RecursiveDirectoryIterator($base, \FilesystemIterator::SKIP_DOTS),
-                static fn (\SplFileInfo $file): bool => !($file->isDir() && (\in_array($file->getFilename(), self::SKIPPED, true) || str_starts_with($file->getFilename(), '.'))),
+                static fn (\SplFileInfo $file): bool => !$file->isDir() || !\in_array($file->getFilename(), self::SKIPPED, true) && !str_starts_with($file->getFilename(), '.'),
             ));
             /** @var \SplFileInfo $file */
             foreach ($iterator as $file) {
