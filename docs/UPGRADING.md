@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.15.0](#to-1150)
 - [To 1.14.0](#to-1140)
   - [Differences from the copies](#differences-from-the-copies)
 - [To 1.13.0](#to-1130)
@@ -63,6 +64,14 @@
 - [Related Documentation](#related-documentation)
 
 ## Unreleased
+
+## To 1.15.0
+
+From **1.14.0**:
+
+```bash
+composer update nowo-tech/php-quality-tools
+```
 
 From **1.14.0** (minor release, nothing to change): existing `layers` configs behave exactly as before. Optional: replace
 one `forbid_names` rule per context with a single rule using `{context}` in `names` / `allow` and `contexts: '@enforce'`

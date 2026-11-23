@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.15.0] - 2026-11-23](#1150---2026-11-23)
 - [[1.14.0] - 2026-11-21](#1140---2026-11-21)
 - [[1.13.0] - 2026-11-15](#1130---2026-11-15)
 - [[1.12.0] - 2026-11-10](#1120---2026-11-10)
@@ -50,6 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.15.0] - 2026-11-23
+
 ### Added
 
 - `check-module-boundaries` (`layers`): a `{context}` placeholder in the `names` / `allow` of `forbid_names` rules (and in `domain_allow`), expanded to the context of the file being checked, so one rule such as `allow: ['App\{context}\Domain\', 'App\Shared\Domain\']` covers every bounded context instead of one rule per context.
@@ -64,6 +67,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Rector (`make rector-dry` failed on 6 files): `::class` instead of class-name strings, a De Morgan simplification in `TemplateFiles`, an arrow function in a test, and the private helpers `fail()` and `assertSingleLine()` of `SecondConnection` are instance methods. No public API or behaviour change.
+
+[1.15.0]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.15.0
 
 ## [1.14.0] - 2026-11-21
 
@@ -227,7 +232,7 @@ and spec [`specs/007-module-boundary-layers`](https://github.com/nowo-tech/PhpQu
   ones without adding them (`--allow-grow` adds them). The write is atomic (temporary file + rename), only inside the
   project root and never through a symbolic link.
 
-[Unreleased]: https://github.com/nowo-tech/PhpQualityTools/compare/v1.14.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/PhpQualityTools/compare/v1.15.0...HEAD
 
 [1.12.0]: https://github.com/nowo-tech/PhpQualityTools/releases/tag/v1.12.0
 
