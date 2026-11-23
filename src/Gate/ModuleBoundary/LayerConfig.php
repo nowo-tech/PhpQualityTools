@@ -28,6 +28,10 @@ use Doctrine\Persistence\ObjectManager;
  *   baseline: config/quality/module-boundaries-baseline.txt
  * ```
  *
+ * Since 1.15.0 a rule's `contexts` is a list of context names or one selector (`'@all'`, `'@enforce'`, `'@warn'`:
+ * the contexts in that mode, so a context moved to `enforce` is covered without editing the rule), and the `names` /
+ * `allow` of a `forbid_names` rule (and `domain_allow`) may use `{context}`, expanded to the context of the file.
+ *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
  *
@@ -180,6 +184,7 @@ final readonly class LayerConfig
         }
 
         $domainAllow = self::stringList($data['domain_allow'] ?? self::DEFAULT_DOMAIN_ALLOW, 'layers.domain_allow', true);
+        self::placeholders($domainAllow, 'layers.domain_allow', $contexts);
 
         $rules = [];
         $ids = [];
@@ -231,8 +236,22 @@ final readonly class LayerConfig
         }
         $in = isset($rule['in']) ? self::layerList($rule['in'], "{$where}.in", $definitions) : [];
         $notIn = isset($rule['not_in']) ? self::layerList($rule['not_in'], "{$where}.not_in", $definitions) : [];
-        $ruleContexts = isset($rule['contexts']) ? self::stringList($rule['contexts'], "{$where}.contexts") : [];
+        $selector = null;
+        $ruleContexts = [];
+        if (isset($rule['contexts'])) {
+            if (\is_string($rule['contexts']) && str_starts_with($rule['contexts'], '@')) {
+                $selector = $rule['contexts'];
+                if (!\in_array($selector, LayerRule::SELECTORS, true)) {
+                    throw new ConfigException("{$where}.contexts: unknown selector \"{$selector}\" (allowed: " . implode(', ', LayerRule::SELECTORS) . ').');
+                }
+            } else {
+                $ruleContexts = self::stringList($rule['contexts'], "{$where}.contexts");
+            }
+        }
         foreach ($ruleContexts as $context) {
+            if (str_starts_with($context, '@')) {
+                throw new ConfigException("{$where}.contexts: selector \"{$context}\" must be given alone (contexts: '@enforce'), not inside a list.");
+            }
             if (!isset($contexts[$context])) {
                 throw new ConfigException(\sprintf('%s.contexts references undeclared context "%s".', $where, $context));
             }
@@ -250,6 +269,8 @@ final readonly class LayerConfig
         if ('forbid_names' === $type) {
             $names = self::stringList($rule['names'] ?? null, "{$where}.names");
             $allow = self::stringList($rule['allow'] ?? [], "{$where}.allow", true);
+            self::placeholders($names, "{$where}.names", $contexts);
+            self::placeholders($allow, "{$where}.allow", $contexts);
         } elseif ('forbid_calls' === $type) {
             foreach (self::stringList($rule['methods'] ?? null, "{$where}.methods") as $method) {
                 if (1 !== preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $method)) {
@@ -265,7 +286,30 @@ final readonly class LayerConfig
             }
         }
 
-        return new LayerRule($id, $type, $in, $notIn, $ruleContexts, $to, $scope, $names, $allow, $methods, $message);
+        return new LayerRule($id, $type, $in, $notIn, $ruleContexts, $to, $scope, $names, $allow, $methods, $message, $selector);
+    }
+
+    /**
+     * Only the `{context}` placeholder exists, and it needs a declared context to expand to.
+     *
+     * @param list<string>                                                                                                    $patterns
+     * @param array<string, array{mode: string, layers: array<string, array{paths: list<string>, namespaces: list<string>}>}> $contexts
+     */
+    private static function placeholders(array $patterns, string $where, array $contexts): void
+    {
+        foreach ($patterns as $pattern) {
+            if (0 === preg_match_all('/\{[^{}]*\}/', $pattern, $found)) {
+                continue;
+            }
+            foreach ($found[0] as $placeholder) {
+                if (LayerRule::PLACEHOLDER !== $placeholder) {
+                    throw new ConfigException("{$where}: unknown placeholder \"{$placeholder}\" in \"{$pattern}\" (only " . LayerRule::PLACEHOLDER . ' exists).');
+                }
+                if ([] === $contexts) {
+                    throw new ConfigException("{$where}: \"{$pattern}\" uses " . LayerRule::PLACEHOLDER . ' but layers.contexts declares no context to expand it to.');
+                }
+            }
+        }
     }
 
     /**
