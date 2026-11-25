@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/php-quality-tools`  
-**Last audited**: 2026-11-22 (1.14.0)
+**Last audited**: 2026-11-27 (1.15.0; 85/85 re-verified)
 
 This file proves that **every production source artifact** under `src/` is referenced by the baseline specification. PHPUnit tests under `tests/` and shipped config templates under `config/` are out of this inventory scope unless promoted in the spec.
 
@@ -154,9 +154,9 @@ Coverage resume is specified in [`specs/008-coverage-resume/spec.md`](../008-cov
 | `Gate/Coverage/Resume/ResumeState.php` | `bin/coverage-resume` | FR-COVR-001 (008 FR-001…FR-006) |
 | `Gate/Coverage/Resume/Snapshot.php` | `bin/coverage-resume` | FR-COVR-001 (008 FR-001…FR-006) |
 | `Gate/ModuleBoundary/LayerBaseline.php` | Module-boundary layers | FR-GATE-MB-009 (007 FR-001…FR-005) |
-| `Gate/ModuleBoundary/LayerChecker.php` | Module-boundary layers | FR-GATE-MB-009 (007 FR-001…FR-005) |
-| `Gate/ModuleBoundary/LayerConfig.php` | Module-boundary layers | FR-GATE-MB-009 (007 FR-001…FR-005) |
-| `Gate/ModuleBoundary/LayerRule.php` | Module-boundary layers | FR-GATE-MB-009 (007 FR-001…FR-005) |
+| `Gate/ModuleBoundary/LayerChecker.php` | Module-boundary layers (1.15: `{context}` placeholder and `@enforce` / `@warn` / `@all` context selectors) | FR-GATE-MB-009 (007 FR-001…FR-006) |
+| `Gate/ModuleBoundary/LayerConfig.php` | Module-boundary layers (1.15: `{context}` placeholder and `@enforce` / `@warn` / `@all` context selectors) | FR-GATE-MB-009 (007 FR-001…FR-006) |
+| `Gate/ModuleBoundary/LayerRule.php` | Module-boundary layers (1.15: `{context}` placeholder and `@enforce` / `@warn` / `@all` context selectors) | FR-GATE-MB-009 (007 FR-001…FR-006) |
 | `Gate/ModuleBoundary/LayerViolation.php` | Module-boundary layers | FR-GATE-MB-009 (007 FR-001…FR-005) |
 | `Gate/ModuleBoundary/ReferenceExtractor.php` | Module-boundary layers | FR-GATE-MB-009 (007 FR-001…FR-005) |
 
