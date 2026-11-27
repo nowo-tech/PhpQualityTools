@@ -23,7 +23,7 @@ final class UnreadableDirectoryTest extends TestCase
             if (is_readable($locked)) {
                 self::markTestSkipped('Permissions are not enforced (running as root).');
             }
-            $bare     = UnreadableDirectory::message(new \UnexpectedValueException('Failed to open directory: Permission denied'), $root . '/missing', $root);
+            $bare = UnreadableDirectory::message(new \UnexpectedValueException('Failed to open directory: Permission denied'), $root . '/missing', $root);
             $withPath = UnreadableDirectory::message(new \UnexpectedValueException("open({$locked}): Permission denied"), $root);
         } finally {
             chmod($locked, 0o755);
