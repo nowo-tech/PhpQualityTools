@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NowoTech\PhpQualityTools\Gate\Twig;
 
+use NowoTech\PhpQualityTools\Gate\Filesystem\UnreadableDirectory;
+
 /**
  * Finds the Twig files of a bundle checkout for the Twig gates.
  *
@@ -42,7 +44,7 @@ final class TemplateFiles
                 }
             }
         } catch (\UnexpectedValueException $e) {
-            throw new \RuntimeException('cannot read a directory: ' . $e->getMessage(), 0, $e);
+            throw new \RuntimeException('cannot read a directory: ' . UnreadableDirectory::message($e, $base), 0, $e);
         }
         sort($files);
 

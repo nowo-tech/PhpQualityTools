@@ -57,6 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   PHP 8.6 cell and a Symfony 8.2 cell (release candidates, allowed to fail until 8.2.0 is stable).
 - PHP 8.6: a test class constant named `NAMESPACE` is renamed (PHP 8.6 deprecates `namespace` as a class constant
   name).
+- PHP 8.6: the Twig, wall-clock and coverage-annotation gates name the unreadable directory again. PHP 8.6 dropped
+  the path from the directory iterator's error, so the first unreadable directory under the scanned paths is appended.
 
 ## [1.15.0] - 2026-11-23
 

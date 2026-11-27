@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NowoTech\PhpQualityTools\Gate\Coverage;
 
+use NowoTech\PhpQualityTools\Gate\Filesystem\UnreadableDirectory;
+
 /**
  * `bin/check-coverage-annotations`: fail on coverage annotations and `match` placements the coverage driver silently drops.
  *
@@ -110,7 +112,7 @@ final class CoverageAnnotationsCommand
             $files = $this->phpFiles($root, $paths, $exclude);
         } catch (\UnexpectedValueException $e) {
             // An unreadable directory: fail closed with a clear message instead of an uncaught exception.
-            fwrite($this->stderr, 'ERROR: cannot read a directory under the scanned paths: ' . $e->getMessage() . "\n");
+            fwrite($this->stderr, 'ERROR: cannot read a directory under the scanned paths: ' . UnreadableDirectory::message($e, ...array_map(static fn (string $path): string => $root . '/' . $path, $paths)) . "\n");
 
             return 2;
         }
