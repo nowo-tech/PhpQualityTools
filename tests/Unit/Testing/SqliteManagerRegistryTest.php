@@ -15,7 +15,7 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(SqliteManagerRegistry::class)]
 final class SqliteManagerRegistryTest extends TestCase
 {
-    private const NAMESPACE = 'NowoTech\PhpQualityTools\Tests\Fixtures\Testing\Orm';
+    private const ENTITY_NAMESPACE = 'NowoTech\PhpQualityTools\Tests\Fixtures\Testing\Orm';
 
     /**
      * @param list<object> $listeners
@@ -25,7 +25,7 @@ final class SqliteManagerRegistryTest extends TestCase
         $directory = __DIR__ . '/../../Fixtures/Testing/Orm';
 
         return new SqliteManagerRegistry(
-            ['default' => [self::NAMESPACE => $directory], 'other' => [self::NAMESPACE => $directory]],
+            ['default' => [self::ENTITY_NAMESPACE => $directory], 'other' => [self::ENTITY_NAMESPACE => $directory]],
             'default',
             $listeners,
         );
