@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NowoTech\PhpQualityTools\Gate\WallClock;
 
+use NowoTech\PhpQualityTools\Gate\Filesystem\UnreadableDirectory;
+
 /**
  * `bin/check-wallclock-fixtures`: fail on tests and fixtures that read the real clock without freezing it.
  *
@@ -136,7 +138,7 @@ final class WallClockFixturesCommand
             $files = $this->files($root, $paths, $exclude);
         } catch (\UnexpectedValueException $e) {
             // An unreadable directory: fail closed with a clear message instead of an uncaught exception.
-            fwrite($this->stderr, 'ERROR: cannot read a directory under the scanned paths: ' . $e->getMessage() . "\n");
+            fwrite($this->stderr, 'ERROR: cannot read a directory under the scanned paths: ' . UnreadableDirectory::message($e, ...array_map(static fn (string $path): string => $root . '/' . $path, $paths)) . "\n");
 
             return 2;
         }

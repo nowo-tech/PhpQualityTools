@@ -9,7 +9,7 @@
 
 ## Requirements
 
-- PHP `>= 8.1 < 8.6`
+- PHP `>= 8.1 < 8.7`
 - Composer `>= 2.0`
 
 ## Install the package
